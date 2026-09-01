@@ -10,6 +10,9 @@ type (
 	ProxyStatus        = repository.ProxyStatus
 	AvitoAccountStatus = repository.AvitoAccountStatus
 	UserRole           = repository.UserRole
+	Task               = repository.Task
+	TaskStatus         = repository.TaskStatus
+	ListTaskItemsRow   = repository.ListTaskItemsRow
 )
 
 const (

@@ -84,6 +84,11 @@ var ForbiddenPackagePathFragments = []string{
 	"feed_matcher",
 }
 
+// ForbiddenArtifactPaths are stale generated/hand paths that must not exist on disk.
+var ForbiddenArtifactPaths = []string{
+	"web/admin/face.html",
+}
+
 // ForbiddenGoModPathFragments: go.mod must not pull these until contracted.
 var ForbiddenGoModPathFragments = []string{
 	"github.com/go-telegram",

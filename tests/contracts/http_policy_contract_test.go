@@ -38,6 +38,7 @@ func TestContract_LandingHostRejectsAppAPI(t *testing.T) {
 		path   string
 	}{
 		{http.MethodPost, tokens.PathV1AuthMagicLinkConsume},
+		{http.MethodGet, tokens.PathV1AuthMagicLinkOpen},
 		{http.MethodGet, tokens.PathV1AdminProxies},
 		{http.MethodPost, tokens.PathV1Users},
 		{http.MethodGet, tokens.PathAppSSE},

@@ -29,6 +29,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 		tokens.PathV1ProxiesActive,
 		tokens.PathV1AuthMagicLink,
 		tokens.PathV1AuthMagicLinkConsume,
+		tokens.PathV1AuthMagicLinkOpen,
 		tokens.PathV1AuthLogout,
 		tokens.PathV1AdminProxies,
 		tokens.HTTPPathID(tokens.PathV1AdminProxies),

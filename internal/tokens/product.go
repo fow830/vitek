@@ -1,5 +1,7 @@
 package tokens
 
+import "net/url"
+
 // Product identity — single source for display and binaries.
 const (
 	ProductName      = "Vitek"
@@ -20,9 +22,16 @@ func HTTPSAppBase() string {
 	return HTTPSScheme + ProductDomainApp
 }
 
-// MagicLinkConsumeURL is the mailer POST target on the app domain.
+// MagicLinkConsumeURL is the JSON POST consume target on the app domain.
 func MagicLinkConsumeURL() string {
 	return HTTPSAppBase() + PathV1AuthMagicLinkConsume
+}
+
+// MagicLinkOpenURL returns the clickable magic link on the app domain (mailer SoT).
+func MagicLinkOpenURL(rawToken string) string {
+	v := url.Values{}
+	v.Set(QueryParamToken, rawToken)
+	return HTTPSAppBase() + PathV1AuthMagicLinkOpen + "?" + v.Encode()
 }
 
 // ProductDomainUnknownHost is used in contract fuzz (must never match real routes).

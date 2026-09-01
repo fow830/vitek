@@ -1,6 +1,7 @@
 package contracts_test
 
 import (
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -17,16 +18,31 @@ import (
 func TestContract_Architecture_LayerIsolation(t *testing.T) {
 	root := moduleRoot(t)
 	fset := token.NewFileSet()
+	transportDir := filepath.Join(root, tokens.PathTransport)
 
-	checkImports(t, fset, filepath.Join(root, tokens.PathTransport), func(imp string) bool {
-		if imp == tokens.ModuleImport(tokens.PathRepository) {
-			t.Errorf("Violation: transport imports repository directly (%s)", imp)
-			return false
+	err := filepath.Walk(transportDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
 		}
-		return true
+		if info.IsDir() || !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, imp := range f.Imports {
+			impPath := strings.Trim(imp.Path.Value, `"`)
+			if impPath == tokens.ModuleImport(tokens.PathRepository) {
+				t.Errorf("Violation: transport imports repository directly (%s)", impPath)
+				t.Errorf("File: %s", filepath.Base(path))
+			}
+		}
+		return nil
 	})
+	require.NoError(t, err)
 
-	checkImports(t, fset, filepath.Join(root, tokens.PathDomain), func(imp string) bool {
+	checkImports(t, fset, filepath.Join(root, tokens.PathDomain), func(_ *ast.File, imp string) bool {
 		for _, rel := range tokens.ArchitectureDomainForbiddenImports {
 			if imp == tokens.ModuleImport(rel) {
 				t.Errorf("Violation: domain imports forbidden layer %s (%s)", rel, imp)
@@ -37,7 +53,7 @@ func TestContract_Architecture_LayerIsolation(t *testing.T) {
 	})
 }
 
-func checkImports(t *testing.T, fset *token.FileSet, dir string, validator func(string) bool) {
+func checkImports(t *testing.T, fset *token.FileSet, dir string, validator func(*ast.File, string) bool) {
 	t.Helper()
 	require.DirExists(t, dir)
 
@@ -48,7 +64,7 @@ func checkImports(t *testing.T, fset *token.FileSet, dir string, validator func(
 		for filePath, file := range pkg.Files {
 			for _, imp := range file.Imports {
 				path := strings.Trim(imp.Path.Value, `"`)
-				if !validator(path) {
+				if !validator(file, path) {
 					t.Errorf("File: %s", filepath.Base(filePath))
 				}
 			}

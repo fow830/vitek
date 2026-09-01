@@ -226,6 +226,10 @@
       });
       if (!res.ok) { hint.textContent = 'Ошибка запроса Magic Link'; return false; }
       const data = await res.json();
+      if (data.magic_link_url) {
+        window.location.href = data.magic_link_url;
+        return false;
+      }
       if (data.token) {
         const creq = await fetch(pathConsume, {
           method: 'POST',

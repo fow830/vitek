@@ -14,7 +14,6 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 
 	"vitek/internal/domain"
-	"vitek/internal/repository"
 	"vitek/internal/service"
 	"vitek/internal/tokens"
 )
@@ -75,6 +74,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1ProxiesActive), s.handleListActiveProxies)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLink), s.handleMagicLinkRequest)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLinkConsume), s.handleMagicLinkConsume)
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1AuthMagicLinkOpen), s.handleMagicLinkOpen)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthLogout), s.handleLogout)
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1AdminProxies), s.requireAdmin(s.handleAdminListProxies))
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AdminProxies), s.requireAdmin(s.handleAdminCreateProxy))
@@ -156,6 +156,7 @@ func (s *Server) handleMagicLinkRequest(w http.ResponseWriter, r *http.Request) 
 	out := map[string]string{tokens.JSONFieldStatus: tokens.HealthStatusOK}
 	if s.exposeMagicTokens {
 		out[tokens.JSONFieldToken] = raw
+		out[tokens.JSONFieldMagicLinkURL] = tokens.MagicLinkOpenURL(raw)
 	}
 	writeJSON(w, http.StatusAccepted, out)
 }
@@ -168,17 +169,44 @@ func (s *Server) handleMagicLinkConsume(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
-	user, sessionRaw, err := s.auth.ConsumeMagicLink(r.Context(), strings.TrimSpace(req.Token))
+	user, err := s.consumeMagicLink(w, r, strings.TrimSpace(req.Token))
 	if err != nil {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidMagicToken})
 		return
 	}
-	http.SetCookie(w, s.sessionCookie(sessionRaw, time.Now().UTC().Add(tokens.SessionTTL)))
 	writeJSON(w, http.StatusOK, map[string]any{
 		tokens.JSONFieldEmail: user.Email,
 		tokens.JSONFieldRole:  string(user.Role),
-		tokens.JSONFieldID:    uuidFromPG(user.UserID),
+		tokens.JSONFieldID:    service.UUIDString(user.UserID),
 	})
+}
+
+func (s *Server) handleMagicLinkOpen(w http.ResponseWriter, r *http.Request) {
+	raw := strings.TrimSpace(r.URL.Query().Get(tokens.QueryParamToken))
+	if raw == "" {
+		s.writeMagicLinkOpenError(w, http.StatusBadRequest, tokens.MagicLinkOpenCopyMissingToken)
+		return
+	}
+	if _, err := s.consumeMagicLink(w, r, raw); err != nil {
+		s.writeMagicLinkOpenError(w, http.StatusUnauthorized, tokens.MagicLinkOpenCopyInvalid)
+		return
+	}
+	http.Redirect(w, r, tokens.PathRoot, http.StatusFound)
+}
+
+func (s *Server) consumeMagicLink(w http.ResponseWriter, r *http.Request, rawToken string) (service.SessionUser, error) {
+	user, sessionRaw, err := s.auth.ConsumeMagicLink(r.Context(), rawToken)
+	if err != nil {
+		return service.SessionUser{}, err
+	}
+	http.SetCookie(w, s.sessionCookie(sessionRaw, time.Now().UTC().Add(tokens.SessionTTL)))
+	return user, nil
+}
+
+func (s *Server) writeMagicLinkOpenError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set(tokens.HeaderContentType, tokens.MIMETextHTML)
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(tokens.RenderMagicLinkOpenErrorHTML(message)))
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +240,7 @@ func (s *Server) handleAdminListProxies(w http.ResponseWriter, r *http.Request) 
 	out := make([]map[string]any, 0, len(list))
 	for _, p := range list {
 		out = append(out, map[string]any{
-			tokens.JSONFieldID:       uuidFromPG(p.ID),
+			tokens.JSONFieldID:       service.UUIDString(p.ID),
 			tokens.JSONFieldEndpoint: p.Endpoint,
 			tokens.JSONFieldStatus:   string(p.Status),
 			tokens.JSONFieldLabel:    p.Label,
@@ -241,7 +269,7 @@ func (s *Server) handleAdminCreateProxy(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		tokens.JSONFieldID:       uuidFromPG(p.ID),
+		tokens.JSONFieldID:       service.UUIDString(p.ID),
 		tokens.JSONFieldEndpoint: p.Endpoint,
 		tokens.JSONFieldStatus:   string(p.Status),
 		tokens.JSONFieldLabel:    p.Label,
@@ -273,7 +301,7 @@ func (s *Server) handleAdminPatchProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		tokens.JSONFieldID:       uuidFromPG(p.ID),
+		tokens.JSONFieldID:       service.UUIDString(p.ID),
 		tokens.JSONFieldEndpoint: p.Endpoint,
 		tokens.JSONFieldStatus:   string(p.Status),
 		tokens.JSONFieldLabel:    p.Label,
@@ -289,7 +317,7 @@ func (s *Server) handleAdminListAvito(w http.ResponseWriter, r *http.Request) {
 	out := make([]map[string]any, 0, len(list))
 	for _, a := range list {
 		out = append(out, map[string]any{
-			tokens.JSONFieldID:          uuidFromPG(a.ID),
+			tokens.JSONFieldID:          service.UUIDString(a.ID),
 			tokens.JSONFieldLabel:       a.Label,
 			tokens.JSONFieldStatus:      string(a.Status),
 			tokens.JSONFieldExternalRef: a.ExternalRef,
@@ -318,7 +346,7 @@ func (s *Server) handleAdminCreateAvito(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		tokens.JSONFieldID:          uuidFromPG(a.ID),
+		tokens.JSONFieldID:          service.UUIDString(a.ID),
 		tokens.JSONFieldLabel:       a.Label,
 		tokens.JSONFieldStatus:      string(a.Status),
 		tokens.JSONFieldExternalRef: a.ExternalRef,
@@ -350,7 +378,7 @@ func (s *Server) handleAdminPatchAvito(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		tokens.JSONFieldID:          uuidFromPG(a.ID),
+		tokens.JSONFieldID:          service.UUIDString(a.ID),
 		tokens.JSONFieldLabel:       a.Label,
 		tokens.JSONFieldStatus:      string(a.Status),
 		tokens.JSONFieldExternalRef: a.ExternalRef,
@@ -385,7 +413,7 @@ func (s *Server) serveAppPage(w http.ResponseWriter, r *http.Request) {
 	html := tokens.RenderAppFaceHTML()
 	if user, ok := s.sessionUser(r); ok {
 		withSSE := user.IsAdmin()
-		html = tokens.RenderAppFaceHTMLLoggedIn(user.Email, uuidFromPG(user.UserID), withSSE)
+		html = tokens.RenderAppFaceHTMLLoggedIn(user.Email, service.UUIDString(user.UserID), withSSE)
 	}
 	w.Header().Set(tokens.HeaderContentType, tokens.MIMETextHTML)
 	w.WriteHeader(http.StatusOK)
@@ -474,7 +502,7 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		tokens.JSONFieldID:    uuidFromPG(user.ID),
+		tokens.JSONFieldID:    service.UUIDString(user.ID),
 		tokens.JSONFieldEmail: user.Email,
 	})
 }
@@ -517,8 +545,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		tokens.JSONFieldID:     uuidFromPG(task.ID),
-		tokens.JSONFieldUserID: uuidFromPG(task.UserID),
+		tokens.JSONFieldID:     service.UUIDString(task.ID),
+		tokens.JSONFieldUserID: service.UUIDString(task.UserID),
 		tokens.JSONFieldQuery:  task.Query,
 		tokens.JSONFieldStatus: string(task.Status),
 	})
@@ -558,7 +586,7 @@ func (s *Server) handleCreateMyTask(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgCreateTaskFailed})
 		return
 	}
-	writeJSON(w, http.StatusCreated, taskJSON(task))
+	writeJSON(w, http.StatusCreated, service.TaskJSON(task))
 }
 
 func (s *Server) handleListMyTasks(w http.ResponseWriter, r *http.Request) {
@@ -574,7 +602,7 @@ func (s *Server) handleListMyTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, 0, len(list))
 	for _, task := range list {
-		out = append(out, taskJSON(task))
+		out = append(out, service.TaskJSON(task))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldTasks: out})
 }
@@ -603,7 +631,7 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgGetTaskFailed})
 		return
 	}
-	writeJSON(w, http.StatusOK, taskJSON(task))
+	writeJSON(w, http.StatusOK, service.TaskJSON(task))
 }
 
 func (s *Server) handleGetTaskResults(w http.ResponseWriter, r *http.Request) {
@@ -632,23 +660,9 @@ func (s *Server) handleGetTaskResults(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, 0, len(items))
 	for _, it := range items {
-		out = append(out, map[string]any{
-			tokens.JSONFieldID:       uuidFromPG(it.ID),
-			tokens.JSONFieldAvitoID:  it.AvitoID,
-			tokens.JSONFieldTitle:    it.Title,
-			tokens.JSONFieldRank:     it.Rank,
-		})
+		out = append(out, service.TaskResultJSON(it))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldResults: out})
-}
-
-func taskJSON(task repository.Task) map[string]any {
-	return map[string]any{
-		tokens.JSONFieldID:     uuidFromPG(task.ID),
-		tokens.JSONFieldUserID: uuidFromPG(task.UserID),
-		tokens.JSONFieldQuery:  task.Query,
-		tokens.JSONFieldStatus: string(task.Status),
-	}
 }
 
 func (s *Server) handleListActiveProxies(w http.ResponseWriter, r *http.Request) {
@@ -660,7 +674,7 @@ func (s *Server) handleListActiveProxies(w http.ResponseWriter, r *http.Request)
 	out := make([]map[string]any, 0, len(list))
 	for _, p := range list {
 		out = append(out, map[string]any{
-			tokens.JSONFieldID:       uuidFromPG(p.ID),
+			tokens.JSONFieldID:       service.UUIDString(p.ID),
 			tokens.JSONFieldEndpoint: p.Endpoint,
 			tokens.JSONFieldStatus:   string(p.Status),
 		})
@@ -680,11 +694,4 @@ func parseUUID(raw string) (pgtype.UUID, error) {
 		return pgtype.UUID{}, err
 	}
 	return pgtype.UUID{Bytes: id, Valid: true}, nil
-}
-
-func uuidFromPG(id pgtype.UUID) string {
-	if !id.Valid {
-		return ""
-	}
-	return uuid.UUID(id.Bytes).String()
 }

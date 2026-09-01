@@ -27,7 +27,22 @@ const (
 	ListingSearchStubResultCount = 2
 
 	ListingSearchTaskListLimit int32 = 20
+
+	ListingSearchPollMaxAttempts = 30
+	ListingSearchPollIntervalMs  = 500
 )
+
+// TaskStatus* mirror PostgreSQL task_status enum (SoT for JSON + generated JS).
+const (
+	TaskStatusPending   = "PENDING"
+	TaskStatusRunning   = "RUNNING"
+	TaskStatusPaused    = "PAUSED"
+	TaskStatusFailed    = "FAILED"
+	TaskStatusCompleted = "COMPLETED"
+)
+
+// TaskStatusTerminal stops listing_search poll UI in app face JS.
+var TaskStatusTerminal = []string{TaskStatusCompleted, TaskStatusFailed}
 
 // AvitoListingHosts are allowed Host values for listing_search query URLs.
 var AvitoListingHosts = []string{
@@ -51,9 +66,9 @@ var SchemaListingSearchTables = []string{
 	"task_items",
 }
 
-// SchemaListingSearchTaskStatuses are task_status enum values for listing_search lifecycle.
+// SchemaListingSearchTaskStatuses are task_status enum values added for listing_search.
 var SchemaListingSearchTaskStatuses = []string{
-	"COMPLETED",
+	TaskStatusCompleted,
 }
 
 // AvitoListingURL builds a listing URL from host + slug (no leading slash on slug).

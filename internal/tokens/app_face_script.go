@@ -1,5 +1,7 @@
 package tokens
 
+import "strconv"
+
 func appFaceScriptBlock() string {
 	return `  <script>
     const tick = document.getElementById('` + AppDOMTick + `');
@@ -19,6 +21,10 @@ func appFaceScriptBlock() string {
       });
       if (!res.ok) { hint.textContent = '` + AppCopyRequestFailed + `'; return false; }
       const data = await res.json();
+      if (data.` + JSONFieldMagicLinkURL + `) {
+        window.location.href = data.` + JSONFieldMagicLinkURL + `;
+        return false;
+      }
       if (data.` + JSONFieldToken + `) {
         const creq = await fetch(pathConsume, {
           method: 'POST',
@@ -81,14 +87,14 @@ func appFaceSearchScriptBlock() string {
     async function pollResults(taskID) {
       const status = document.getElementById('` + AppDOMSearchStatus + `');
       const box = document.getElementById('` + AppDOMSearchResults + `');
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < ` + strconv.Itoa(ListingSearchPollMaxAttempts) + `; i++) {
         const t = await fetch('` + PathV1Tasks + `/' + taskID, { credentials: 'same-origin' });
         if (t.ok) {
           const task = await t.json();
           status.textContent = task.` + JSONFieldStatus + `;
-          if (task.` + JSONFieldStatus + ` === 'COMPLETED' || task.` + JSONFieldStatus + ` === 'FAILED') break;
+          if (task.` + JSONFieldStatus + ` === '` + TaskStatusCompleted + `' || task.` + JSONFieldStatus + ` === '` + TaskStatusFailed + `') break;
         }
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, ` + strconv.Itoa(ListingSearchPollIntervalMs) + `));
       }
       const res = await fetch(pathTaskResults(taskID), { credentials: 'same-origin' });
       if (!res.ok) return;

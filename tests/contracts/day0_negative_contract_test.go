@@ -36,6 +36,15 @@ func TestContract_Day0ForbiddenPackagesAbsent(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// CONTRACT-DAY0-003: stale artifact paths must not exist on disk.
+func TestContract_Day0ForbiddenArtifactsAbsent(t *testing.T) {
+	root := moduleRoot(t)
+	for _, rel := range tokens.ForbiddenArtifactPaths {
+		_, err := os.Stat(filepath.Join(root, rel))
+		require.True(t, os.IsNotExist(err), "forbidden artifact must be absent: %s", rel)
+	}
+}
+
 // CONTRACT-DAY0-002: go.mod must not pull Telegram / Redis clients until contracted.
 func TestContract_Day0NoPrematureDeps(t *testing.T) {
 	root := moduleRoot(t)

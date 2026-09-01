@@ -19,6 +19,7 @@ const (
 	PathV1ProxiesActive        = "/v1/proxies/active"
 	PathV1AuthMagicLink        = "/v1/auth/magic-link"
 	PathV1AuthMagicLinkConsume = "/v1/auth/magic-link/consume"
+	PathV1AuthMagicLinkOpen    = "/v1/auth/magic-link/open"
 	PathV1AuthLogout           = "/v1/auth/logout"
 	PathV1AdminProxies         = "/v1/admin/proxies"
 	PathV1AdminAvitoAccounts   = "/v1/admin/avito-accounts"
@@ -59,6 +60,7 @@ const (
 	JSONFieldEndpoint    = "endpoint"
 	JSONFieldPlanType    = "plan_type"
 	JSONFieldToken       = "token"
+	JSONFieldMagicLinkURL = "magic_link_url"
 	JSONFieldRole        = "role"
 	JSONFieldLabel       = "label"
 	JSONFieldAccounts    = "accounts"
@@ -90,6 +92,8 @@ const (
 
 	LocaleHTML  = "ru"
 	LocaleBCP47 = "ru-RU"
+
+	QueryParamToken = "token"
 
 	BoolStringTrue  = "true"
 	BoolStringFalse = "false"

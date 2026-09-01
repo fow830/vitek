@@ -2,6 +2,7 @@ package contracts_test
 
 import (
 	"html"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -42,6 +43,17 @@ func TestContract_AppFaceEmbedsTokenIdentity(t *testing.T) {
 	}
 	require.Contains(t, body, tokens.PathV1AuthLogout)
 	require.Contains(t, body, tokens.AppClassIsActive)
+}
+
+// CONTRACT-APP-FACE-004: generated JS uses tokenized auth open URL + task terminal statuses.
+func TestContract_AppFaceScriptUsesTokens(t *testing.T) {
+	body := tokens.RenderAppFaceHTML()
+	require.Contains(t, body, tokens.JSONFieldMagicLinkURL)
+
+	loggedIn := tokens.RenderAppFaceHTMLLoggedIn(tokens.ProductEmail("face"), "", false)
+	require.Contains(t, loggedIn, "'"+tokens.TaskStatusCompleted+"'")
+	require.Contains(t, loggedIn, "'"+tokens.TaskStatusFailed+"'")
+	require.Contains(t, loggedIn, strconv.Itoa(tokens.ListingSearchPollMaxAttempts))
 }
 
 // CONTRACT-APP-FACE-003: design CSS carries app chrome color tokens.

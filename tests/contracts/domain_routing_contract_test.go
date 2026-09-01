@@ -97,6 +97,14 @@ func TestContract_MagicLinkConsumeURLUsesAppDomain(t *testing.T) {
 	require.Contains(t, url, tokens.PathV1AuthMagicLinkConsume)
 }
 
+// CONTRACT-DOMAIN-010: mailer open URL targets app domain with token query.
+func TestContract_MagicLinkOpenURLUsesAppDomain(t *testing.T) {
+	url := tokens.MagicLinkOpenURL("fixture-token")
+	require.True(t, strings.HasPrefix(url, tokens.HTTPSAppBase()))
+	require.Contains(t, url, tokens.PathV1AuthMagicLinkOpen)
+	require.Contains(t, url, tokens.QueryParamToken+"=fixture-token")
+}
+
 // CONTRACT-DOMAIN-008: landing host must not serve app SSE.
 func TestContract_LandingHostSSEForbidden(t *testing.T) {
 	pool, _ := queries(t)
