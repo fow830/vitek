@@ -10,7 +10,6 @@ const (
 	EnvPostgresPassword = "POSTGRES_PASSWORD"
 	EnvPostgresDB       = "POSTGRES_DB"
 	EnvPostgresPort     = "POSTGRES_PORT"
-	EnvHTTPPort         = "HTTP_PORT"
 	EnvWorkerTick       = "WORKER_TICK"
 )
 

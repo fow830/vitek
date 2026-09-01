@@ -14,7 +14,6 @@ var EnvExampleKeys = []string{
 	EnvPostgresPassword,
 	EnvPostgresDB,
 	EnvPostgresPort,
-	EnvHTTPPort,
 	EnvWorkerTick,
 }
 
@@ -28,7 +27,6 @@ func EnvExampleValues() map[string]string {
 		EnvPostgresPassword: DefaultPostgresPassword,
 		EnvPostgresDB:       DefaultPostgresDB,
 		EnvPostgresPort:     DefaultPostgresPort,
-		EnvHTTPPort:         DefaultHTTPPort,
 		EnvWorkerTick:       DefaultWorkerTick,
 	}
 }

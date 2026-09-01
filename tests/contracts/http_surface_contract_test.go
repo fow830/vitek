@@ -29,7 +29,9 @@ func TestContract_HTTPSurface(t *testing.T) {
 		tokens.PathV1AuthMagicLinkConsume,
 		tokens.PathV1AuthLogout,
 		tokens.PathV1AdminProxies,
+		tokens.HTTPPathID(tokens.PathV1AdminProxies),
 		tokens.PathV1AdminAvitoAccounts,
+		tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts),
 		tokens.PathAdmin,
 		tokens.PathAdminSSE,
 		tokens.PathTokensCSS,
@@ -53,7 +55,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 
 	t.Run("invalid plan_type 400", func(t *testing.T) {
 		payload, err := json.Marshal(map[string]any{
-			tokens.JSONFieldEmail:    "plan@vitek.io",
+			tokens.JSONFieldEmail:    tokens.ProductEmail("plan"),
 			tokens.JSONFieldPlanType: tokens.FixtureInvalidEnum,
 		})
 		require.NoError(t, err)
@@ -66,7 +68,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 
 	t.Run("tasks limit 409 and entitlement 403", func(t *testing.T) {
 		users := service.NewUsers(pool)
-		user, err := users.CreateUser(ctx, "http-tasks@vitek.io", repository.PlanTypeFREE)
+		user, err := users.CreateUser(ctx, tokens.ProductEmail("http-tasks"), repository.PlanTypeFREE)
 		require.NoError(t, err)
 
 		createTask := func(userID pgtype.UUID, query string) *httptest.ResponseRecorder {
@@ -86,7 +88,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 		require.Equal(t, http.StatusConflict, createTask(user.ID, "q2").Code)
 
 		bare, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-			Email: "http-noent@vitek.io",
+			Email: tokens.ProductEmail("http-noent"),
 			Role:  repository.UserRoleUSER,
 		})
 		require.NoError(t, err)

@@ -24,18 +24,18 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 	q := repository.New(pool)
 
 	_, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "crud-admin@vitek.io",
+		Email: tokens.ProductEmail("crud-admin"),
 		Role:  repository.UserRoleADMIN,
 	})
 	require.NoError(t, err)
 	_, err = q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "crud-user@vitek.io",
+		Email: tokens.ProductEmail("crud-user"),
 		Role:  repository.UserRoleUSER,
 	})
 	require.NoError(t, err)
 
-	adminCookie := loginCookie(t, handler, mailer, "crud-admin@vitek.io")
-	userCookie := loginCookie(t, handler, mailer, "crud-user@vitek.io")
+	adminCookie := loginCookie(t, handler, mailer, tokens.ProductEmail("crud-admin"))
+	userCookie := loginCookie(t, handler, mailer, tokens.ProductEmail("crud-user"))
 
 	// anon
 	req := httptest.NewRequest(http.MethodGet, tokens.PathV1AdminProxies, nil)
@@ -119,11 +119,11 @@ func TestContract_AdminAvitoAccountsCRUD(t *testing.T) {
 	q := repository.New(pool)
 
 	_, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "avito-admin@vitek.io",
+		Email: tokens.ProductEmail("avito-admin"),
 		Role:  repository.UserRoleADMIN,
 	})
 	require.NoError(t, err)
-	cookie := loginCookie(t, handler, mailer, "avito-admin@vitek.io")
+	cookie := loginCookie(t, handler, mailer, tokens.ProductEmail("avito-admin"))
 
 	payload, err := json.Marshal(map[string]any{
 		tokens.JSONFieldLabel:       "pool-1",

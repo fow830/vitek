@@ -27,7 +27,7 @@ func RenderComposeYAML() string {
 		"    volumes:\n" +
 		"      - " + VolumePostgres + ":/var/lib/postgresql/data\n" +
 		"    healthcheck:\n" +
-		"      test: [\"CMD-SHELL\", \"pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB\"]\n" +
+		"      test: [\"CMD-SHELL\", \"pg_isready -U $$" + EnvPostgresUser + " -d $$" + EnvPostgresDB + "\"]\n" +
 		"      interval: " + HealthInterval + "\n" +
 		"      timeout: " + HealthTimeout + "\n" +
 		"      retries: " + HealthRetries + "\n" +

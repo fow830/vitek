@@ -36,7 +36,7 @@ func TestContract_AuthIsMagicLinkOnly(t *testing.T) {
 
 	expires := pgtype.Timestamptz{Time: time.Now().UTC().Add(tokens.MagicLinkTTL), Valid: true}
 	_, err = q.CreateMagicLinkChallenge(ctx, repository.CreateMagicLinkChallengeParams{
-		Email:     "admin@vitek.io",
+		Email:     tokens.ProductEmail("admin"),
 		TokenHash: "hash-admin-1",
 		RoleHint:  repository.UserRoleADMIN,
 		ExpiresAt: expires,
@@ -53,7 +53,7 @@ func TestContract_AuthIsMagicLinkOnly(t *testing.T) {
 
 	past := pgtype.Timestamptz{Time: time.Now().UTC().Add(-time.Minute), Valid: true}
 	_, err = q.CreateMagicLinkChallenge(ctx, repository.CreateMagicLinkChallengeParams{
-		Email:     "expired@vitek.io",
+		Email:     tokens.ProductEmail("expired"),
 		TokenHash: "hash-expired-1",
 		RoleHint:  repository.UserRoleUSER,
 		ExpiresAt: past,
@@ -63,7 +63,7 @@ func TestContract_AuthIsMagicLinkOnly(t *testing.T) {
 	require.ErrorIs(t, err, pgx.ErrNoRows, "expired magic link must not consume")
 
 	_, err = q.CreateMagicLinkChallenge(ctx, repository.CreateMagicLinkChallengeParams{
-		Email:     "user@vitek.io",
+		Email:     tokens.ProductEmail("user"),
 		TokenHash: "hash-user-1",
 		RoleHint:  repository.UserRoleUSER,
 		ExpiresAt: expires,
@@ -77,14 +77,14 @@ func TestContract_UserRolesUserAndAdmin(t *testing.T) {
 	_, q := queries(t)
 
 	user, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "role-user@vitek.io",
+		Email: tokens.ProductEmail("role-user"),
 		Role:  repository.UserRoleUSER,
 	})
 	require.NoError(t, err)
 	require.Equal(t, repository.UserRoleUSER, user.Role)
 
 	admin, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "role-admin@vitek.io",
+		Email: tokens.ProductEmail("role-admin"),
 		Role:  repository.UserRoleADMIN,
 	})
 	require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestContract_UserServiceEntitlements(t *testing.T) {
 	users := service.NewUsers(pool)
 	tasks := service.NewTasks(pool)
 
-	user, err := users.CreateUser(ctx, "entitled@vitek.io", repository.PlanTypeFREE)
+	user, err := users.CreateUser(ctx, tokens.ProductEmail("entitled"), repository.PlanTypeFREE)
 	require.NoError(t, err)
 
 	list, err := q.ListUserServices(ctx, user.ID)
@@ -135,7 +135,7 @@ func TestContract_UserServiceEntitlements(t *testing.T) {
 	require.NoError(t, err)
 
 	bare, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "no-entitle@vitek.io",
+		Email: tokens.ProductEmail("no-entitle"),
 		Role:  repository.UserRoleUSER,
 	})
 	require.NoError(t, err)
@@ -149,7 +149,7 @@ func TestContract_UserServiceEntitlements(t *testing.T) {
 	require.ErrorIs(t, err, domain.ErrServiceNotEntitled)
 
 	nosub, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "no-sub@vitek.io",
+		Email: tokens.ProductEmail("no-sub"),
 		Role:  repository.UserRoleUSER,
 	})
 	require.NoError(t, err)

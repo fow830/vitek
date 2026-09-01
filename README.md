@@ -2,7 +2,7 @@
 
 Local run only. **SoT = `tests/contracts/` + `db/migrations/` + `internal/tokens`.** No side docs, no отсебятина.
 
-Product: **Витёк** — multi-service Avito SaaS. First shipped service: similar listings search. Auth skeleton: Magic Link (DB only).
+Product: **Витёк** — multi-service Avito SaaS. Domain: vitek.tech. First shipped service: similar listings search. Auth: Magic Link (HTTP + sessions + admin face).
 
 ## Requirements
 

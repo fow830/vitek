@@ -84,6 +84,14 @@ var ForbiddenPackagePathFragments = []string{
 	"feed_matcher",
 }
 
+// ForbiddenGoModPathFragments: go.mod must not pull these until contracted.
+var ForbiddenGoModPathFragments = []string{
+	"github.com/go-telegram",
+	"gopkg.in/telebot",
+	"github.com/redis/go-redis",
+	"github.com/go-redis/redis",
+}
+
 // HTTPPathAllowlist is the contracted HTTP surface.
 var HTTPPathAllowlist = []string{
 	PathHealthz,
@@ -94,7 +102,9 @@ var HTTPPathAllowlist = []string{
 	PathV1AuthMagicLinkConsume,
 	PathV1AuthLogout,
 	PathV1AdminProxies,
+	HTTPPathID(PathV1AdminProxies),
 	PathV1AdminAvitoAccounts,
+	HTTPPathID(PathV1AdminAvitoAccounts),
 	PathAdmin,
 	PathAdminSSE,
 	PathTokensCSS,

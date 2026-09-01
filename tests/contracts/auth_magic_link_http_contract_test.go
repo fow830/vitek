@@ -27,12 +27,12 @@ func TestContract_MagicLinkHTTP_RequestAndConsume(t *testing.T) {
 	ctx := t.Context()
 
 	_, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "admin-ml@vitek.io",
+		Email: tokens.ProductEmail("admin-ml"),
 		Role:  repository.UserRoleADMIN,
 	})
 	require.NoError(t, err)
 
-	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: "admin-ml@vitek.io"})
+	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("admin-ml")})
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
@@ -40,7 +40,7 @@ func TestContract_MagicLinkHTTP_RequestAndConsume(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusAccepted, rec.Code)
 	require.NotEmpty(t, mailer.LastToken)
-	require.Equal(t, "admin-ml@vitek.io", mailer.LastEmail)
+	require.Equal(t, tokens.ProductEmail("admin-ml"), mailer.LastEmail)
 
 	consumeBody, err := json.Marshal(map[string]any{tokens.JSONFieldToken: mailer.LastToken})
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestContract_MagicLinkHTTP_RequestAndConsume(t *testing.T) {
 
 	var out map[string]any
 	require.NoError(t, json.NewDecoder(crec.Body).Decode(&out))
-	require.Equal(t, "admin-ml@vitek.io", out[tokens.JSONFieldEmail])
+	require.Equal(t, tokens.ProductEmail("admin-ml"), out[tokens.JSONFieldEmail])
 	require.Equal(t, string(repository.UserRoleADMIN), out[tokens.JSONFieldRole])
 
 	// reuse token fails
@@ -72,12 +72,12 @@ func TestContract_MagicLinkHTTP_ExpiredRejected(t *testing.T) {
 	ctx := t.Context()
 
 	_, err := repository.New(pool).CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "exp@vitek.io",
+		Email: tokens.ProductEmail("exp"),
 		Role:  repository.UserRoleUSER,
 	})
 	require.NoError(t, err)
 
-	raw, err := auth.RequestMagicLink(ctx, "exp@vitek.io", -time.Minute)
+	raw, err := auth.RequestMagicLink(ctx, tokens.ProductEmail("exp"), -time.Minute)
 	require.NoError(t, err)
 	require.NotEmpty(t, raw)
 
@@ -91,14 +91,14 @@ func TestContract_MagicLinkHTTP_UnknownEmailAccepted(t *testing.T) {
 	mailer := service.NewMemoryMagicLinkMailer()
 	handler := httpapi.NewServer(pool, httpapi.WithMagicLinkMailer(mailer)).Handler()
 
-	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: "newuser@vitek.io"})
+	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("newuser")})
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusAccepted, rec.Code)
-	require.Equal(t, "newuser@vitek.io", mailer.LastEmail)
+	require.Equal(t, tokens.ProductEmail("newuser"), mailer.LastEmail)
 	require.NotEmpty(t, mailer.LastToken)
 
 	consumeBody, err := json.Marshal(map[string]any{tokens.JSONFieldToken: mailer.LastToken})
@@ -111,7 +111,7 @@ func TestContract_MagicLinkHTTP_UnknownEmailAccepted(t *testing.T) {
 
 	var out map[string]any
 	require.NoError(t, json.NewDecoder(crec.Body).Decode(&out))
-	require.Equal(t, "newuser@vitek.io", out[tokens.JSONFieldEmail])
+	require.Equal(t, tokens.ProductEmail("newuser"), out[tokens.JSONFieldEmail])
 	require.Equal(t, string(repository.UserRoleUSER), out[tokens.JSONFieldRole])
 
 	setCookie := crec.Header().Get(tokens.HeaderSetCookie)
@@ -148,12 +148,12 @@ func TestContract_MagicLinkHTTP_LogoutRevokesSession(t *testing.T) {
 	ctx := t.Context()
 
 	_, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "logout-admin@vitek.io",
+		Email: tokens.ProductEmail("logout-admin"),
 		Role:  repository.UserRoleADMIN,
 	})
 	require.NoError(t, err)
 
-	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: "logout-admin@vitek.io"})
+	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("logout-admin")})
 	require.NoError(t, err)
 	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
@@ -197,14 +197,14 @@ func TestContract_MagicLinkHTTP_SecureCookieFlag(t *testing.T) {
 	mailer := service.NewMemoryMagicLinkMailer()
 	ctx := t.Context()
 	_, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "secure@vitek.io",
+		Email: tokens.ProductEmail("secure"),
 		Role:  repository.UserRoleUSER,
 	})
 	require.NoError(t, err)
 
 	consume := func(handler http.Handler) string {
 		t.Helper()
-		body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: "secure@vitek.io"})
+		body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("secure")})
 		require.NoError(t, err)
 		req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
 		req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
@@ -230,4 +230,47 @@ func TestContract_MagicLinkHTTP_SecureCookieFlag(t *testing.T) {
 		httpapi.WithSecureCookies(true),
 	).Handler())
 	require.Contains(t, secure, tokens.CookieAttrSecure)
+}
+
+// CONTRACT-AUTH-ML-006: default server must not leak raw magic token in HTTP JSON.
+func TestContract_MagicLinkHTTP_DefaultDoesNotExposeToken(t *testing.T) {
+	pool, _ := queries(t)
+	mailer := service.NewMemoryMagicLinkMailer()
+	handler := httpapi.NewServer(pool, httpapi.WithMagicLinkMailer(mailer)).Handler()
+
+	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("noexpose")})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusAccepted, rec.Code)
+	require.NotEmpty(t, mailer.LastToken)
+
+	var out map[string]any
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&out))
+	_, hasToken := out[tokens.JSONFieldToken]
+	require.False(t, hasToken, "production-default must not put raw token in JSON")
+}
+
+// CONTRACT-AUTH-ML-007: WithExposeMagicLinkTokens(true) returns token for local/admin face.
+func TestContract_MagicLinkHTTP_ExposeTokenOptIn(t *testing.T) {
+	pool, _ := queries(t)
+	mailer := service.NewMemoryMagicLinkMailer()
+	handler := httpapi.NewServer(pool,
+		httpapi.WithMagicLinkMailer(mailer),
+		httpapi.WithExposeMagicLinkTokens(true),
+	).Handler()
+
+	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("expose")})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusAccepted, rec.Code)
+
+	var out map[string]any
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&out))
+	require.Equal(t, mailer.LastToken, out[tokens.JSONFieldToken])
 }

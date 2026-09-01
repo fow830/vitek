@@ -42,12 +42,7 @@ func TestContract_Day0NoPrematureDeps(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(root, tokens.PathGoMod))
 	require.NoError(t, err)
 	body := string(raw)
-	for _, bad := range []string{
-		"github.com/go-telegram",
-		"gopkg.in/telebot",
-		"github.com/redis/go-redis",
-		"github.com/go-redis/redis",
-	} {
+	for _, bad := range tokens.ForbiddenGoModPathFragments {
 		require.NotContains(t, body, bad)
 	}
 }

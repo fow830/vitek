@@ -12,6 +12,7 @@ import (
 	"vitek/internal/domain"
 	"vitek/internal/repository"
 	"vitek/internal/service"
+	"vitek/internal/tokens"
 )
 
 // CONTRACT-LIMITS-001: FREE plan cannot exceed plan_limits.max_tasks (1).
@@ -24,7 +25,7 @@ func TestContract_SubscriptionTaskLimits(t *testing.T) {
 	tasks := service.NewTasks(pool)
 
 	t.Run("FREE plan strictly enforces single task limit", func(t *testing.T) {
-		user, err := users.CreateUser(ctx, "dev@vitek.io", repository.PlanTypeFREE)
+		user, err := users.CreateUser(ctx, tokens.ProductEmail("dev"), repository.PlanTypeFREE)
 		require.NoError(t, err)
 
 		_, err = tasks.CreateTask(ctx, user.ID, "Avito Query 1")
@@ -43,7 +44,7 @@ func TestContract_SubscriptionTaskLimits_Concurrent(t *testing.T) {
 	users := service.NewUsers(pool)
 	tasks := service.NewTasks(pool)
 
-	user, err := users.CreateUser(ctx, "concurrent@vitek.io", repository.PlanTypeFREE)
+	user, err := users.CreateUser(ctx, tokens.ProductEmail("concurrent"), repository.PlanTypeFREE)
 	require.NoError(t, err)
 
 	const workers = 10

@@ -26,11 +26,11 @@ func TestContract_AdminLiveSurface(t *testing.T) {
 	ctx := t.Context()
 
 	_, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "live-admin@vitek.io",
+		Email: tokens.ProductEmail("live-admin"),
 		Role:  repository.UserRoleADMIN,
 	})
 	require.NoError(t, err)
-	cookie := loginCookie(t, handler, mailer, "live-admin@vitek.io")
+	cookie := loginCookie(t, handler, mailer, tokens.ProductEmail("live-admin"))
 
 	req := httptest.NewRequest(http.MethodGet, tokens.PathAdmin, nil)
 	rec := httptest.NewRecorder()
@@ -60,11 +60,11 @@ func TestContract_AdminLiveSurface(t *testing.T) {
 
 	// USER role forbidden from SSE
 	_, err = q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
-		Email: "live-user@vitek.io",
+		Email: tokens.ProductEmail("live-user"),
 		Role:  repository.UserRoleUSER,
 	})
 	require.NoError(t, err)
-	userCookie := loginCookie(t, handler, mailer, "live-user@vitek.io")
+	userCookie := loginCookie(t, handler, mailer, tokens.ProductEmail("live-user"))
 	ureq := httptest.NewRequest(http.MethodGet, tokens.PathAdminSSE, nil)
 	ureq.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+userCookie)
 	urec := httptest.NewRecorder()

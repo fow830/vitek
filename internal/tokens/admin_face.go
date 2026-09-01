@@ -88,9 +88,9 @@ var AdminNav = []AdminNavItem{
 	{ID: AdminNavIDProxies, Label: AdminCopyProxiesTitle},
 }
 
-// FixtureAdminEmail is the side-meta identity shown before login (ModulePath-derived).
+// FixtureAdminEmail is the side-meta identity shown before login (ProductDomain-derived).
 func FixtureAdminEmail() string {
-	return "admin@" + ModulePath + ".io"
+	return ProductEmail("admin")
 }
 
 // ProductBrandStem / ProductBrandAccent split ProductNameLocal for display accent.

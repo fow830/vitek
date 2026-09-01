@@ -32,7 +32,14 @@ func main() {
 			fatal(err)
 		}
 	}
-	fmt.Println("tokens: regenerated .env.example, web/tokens.css, docker-compose.yml, sqlc.yaml, Dockerfile, web/admin/face.html")
+	fmt.Printf("tokens: regenerated %s, %s, %s, %s, %s, %s\n",
+		tokens.PathEnvExample,
+		tokens.PathDesignCSS,
+		tokens.PathCompose,
+		tokens.PathSQLC,
+		tokens.PathDockerfile,
+		tokens.PathAdminFace,
+	)
 }
 
 func findModuleRoot() (string, error) {

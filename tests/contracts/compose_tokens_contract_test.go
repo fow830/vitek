@@ -37,6 +37,18 @@ func TestContract_READMETitleMatchesProduct(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(raw), "# "+tokens.ProductName)
 	require.Contains(t, string(raw), tokens.ProductNameLocal)
+	require.Contains(t, string(raw), tokens.ProductDomain)
+}
+
+func TestContract_DEPLOYMentionsProductionDomainTokens(t *testing.T) {
+	root := moduleRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, tokens.PathDEPLOY))
+	require.NoError(t, err)
+	body := string(raw)
+	require.Contains(t, body, tokens.ProductDomain)
+	require.Contains(t, body, tokens.ProductDomainWWW)
+	require.Contains(t, body, tokens.ComposeContainerPostgresProd)
+	require.Contains(t, body, tokens.ComposeNetworkProd)
 }
 
 func TestContract_TaskfilePinsSQLCVersion(t *testing.T) {

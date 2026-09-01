@@ -36,7 +36,7 @@ func TestContract_CreateUserHTTPValidationAndConflict(t *testing.T) {
 
 	t.Run("duplicate email returns 409", func(t *testing.T) {
 		payload, err := json.Marshal(map[string]any{
-			tokens.JSONFieldEmail:    "dup@vitek.io",
+			tokens.JSONFieldEmail:    tokens.ProductEmail("dup"),
 			tokens.JSONFieldPlanType: repository.PlanTypeFREE,
 		})
 		require.NoError(t, err)

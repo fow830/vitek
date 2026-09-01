@@ -5,10 +5,11 @@ CI/CD and environment parameters only. Image tags, ports, env keys, and HTTP pat
 ## Production (vdserv)
 
 - Host: `vdserv` (`83.217.192.46`, SSH alias `vdserv`, key `~/.ssh/id_vdback_agent`)
-- Domain: `https://vitek.tech` (+ `www`)
+- Domain: `https://vitek.tech` (+ `www.vitek.tech`) — SoT `tokens.ProductDomain` / `ProductDomainWWW`
 - App root: `/opt/vitek` (compose + `.env` + `src/` + `nginx/`)
 - Shares TLS edge with VapeDetector via `vd-nginx` (`/opt/vitek/nginx/vitek.conf` mounted into conf.d)
-- DB hostname in DSN must be `vitek-postgres` (not `postgres` — name clash on `vapedetector_vd-network`)
+- DB hostname in DSN must be `vitek-postgres` (SoT `tokens.ComposeContainerPostgresProd`; not compose service name `postgres` — clash on shared network)
+- Docker network: `vitek_net` (SoT `tokens.ComposeNetworkProd`)
 
 ```bash
 ssh vdserv
