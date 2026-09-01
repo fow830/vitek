@@ -16,10 +16,20 @@ const (
 	PlanTypeFree  = repository.PlanTypeFREE
 	PlanTypePro   = repository.PlanTypePRO
 	PlanTypeUltra = repository.PlanTypeULTRA
+
+	ProxyStatusActive   = repository.ProxyStatusACTIVE
+	ProxyStatusDisabled = repository.ProxyStatusDISABLED
+	ProxyStatusBanned   = repository.ProxyStatusBANNED
+
+	AvitoStatusActive   = repository.AvitoAccountStatusACTIVE
+	AvitoStatusDisabled = repository.AvitoAccountStatusDISABLED
+	AvitoStatusError    = repository.AvitoAccountStatusERROR
+
+	UserRoleAdmin = repository.UserRoleADMIN
 )
 
 func (u SessionUser) IsAdmin() bool {
-	return u.Role == repository.UserRoleADMIN
+	return u.Role == UserRoleAdmin
 }
 
 func ValidPlanType(p PlanType) bool {
@@ -33,7 +43,7 @@ func ValidPlanType(p PlanType) bool {
 
 func ValidProxyStatus(s ProxyStatus) bool {
 	switch s {
-	case repository.ProxyStatusACTIVE, repository.ProxyStatusDISABLED, repository.ProxyStatusBANNED:
+	case ProxyStatusActive, ProxyStatusDisabled, ProxyStatusBanned:
 		return true
 	default:
 		return false
@@ -42,7 +52,7 @@ func ValidProxyStatus(s ProxyStatus) bool {
 
 func ValidAvitoStatus(s AvitoAccountStatus) bool {
 	switch s {
-	case repository.AvitoAccountStatusACTIVE, repository.AvitoAccountStatusDISABLED, repository.AvitoAccountStatusERROR:
+	case AvitoStatusActive, AvitoStatusDisabled, AvitoStatusError:
 		return true
 	default:
 		return false

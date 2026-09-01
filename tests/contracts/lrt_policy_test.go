@@ -68,4 +68,7 @@ func TestContract_LRTDocsPolicy(t *testing.T) {
 
 	_, err = os.Stat(filepath.Join(rootDir, tokens.PathLRTRule))
 	require.NoError(t, err, "LRT cursor rule must exist at %s", tokens.PathLRTRule)
+
+	assertFileEqualsRender(t, tokens.PathLRTRule, tokens.RenderLRTRule())
+	assertFileEqualsRender(t, tokens.PathVitekPolicyRule, tokens.RenderVitekPolicyMDC())
 }

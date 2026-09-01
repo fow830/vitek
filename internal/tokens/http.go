@@ -87,6 +87,8 @@ const (
 	BoolStringFalse = "false"
 
 	FixtureInvalidEnum = "NOPE"
+
+	FixtureAdminProxyEndpoint = "http://admin-proxy.example:8080"
 )
 
 // Auth / session TTLs.

@@ -15,12 +15,14 @@ func main() {
 	}
 
 	writes := map[string]string{
-		tokens.PathEnvExample: tokens.RenderEnvExample(),
-		tokens.PathDesignCSS:  tokens.RenderDesignCSS(),
-		tokens.PathCompose:    tokens.RenderComposeYAML(),
-		tokens.PathSQLC:       tokens.RenderSQLCYAML(),
-		tokens.PathDockerfile: tokens.RenderDockerfile(),
-		tokens.PathAppFace:  tokens.RenderAppFaceHTML(),
+		tokens.PathEnvExample:      tokens.RenderEnvExample(),
+		tokens.PathDesignCSS:       tokens.RenderDesignCSS(),
+		tokens.PathCompose:         tokens.RenderComposeYAML(),
+		tokens.PathSQLC:            tokens.RenderSQLCYAML(),
+		tokens.PathDockerfile:      tokens.RenderDockerfile(),
+		tokens.PathAppFace:         tokens.RenderAppFaceHTML(),
+		tokens.PathLRTRule:         tokens.RenderLRTRule(),
+		tokens.PathVitekPolicyRule: tokens.RenderVitekPolicyMDC(),
 	}
 
 	for rel, body := range writes {
@@ -32,16 +34,14 @@ func main() {
 			fatal(err)
 		}
 	}
-	if err := tokens.RenderAISkills(root); err != nil {
-		fatal(err)
-	}
-	fmt.Printf("tokens: regenerated %s, %s, %s, %s, %s, %s, %s\n",
+	fmt.Printf("tokens: regenerated %s, %s, %s, %s, %s, %s, %s, %s\n",
 		tokens.PathEnvExample,
 		tokens.PathDesignCSS,
 		tokens.PathCompose,
 		tokens.PathSQLC,
 		tokens.PathDockerfile,
 		tokens.PathAppFace,
+		tokens.PathLRTRule,
 		tokens.PathVitekPolicyRule,
 	)
 }

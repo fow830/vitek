@@ -52,7 +52,7 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 
 	// admin create
 	payload, err := json.Marshal(map[string]any{
-		tokens.JSONFieldEndpoint: "http://admin-proxy.example:8080",
+		tokens.JSONFieldEndpoint: tokens.FixtureAdminProxyEndpoint,
 		tokens.JSONFieldStatus:   string(repository.ProxyStatusACTIVE),
 		tokens.JSONFieldLabel:    "msk",
 	})
@@ -80,7 +80,7 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 
 	// admin patch
 	patch, err := json.Marshal(map[string]any{
-		tokens.JSONFieldEndpoint: "http://admin-proxy.example:8080",
+		tokens.JSONFieldEndpoint: tokens.FixtureAdminProxyEndpoint,
 		tokens.JSONFieldStatus:   string(repository.ProxyStatusDISABLED),
 		tokens.JSONFieldLabel:    "msk-off",
 	})
@@ -97,7 +97,7 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 	require.Equal(t, "msk-off", patched[tokens.JSONFieldLabel])
 
 	bad, err := json.Marshal(map[string]any{
-		tokens.JSONFieldEndpoint: "http://admin-proxy.example:8080",
+		tokens.JSONFieldEndpoint: tokens.FixtureAdminProxyEndpoint,
 		tokens.JSONFieldStatus:   tokens.FixtureInvalidEnum,
 		tokens.JSONFieldLabel:    "x",
 	})
