@@ -108,6 +108,32 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+
+	req = withAppHost(httptest.NewRequest(http.MethodDelete, tokens.HTTPResourceID(tokens.PathV1AdminProxies, id), nil))
+	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+adminCookie)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusNoContent, rec.Code)
+
+	req = withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1AdminProxies, nil))
+	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+adminCookie)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&list))
+	require.Len(t, list[tokens.JSONFieldProxies].([]any), 0)
+
+	req = withAppHost(httptest.NewRequest(http.MethodDelete, tokens.HTTPResourceID(tokens.PathV1AdminProxies, id), nil))
+	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+adminCookie)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+
+	req = withAppHost(httptest.NewRequest(http.MethodDelete, tokens.HTTPResourceID(tokens.PathV1AdminProxies, id), nil))
+	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+userCookie)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusForbidden, rec.Code)
 }
 
 // CONTRACT-ADMIN-CRUD-002: admin CRUD avito accounts.
@@ -180,6 +206,20 @@ func TestContract_AdminAvitoAccountsCRUD(t *testing.T) {
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+
+	req = withAppHost(httptest.NewRequest(http.MethodDelete, tokens.HTTPResourceID(tokens.PathV1AdminAvitoAccounts, id), nil))
+	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusNoContent, rec.Code)
+
+	req = withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1AdminAvitoAccounts, nil))
+	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&list))
+	require.Len(t, list[tokens.JSONFieldAccounts].([]any), 0)
 }
 
 func loginCookie(t *testing.T, handler http.Handler, mailer *service.MemoryMagicLinkMailer, email string) string {

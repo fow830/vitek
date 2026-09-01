@@ -65,9 +65,9 @@ const (
 	AppCopyServicesTitle    = "Сервисы"
 	AppCopyServicesLede     = "Каталог product_services (SoT = tokens + БД)."
 	AppCopyAvitoTitle       = "Аккаунты Авито"
-	AppCopyAvitoLede        = "Пул аккаунтов. CRUD через " + PathV1AdminAvitoAccounts + "."
+	AppCopyAvitoLede        = "Пул аккаунтов для worker."
 	AppCopyProxiesTitle     = "Прокси"
-	AppCopyProxiesLede      = "Управление прокси. CRUD через " + PathV1AdminProxies + "."
+	AppCopyProxiesLede      = "Прокси для запросов к Avito."
 	AppCopyEmptyPanel       = "Нет строк — создайте через platform API."
 	AppCopyLogout           = "Выйти"
 	AppCopyStatAvito        = "Аккаунты Авито"
@@ -224,14 +224,17 @@ func RenderAppFaceHTML() string {
 	writeServicesTable(&b)
 	b.WriteString("          </div>\n        </div>\n\n")
 
-	// Remaining nav views (empty panels until list UI is contracted).
-	for _, item := range AppNav[3:] {
-		fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AppDOMViewPrefix, esc(item.ID))
-		writeViewHeader(&b, item.Label, ledeForNav(item.ID))
-		b.WriteString("          <div class=\"panel empty\">")
-		b.WriteString(esc(AppCopyEmptyPanel))
-		b.WriteString("</div>\n        </div>\n\n")
-	}
+	// Avito admin panel
+	fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AppDOMViewPrefix, AppNavIDAvito)
+	writeViewHeader(&b, AppCopyAvitoTitle, AppCopyAvitoLede)
+	writeAdminAvitoPanel(&b)
+	b.WriteString("        </div>\n\n")
+
+	// Proxies admin panel
+	fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AppDOMViewPrefix, AppNavIDProxies)
+	writeViewHeader(&b, AppCopyProxiesTitle, AppCopyProxiesLede)
+	writeAdminProxiesPanel(&b)
+	b.WriteString("        </div>\n\n")
 
 	b.WriteString("      </main>\n    </div>\n  </section>\n")
 	b.WriteString(appFaceScriptBlock())
@@ -256,7 +259,11 @@ func RenderAppFaceHTMLLoggedIn(email, _ string, withSSE bool) string {
 		`id="`+AppDOMScreenPlatform+`" class="screen"`,
 		platformActive, 1)
 	out = strings.Replace(out, html.EscapeString(FixtureSessionEmail()), html.EscapeString(email), 1)
-	out = strings.Replace(out, "</body>", appFaceSearchScriptBlock()+"</body>", 1)
+	extra := appFaceSearchScriptBlock()
+	if withSSE {
+		extra += appFaceAdminScriptBlock()
+	}
+	out = strings.Replace(out, "</body>", extra+"</body>", 1)
 	return out
 }
 
@@ -268,18 +275,77 @@ func writeViewHeader(b *strings.Builder, title, lede string) {
 	b.WriteString("          </div></div>\n")
 }
 
-func ledeForNav(id string) string {
-	switch id {
-	case AppNavIDSearch:
-		return AppCopySearchLede
-	case AppNavIDAvito:
-		return AppCopyAvitoLede
-	case AppNavIDProxies:
-		return AppCopyProxiesLede
-	case AppNavIDServices:
-		return AppCopyServicesLede
-	default:
-		return AppCopyOverviewLede
+func writeAdminProxiesPanel(b *strings.Builder) {
+	esc := html.EscapeString
+	b.WriteString("          <div class=\"panel\">\n            <div class=\"panel-head\"><h2>")
+	b.WriteString(esc(AppCopyProxiesTitle))
+	b.WriteString("</h2></div>\n            <table>\n              <thead><tr>")
+	fmt.Fprintf(b, "<th>%s</th><th>%s</th><th>%s</th><th>%s</th>",
+		esc(AppCopyColLabel), esc(AppCopyColEndpoint), esc(AppCopyColStatus), esc(AppCopyColActions))
+	b.WriteString("</tr></thead>\n")
+	fmt.Fprintf(b, "              <tbody id=\"%s\"><tr><td colspan=\"4\">%s</td></tr></tbody>\n", AppDOMProxiesTable, esc(AppCopyAdminEmpty))
+	b.WriteString("            </table>\n          </div>\n          <div class=\"panel\" style=\"margin-top:16px\">\n            <div class=\"panel-head\"><h2>")
+	b.WriteString(esc(AppCopyAdminCreate))
+	b.WriteString("</h2></div>\n            <div style=\"padding:18px\">\n")
+	fmt.Fprintf(b, "              <form id=\"%s\" onsubmit=\"return saveProxy(event)\">\n", AppDOMProxiesForm)
+	fmt.Fprintf(b, "                <input type=\"hidden\" id=\"%s\" value=\"\" />\n", AppDOMProxiesEditID)
+	b.WriteString("                <div class=\"field\">\n")
+	fmt.Fprintf(b, "                  <label for=\"%s\">%s</label>\n", AppDOMProxiesLabel, esc(AppCopyColLabel))
+	fmt.Fprintf(b, "                  <input id=\"%s\" required />\n", AppDOMProxiesLabel)
+	b.WriteString("                </div>\n                <div class=\"field\">\n")
+	fmt.Fprintf(b, "                  <label for=\"%s\">%s</label>\n", AppDOMProxiesEndpoint, esc(AppCopyColEndpoint))
+	fmt.Fprintf(b, "                  <input id=\"%s\" required placeholder=\"%s\" />\n", AppDOMProxiesEndpoint, esc(FixtureAdminProxyEndpoint))
+	b.WriteString("                </div>\n                <div class=\"field\">\n")
+	fmt.Fprintf(b, "                  <label for=\"%s\">%s</label>\n", AppDOMProxiesStatus, esc(AppCopyColStatus))
+	fmt.Fprintf(b, "                  <select id=\"%s\" required>\n", AppDOMProxiesStatus)
+	writeStatusOptions(b, ProxyStatusValues)
+	b.WriteString("                  </select>\n                </div>\n")
+	fmt.Fprintf(b, "                <button class=\"btn\" type=\"submit\" id=\"%s-submit\">%s</button>\n", AppDOMProxiesForm, esc(AppCopyAdminCreate))
+	fmt.Fprintf(b, "                <button class=\"btn btn-ghost\" type=\"button\" onclick=\"return resetProxyForm()\" style=\"margin-top:8px\">%s</button>\n", esc(AppCopyAdminCancel))
+	b.WriteString("              </form>\n")
+	fmt.Fprintf(b, "              <p class=\"hint\" id=\"%s\"></p>\n", AppDOMProxiesFormStatus)
+	b.WriteString("            </div>\n          </div>\n")
+}
+
+func writeAdminAvitoPanel(b *strings.Builder) {
+	esc := html.EscapeString
+	b.WriteString("          <div class=\"panel\">\n            <div class=\"panel-head\"><h2>")
+	b.WriteString(esc(AppCopyAvitoTitle))
+	b.WriteString("</h2></div>\n            <table>\n              <thead><tr>")
+	fmt.Fprintf(b, "<th>%s</th><th>%s</th><th>%s</th><th>%s</th>",
+		esc(AppCopyColLabel), esc(AppCopyColExternalRef), esc(AppCopyColStatus), esc(AppCopyColActions))
+	b.WriteString("</tr></thead>\n")
+	fmt.Fprintf(b, "              <tbody id=\"%s\"><tr><td colspan=\"4\">%s</td></tr></tbody>\n", AppDOMAvitoTable, esc(AppCopyAdminEmpty))
+	b.WriteString("            </table>\n          </div>\n          <div class=\"panel\" style=\"margin-top:16px\">\n            <div class=\"panel-head\"><h2>")
+	b.WriteString(esc(AppCopyAdminCreate))
+	b.WriteString("</h2></div>\n            <div style=\"padding:18px\">\n")
+	fmt.Fprintf(b, "              <form id=\"%s\" onsubmit=\"return saveAvito(event)\">\n", AppDOMAvitoForm)
+	fmt.Fprintf(b, "                <input type=\"hidden\" id=\"%s\" value=\"\" />\n", AppDOMAvitoEditID)
+	b.WriteString("                <div class=\"field\">\n")
+	fmt.Fprintf(b, "                  <label for=\"%s\">%s</label>\n", AppDOMAvitoLabel, esc(AppCopyColLabel))
+	fmt.Fprintf(b, "                  <input id=\"%s\" required />\n", AppDOMAvitoLabel)
+	b.WriteString("                </div>\n                <div class=\"field\">\n")
+	fmt.Fprintf(b, "                  <label for=\"%s\">%s</label>\n", AppDOMAvitoExternalRef, esc(AppCopyColExternalRef))
+	fmt.Fprintf(b, "                  <input id=\"%s\" required />\n", AppDOMAvitoExternalRef)
+	b.WriteString("                </div>\n                <div class=\"field\">\n")
+	fmt.Fprintf(b, "                  <label for=\"%s\">%s</label>\n", AppDOMAvitoStatus, esc(AppCopyColStatus))
+	fmt.Fprintf(b, "                  <select id=\"%s\" required>\n", AppDOMAvitoStatus)
+	writeStatusOptions(b, AvitoAccountStatusValues)
+	b.WriteString("                  </select>\n                </div>\n                <div class=\"field\">\n")
+	fmt.Fprintf(b, "                  <label for=\"%s\" id=\"%s-label\">%s</label>\n", AppDOMAvitoPassword, AppDOMAvitoPassword, esc(AppCopyAdminPasswordRequired))
+	fmt.Fprintf(b, "                  <input id=\"%s\" type=\"password\" autocomplete=\"new-password\" required />\n", AppDOMAvitoPassword)
+	b.WriteString("                </div>\n")
+	fmt.Fprintf(b, "                <button class=\"btn\" type=\"submit\" id=\"%s-submit\">%s</button>\n", AppDOMAvitoForm, esc(AppCopyAdminCreate))
+	fmt.Fprintf(b, "                <button class=\"btn btn-ghost\" type=\"button\" onclick=\"return resetAvitoForm()\" style=\"margin-top:8px\">%s</button>\n", esc(AppCopyAdminCancel))
+	b.WriteString("              </form>\n")
+	fmt.Fprintf(b, "              <p class=\"hint\" id=\"%s\"></p>\n", AppDOMAvitoFormStatus)
+	b.WriteString("            </div>\n          </div>\n")
+}
+
+func writeStatusOptions(b *strings.Builder, values []string) {
+	esc := html.EscapeString
+	for _, v := range values {
+		fmt.Fprintf(b, "                    <option value=\"%s\">%s</option>\n", esc(v), esc(v))
 	}
 }
 
@@ -343,6 +409,10 @@ func appFaceStyleBlock() string {
       background: var(--color-accent); color: var(--color-on-accent); font-weight: 700; cursor: pointer;
     }
     .btn:hover { filter: brightness(1.06); }
+    .btn-ghost { background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border); }
+    .btn-sm { width: auto; padding: 6px 12px; font-size: .85rem; margin-right: 6px; }
+    select { width: 100%; padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 88%, var(--color-canvas)); color: var(--color-text); }
+    .row-actions { white-space: nowrap; }
     .hint { margin-top: var(--space-lg); font-size: .9rem; color: var(--color-text-muted); }
     .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
     @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .side { position: sticky; top: 0; z-index: 5; } }

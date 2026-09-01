@@ -39,9 +39,11 @@ var HTTPAppRoutes = []HTTPRouteSpec{
 	{Method: http.MethodGet, Path: PathV1AdminProxies},
 	{Method: http.MethodPost, Path: PathV1AdminProxies},
 	{Method: http.MethodPatch, Path: HTTPPathID(PathV1AdminProxies)},
+	{Method: http.MethodDelete, Path: HTTPPathID(PathV1AdminProxies)},
 	{Method: http.MethodGet, Path: PathV1AdminAvitoAccounts},
 	{Method: http.MethodPost, Path: PathV1AdminAvitoAccounts},
 	{Method: http.MethodPatch, Path: HTTPPathID(PathV1AdminAvitoAccounts)},
+	{Method: http.MethodDelete, Path: HTTPPathID(PathV1AdminAvitoAccounts)},
 	{Method: http.MethodGet, Path: PathRoot},
 	{Method: http.MethodGet, Path: PathAppSSE},
 }

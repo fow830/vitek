@@ -185,6 +185,17 @@ func (s *Proxies) Update(ctx context.Context, id pgtype.UUID, endpoint string, s
 	})
 }
 
+func (s *Proxies) Delete(ctx context.Context, id pgtype.UUID) error {
+	_, err := s.q.DeleteProxy(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrResourceNotFound
+		}
+		return err
+	}
+	return nil
+}
+
 // Items deduplicates Avito listings by avito_id.
 type Items struct {
 	pool *pgxpool.Pool

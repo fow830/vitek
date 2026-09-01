@@ -88,6 +88,17 @@ func (s *AvitoAccounts) Update(ctx context.Context, id pgtype.UUID, label string
 	})
 }
 
+func (s *AvitoAccounts) Delete(ctx context.Context, id pgtype.UUID) error {
+	_, err := s.q.DeleteAvitoAccount(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrResourceNotFound
+		}
+		return err
+	}
+	return nil
+}
+
 func (s *AvitoAccounts) Count(ctx context.Context) (int64, error) {
 	return s.q.CountAvitoAccounts(ctx)
 }

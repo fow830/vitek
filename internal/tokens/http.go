@@ -142,6 +142,7 @@ const (
 	ErrMsgListTasksFailed      = "list tasks failed"
 	ErrMsgGetTaskFailed        = "get task failed"
 	ErrMsgInvalidPassword      = "invalid password"
+	ErrMsgResourceNotFound     = "resource not found"
 )
 
 // HTTPPathTaskResults returns GET /v1/tasks/{id}/results pattern.
@@ -151,6 +152,7 @@ func HTTPPathTaskResults() string {
 func HTTPGet(path string) string   { return "GET " + path }
 func HTTPPost(path string) string  { return "POST " + path }
 func HTTPPatch(path string) string { return "PATCH " + path }
+func HTTPDelete(path string) string { return "DELETE " + path }
 
 // HTTPPathID appends the ServeMux {id} suffix.
 func HTTPPathID(base string) string { return base + PathSuffixID }

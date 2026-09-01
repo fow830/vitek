@@ -79,9 +79,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1AdminProxies), s.requireAdmin(s.handleAdminListProxies))
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AdminProxies), s.requireAdmin(s.handleAdminCreateProxy))
 	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1AdminProxies)), s.requireAdmin(s.handleAdminPatchProxy))
+	mux.HandleFunc(tokens.HTTPDelete(tokens.HTTPPathID(tokens.PathV1AdminProxies)), s.requireAdmin(s.handleAdminDeleteProxy))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1AdminAvitoAccounts), s.requireAdmin(s.handleAdminListAvito))
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AdminAvitoAccounts), s.requireAdmin(s.handleAdminCreateAvito))
 	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts)), s.requireAdmin(s.handleAdminPatchAvito))
+	mux.HandleFunc(tokens.HTTPDelete(tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts)), s.requireAdmin(s.handleAdminDeleteAvito))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathRoot), s.handleRoot)
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathAppSSE), s.requireAdmin(s.handleAppSSE))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathTokensCSS), s.handleDesignCSS)
@@ -308,6 +310,23 @@ func (s *Server) handleAdminPatchProxy(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleAdminDeleteProxy(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	if err := s.proxies.Delete(r.Context(), id); err != nil {
+		if errors.Is(err, domain.ErrResourceNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{tokens.JSONFieldError: tokens.ErrMsgResourceNotFound})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminProxiesFailed})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) handleAdminListAvito(w http.ResponseWriter, r *http.Request) {
 	list, err := s.avito.List(r.Context())
 	if err != nil {
@@ -395,6 +414,23 @@ func (s *Server) handleAdminPatchAvito(w http.ResponseWriter, r *http.Request) {
 		tokens.JSONFieldStatus:      string(a.Status),
 		tokens.JSONFieldExternalRef: a.ExternalRef,
 	})
+}
+
+func (s *Server) handleAdminDeleteAvito(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	if err := s.avito.Delete(r.Context(), id); err != nil {
+		if errors.Is(err, domain.ErrResourceNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{tokens.JSONFieldError: tokens.ErrMsgResourceNotFound})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminAvitoFailed})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleDesignCSS(w http.ResponseWriter, r *http.Request) {

@@ -49,6 +49,10 @@
       background: var(--color-accent); color: var(--color-on-accent); font-weight: 700; cursor: pointer;
     }
     .btn:hover { filter: brightness(1.06); }
+    .btn-ghost { background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border); }
+    .btn-sm { width: auto; padding: 6px 12px; font-size: .85rem; margin-right: 6px; }
+    select { width: 100%; padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 88%, var(--color-canvas)); color: var(--color-text); }
+    .row-actions { white-space: nowrap; }
     .hint { margin-top: var(--space-lg); font-size: .9rem; color: var(--color-text-muted); }
     .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
     @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .side { position: sticky; top: 0; z-index: 5; } }
@@ -192,17 +196,87 @@
         <div class="view" id="view-avito">
           <div class="top"><div>
             <h1>Аккаунты Авито</h1>
-            <p>Пул аккаунтов. CRUD через /v1/admin/avito-accounts.</p>
+            <p>Пул аккаунтов для worker.</p>
           </div></div>
-          <div class="panel empty">Нет строк — создайте через platform API.</div>
+          <div class="panel">
+            <div class="panel-head"><h2>Аккаунты Авито</h2></div>
+            <table>
+              <thead><tr><th>Метка</th><th>Логин</th><th>Статус</th><th>Действия</th></tr></thead>
+              <tbody id="avito-table"><tr><td colspan="4">Нет записей</td></tr></tbody>
+            </table>
+          </div>
+          <div class="panel" style="margin-top:16px">
+            <div class="panel-head"><h2>Создать</h2></div>
+            <div style="padding:18px">
+              <form id="avito-form" onsubmit="return saveAvito(event)">
+                <input type="hidden" id="avito-edit-id" value="" />
+                <div class="field">
+                  <label for="avito-label">Метка</label>
+                  <input id="avito-label" required />
+                </div>
+                <div class="field">
+                  <label for="avito-external-ref">Логин</label>
+                  <input id="avito-external-ref" required />
+                </div>
+                <div class="field">
+                  <label for="avito-status">Статус</label>
+                  <select id="avito-status" required>
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="DISABLED">DISABLED</option>
+                    <option value="ERROR">ERROR</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="avito-password" id="avito-password-label">Пароль</label>
+                  <input id="avito-password" type="password" autocomplete="new-password" required />
+                </div>
+                <button class="btn" type="submit" id="avito-form-submit">Создать</button>
+                <button class="btn btn-ghost" type="button" onclick="return resetAvitoForm()" style="margin-top:8px">Отмена</button>
+              </form>
+              <p class="hint" id="avito-form-status"></p>
+            </div>
+          </div>
         </div>
 
         <div class="view" id="view-proxies">
           <div class="top"><div>
             <h1>Прокси</h1>
-            <p>Управление прокси. CRUD через /v1/admin/proxies.</p>
+            <p>Прокси для запросов к Avito.</p>
           </div></div>
-          <div class="panel empty">Нет строк — создайте через platform API.</div>
+          <div class="panel">
+            <div class="panel-head"><h2>Прокси</h2></div>
+            <table>
+              <thead><tr><th>Метка</th><th>Endpoint</th><th>Статус</th><th>Действия</th></tr></thead>
+              <tbody id="proxies-table"><tr><td colspan="4">Нет записей</td></tr></tbody>
+            </table>
+          </div>
+          <div class="panel" style="margin-top:16px">
+            <div class="panel-head"><h2>Создать</h2></div>
+            <div style="padding:18px">
+              <form id="proxies-form" onsubmit="return saveProxy(event)">
+                <input type="hidden" id="proxy-edit-id" value="" />
+                <div class="field">
+                  <label for="proxy-label">Метка</label>
+                  <input id="proxy-label" required />
+                </div>
+                <div class="field">
+                  <label for="proxy-endpoint">Endpoint</label>
+                  <input id="proxy-endpoint" required placeholder="http://admin-proxy.example:8080" />
+                </div>
+                <div class="field">
+                  <label for="proxy-status">Статус</label>
+                  <select id="proxy-status" required>
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="BANNED">BANNED</option>
+                    <option value="DISABLED">DISABLED</option>
+                  </select>
+                </div>
+                <button class="btn" type="submit" id="proxies-form-submit">Создать</button>
+                <button class="btn btn-ghost" type="button" onclick="return resetProxyForm()" style="margin-top:8px">Отмена</button>
+              </form>
+              <p class="hint" id="proxies-form-status"></p>
+            </div>
+          </div>
         </div>
 
       </main>

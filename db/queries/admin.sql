@@ -43,6 +43,11 @@ SET endpoint = $2,
 WHERE id = $1
 RETURNING id, endpoint, status, created_at, label;
 
+-- name: DeleteProxy :one
+DELETE FROM proxies
+WHERE id = $1
+RETURNING id;
+
 -- name: ListAvitoAccounts :many
 SELECT id, label, status, external_ref, created_at, updated_at
 FROM avito_accounts
@@ -56,6 +61,11 @@ SET label = $2,
     updated_at = now()
 WHERE id = $1
 RETURNING id, label, status, external_ref, created_at, updated_at;
+
+-- name: DeleteAvitoAccount :one
+DELETE FROM avito_accounts
+WHERE id = $1
+RETURNING id;
 
 -- name: UpsertAvitoAccountSecret :exec
 INSERT INTO avito_account_secrets (account_id, password)

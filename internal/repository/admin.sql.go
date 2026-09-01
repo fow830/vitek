@@ -37,6 +37,32 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const deleteAvitoAccount = `-- name: DeleteAvitoAccount :one
+DELETE FROM avito_accounts
+WHERE id = $1
+RETURNING id
+`
+
+func (q *Queries) DeleteAvitoAccount(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, deleteAvitoAccount, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
+const deleteProxy = `-- name: DeleteProxy :one
+DELETE FROM proxies
+WHERE id = $1
+RETURNING id
+`
+
+func (q *Queries) DeleteProxy(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, deleteProxy, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const getActiveSessionByHash = `-- name: GetActiveSessionByHash :one
 SELECT
     s.id,
