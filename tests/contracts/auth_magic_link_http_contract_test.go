@@ -130,7 +130,7 @@ func TestContract_MagicLinkHTTP_UnknownEmailAccepted(t *testing.T) {
 
 	taskBody, err := json.Marshal(map[string]any{
 		tokens.JSONFieldUserID: userID,
-		tokens.JSONFieldQuery:  "ml-signup-task",
+		tokens.JSONFieldQuery:  tokens.FixtureListingURL,
 	})
 	require.NoError(t, err)
 	treq := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1Tasks, bytes.NewReader(taskBody)))

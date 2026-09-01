@@ -121,6 +121,7 @@ const (
 	ErrMsgAdminProxiesFailed   = "admin proxies failed"
 	ErrMsgAdminAvitoFailed     = "admin avito accounts failed"
 	ErrMsgInvalidResourceID    = "invalid resource id"
+	ErrMsgInvalidListingURL    = "invalid avito listing url"
 )
 
 // HTTPGet / HTTPPost / HTTPPatch build ServeMux patterns.

@@ -17,7 +17,8 @@ const (
 	PathMigrations        = "db/migrations"
 	PathMigrationInit     = "db/migrations/000001_init.up.sql"
 	PathMigrationPlatform = "db/migrations/000002_platform.up.sql"
-	PathMigrationSessions = "db/migrations/000003_sessions.up.sql"
+	PathMigrationSessions     = "db/migrations/000003_sessions.up.sql"
+	PathMigrationListingSearch = "db/migrations/000004_listing_search.up.sql"
 	PathQueries           = "db/queries"
 	PathRepository        = "internal/repository"
 	PathSQLC              = "sqlc.yaml"
@@ -55,6 +56,7 @@ func RenderSQLCYAML() string {
 		"      - \"" + PathMigrationInit + "\"\n" +
 		"      - \"" + PathMigrationPlatform + "\"\n" +
 		"      - \"" + PathMigrationSessions + "\"\n" +
+		"      - \"" + PathMigrationListingSearch + "\"\n" +
 		"    gen:\n" +
 		"      go:\n" +
 		"        package: \"" + PackageRepository + "\"\n" +

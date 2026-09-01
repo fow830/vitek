@@ -131,7 +131,7 @@ func TestContract_UserServiceEntitlements(t *testing.T) {
 	require.Len(t, list, len(tokens.ShippedServiceCodes()))
 	require.Equal(t, tokens.ServiceCodeListingSearch, list[0].ServiceCode)
 
-	_, err = tasks.CreateTask(ctx, user.ID, "ok")
+	_, err = tasks.CreateTask(ctx, user.ID, tokens.FixtureListingURL)
 	require.NoError(t, err)
 
 	bare, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
@@ -145,7 +145,7 @@ func TestContract_UserServiceEntitlements(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = tasks.CreateTask(ctx, bare.ID, "blocked")
+	_, err = tasks.CreateTask(ctx, bare.ID, tokens.FixtureListingURL)
 	require.ErrorIs(t, err, domain.ErrServiceNotEntitled)
 
 	nosub, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
@@ -158,7 +158,7 @@ func TestContract_UserServiceEntitlements(t *testing.T) {
 		ServiceCode: tokens.ServiceCodeListingSearch,
 	})
 	require.NoError(t, err)
-	_, err = tasks.CreateTask(ctx, nosub.ID, "nosub")
+	_, err = tasks.CreateTask(ctx, nosub.ID, tokens.FixtureListingURL2)
 	require.ErrorIs(t, err, domain.ErrNoActiveSubscription)
 }
 

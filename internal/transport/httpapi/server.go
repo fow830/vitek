@@ -482,6 +482,10 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 	task, err := s.tasks.CreateTask(r.Context(), userID, req.Query)
 	if err != nil {
+		if errors.Is(err, domain.ErrInvalidListingURL) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidListingURL})
+			return
+		}
 		if errors.Is(err, domain.ErrSubscriptionLimitExceeded) {
 			writeJSON(w, http.StatusConflict, map[string]string{tokens.JSONFieldError: domain.ErrSubscriptionLimitExceeded.Error()})
 			return

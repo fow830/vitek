@@ -3,7 +3,6 @@ package contracts_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 
@@ -28,10 +27,10 @@ func TestContract_SubscriptionTaskLimits(t *testing.T) {
 		user, err := users.CreateUser(ctx, tokens.ProductEmail("dev"), repository.PlanTypeFREE)
 		require.NoError(t, err)
 
-		_, err = tasks.CreateTask(ctx, user.ID, "Avito Query 1")
+		_, err = tasks.CreateTask(ctx, user.ID, tokens.FixtureListingURL)
 		require.NoError(t, err)
 
-		_, err = tasks.CreateTask(ctx, user.ID, "Avito Query 2")
+		_, err = tasks.CreateTask(ctx, user.ID, tokens.FixtureListingURL2)
 		require.ErrorIs(t, err, domain.ErrSubscriptionLimitExceeded)
 	})
 }
@@ -55,7 +54,7 @@ func TestContract_SubscriptionTaskLimits_Concurrent(t *testing.T) {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			_, createErr := tasks.CreateTask(ctx, user.ID, fmt.Sprintf("Avito Query %d", id))
+			_, createErr := tasks.CreateTask(ctx, user.ID, tokens.FixtureListingURL)
 			errs <- createErr
 		}(i)
 	}

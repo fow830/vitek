@@ -33,6 +33,7 @@ func main() {
 	defer pool.Close()
 
 	proxies := service.NewProxies(pool)
+	listing := service.NewListingSearchWorker(pool, service.NewStubListingProcessor())
 
 	log.Printf("%s %s (%s) started env=%s tick=%s", tokens.ProductName, tokens.ProductNameLocal, tokens.BinaryWorker, cfg.AppEnv, cfg.WorkerTick)
 
@@ -45,16 +46,19 @@ func main() {
 			log.Printf("%s %s shutting down", tokens.ProductName, tokens.BinaryWorker)
 			return
 		case <-ticker.C:
-			runTick(ctx, proxies)
+			runTick(ctx, proxies, listing)
 		}
 	}
 }
 
-func runTick(ctx context.Context, proxies *service.Proxies) {
+func runTick(ctx context.Context, proxies *service.Proxies, listing *service.ListingSearchWorker) {
 	list, err := proxies.ListActive(ctx)
 	if err != nil {
 		log.Printf(tokens.LogWorkerProxiesErr, err)
-		return
+	} else {
+		log.Printf(tokens.LogWorkerTickActive, len(list))
 	}
-	log.Printf(tokens.LogWorkerTickActive, len(list))
+	if _, err := listing.ProcessOne(ctx); err != nil {
+		log.Printf(tokens.LogWorkerListingSearchErr, err)
+	}
 }

@@ -13,8 +13,8 @@ import (
 // CONTRACT-DEDUP-001: second insert with same avito_id is rejected.
 func TestContract_ItemDeduplicationByAvitoID(t *testing.T) {
 	ctx := context.Background()
-	_, q := queries(t)
-	items := service.NewItems(q)
+	pool, _ := queries(t)
+	items := service.NewItems(pool)
 
 	_, err := items.Record(ctx, "avito-123", "iPhone 15")
 	require.NoError(t, err)

@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 
@@ -84,8 +83,8 @@ func TestContract_HTTPSurface(t *testing.T) {
 			return rec
 		}
 
-		require.Equal(t, http.StatusCreated, createTask(user.ID, "q1").Code)
-		require.Equal(t, http.StatusConflict, createTask(user.ID, "q2").Code)
+		require.Equal(t, http.StatusCreated, createTask(user.ID, tokens.FixtureListingURL).Code)
+		require.Equal(t, http.StatusConflict, createTask(user.ID, tokens.FixtureListingURL2).Code)
 
 		bare, err := q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
 			Email: tokens.ProductEmail("http-noent"),
@@ -98,7 +97,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		rec := createTask(bare.ID, "blocked")
+		rec := createTask(bare.ID, tokens.FixtureListingURL)
 		require.Equal(t, http.StatusForbidden, rec.Code)
 
 		var errBody map[string]string
@@ -127,11 +126,4 @@ func TestContract_HTTPSurface(t *testing.T) {
 		require.Equal(t, "http://active.http.example:8080", row[tokens.JSONFieldEndpoint])
 		require.Equal(t, string(repository.ProxyStatusACTIVE), row[tokens.JSONFieldStatus])
 	})
-}
-
-func pgUUIDString(id pgtype.UUID) string {
-	if !id.Valid {
-		return ""
-	}
-	return uuid.UUID(id.Bytes).String()
 }

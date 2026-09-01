@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -69,6 +70,11 @@ func NewTasks(pool *pgxpool.Pool) *Tasks {
 }
 
 func (s *Tasks) CreateTask(ctx context.Context, userID pgtype.UUID, query string) (repository.Task, error) {
+	query = strings.TrimSpace(query)
+	if !tokens.ValidListingURL(query) {
+		return repository.Task{}, domain.ErrInvalidListingURL
+	}
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return repository.Task{}, err
@@ -154,15 +160,15 @@ func (s *Proxies) Update(ctx context.Context, id pgtype.UUID, endpoint string, s
 
 // Items deduplicates Avito listings by avito_id.
 type Items struct {
-	q *repository.Queries
+	pool *pgxpool.Pool
 }
 
-func NewItems(q *repository.Queries) *Items {
-	return &Items{q: q}
+func NewItems(pool *pgxpool.Pool) *Items {
+	return &Items{pool: pool}
 }
 
 func (s *Items) Record(ctx context.Context, avitoID, title string) (repository.Item, error) {
-	item, err := s.q.InsertItem(ctx, repository.InsertItemParams{
+	item, err := repository.New(s.pool).InsertItem(ctx, repository.InsertItemParams{
 		AvitoID: avitoID,
 		Title:   title,
 	})
@@ -174,4 +180,20 @@ func (s *Items) Record(ctx context.Context, avitoID, title string) (repository.I
 		return repository.Item{}, err
 	}
 	return item, nil
+}
+
+// UpsertTx inserts an item or returns the existing row on avito_id conflict (same transaction).
+func (s *Items) UpsertTx(ctx context.Context, q *repository.Queries, avitoID, title string) (repository.Item, error) {
+	item, err := q.InsertItem(ctx, repository.InsertItemParams{
+		AvitoID: avitoID,
+		Title:   title,
+	})
+	if err == nil {
+		return item, nil
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == tokens.PGCodeUniqueViolation {
+		return q.GetItemByAvitoID(ctx, avitoID)
+	}
+	return repository.Item{}, err
 }

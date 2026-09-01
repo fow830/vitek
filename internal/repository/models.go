@@ -143,10 +143,11 @@ func (ns NullProxyStatus) Value() (driver.Value, error) {
 type TaskStatus string
 
 const (
-	TaskStatusPENDING TaskStatus = "PENDING"
-	TaskStatusRUNNING TaskStatus = "RUNNING"
-	TaskStatusPAUSED  TaskStatus = "PAUSED"
-	TaskStatusFAILED  TaskStatus = "FAILED"
+	TaskStatusPENDING   TaskStatus = "PENDING"
+	TaskStatusRUNNING   TaskStatus = "RUNNING"
+	TaskStatusPAUSED    TaskStatus = "PAUSED"
+	TaskStatusFAILED    TaskStatus = "FAILED"
+	TaskStatusCOMPLETED TaskStatus = "COMPLETED"
 )
 
 func (e *TaskStatus) Scan(src interface{}) error {
@@ -294,6 +295,13 @@ type Task struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	Query     string             `json:"query"`
 	Status    TaskStatus         `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type TaskItem struct {
+	TaskID    pgtype.UUID        `json:"task_id"`
+	ItemID    pgtype.UUID        `json:"item_id"`
+	Rank      int32              `json:"rank"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 

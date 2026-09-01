@@ -172,6 +172,24 @@ func (q *Queries) GetActiveSubscriptionForUpdate(ctx context.Context, userID pgt
 	return i, err
 }
 
+const getItemByAvitoID = `-- name: GetItemByAvitoID :one
+SELECT id, avito_id, title, created_at
+FROM items
+WHERE avito_id = $1
+`
+
+func (q *Queries) GetItemByAvitoID(ctx context.Context, avitoID string) (Item, error) {
+	row := q.db.QueryRow(ctx, getItemByAvitoID, avitoID)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.AvitoID,
+		&i.Title,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const insertItem = `-- name: InsertItem :one
 INSERT INTO items (avito_id, title)
 VALUES ($1, $2)
