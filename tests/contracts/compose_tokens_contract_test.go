@@ -15,6 +15,10 @@ func TestContract_ComposeIsRenderedFromTokens(t *testing.T) {
 	assertFileEqualsRender(t, tokens.PathCompose, tokens.RenderComposeYAML())
 }
 
+func TestContract_VitekPolicyIsRenderedFromTokens(t *testing.T) {
+	assertFileEqualsRender(t, tokens.PathVitekPolicyRule, tokens.RenderVitekPolicyMDC())
+}
+
 func TestContract_SQLCIsRenderedFromTokens(t *testing.T) {
 	assertFileEqualsRender(t, tokens.PathSQLC, tokens.RenderSQLCYAML())
 }

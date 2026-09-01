@@ -32,13 +32,17 @@ func main() {
 			fatal(err)
 		}
 	}
-	fmt.Printf("tokens: regenerated %s, %s, %s, %s, %s, %s\n",
+	if err := tokens.RenderAISkills(root); err != nil {
+		fatal(err)
+	}
+	fmt.Printf("tokens: regenerated %s, %s, %s, %s, %s, %s, %s\n",
 		tokens.PathEnvExample,
 		tokens.PathDesignCSS,
 		tokens.PathCompose,
 		tokens.PathSQLC,
 		tokens.PathDockerfile,
 		tokens.PathAppFace,
+		tokens.PathVitekPolicyRule,
 	)
 }
 

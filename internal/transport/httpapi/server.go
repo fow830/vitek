@@ -14,7 +14,6 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 
 	"vitek/internal/domain"
-	"vitek/internal/repository"
 	"vitek/internal/service"
 	"vitek/internal/tokens"
 )
@@ -47,13 +46,12 @@ func WithSecureCookies(v bool) Option {
 }
 
 func NewServer(pool *pgxpool.Pool, opts ...Option) *Server {
-	q := repository.New(pool)
 	s := &Server{
 		pool:              pool,
 		users:             service.NewUsers(pool),
 		tasks:             service.NewTasks(pool),
-		proxies:           service.NewProxies(q),
-		avito:             service.NewAvitoAccounts(q),
+		proxies:           service.NewProxies(pool),
+		avito:             service.NewAvitoAccounts(pool),
 		auth:              service.NewAuth(pool, service.NewMemoryMagicLinkMailer()),
 		exposeMagicTokens: false,
 		secureCookies:     false,
@@ -102,7 +100,7 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
 			return
 		}
-		if user.Role != repository.UserRoleADMIN {
+		if !user.IsAdmin() {
 			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: tokens.ErrMsgForbidden})
 			return
 		}
@@ -210,15 +208,15 @@ func (s *Server) handleAdminListProxies(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) handleAdminCreateProxy(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Endpoint string                 `json:"endpoint"`
-		Status   repository.ProxyStatus `json:"status"`
-		Label    string                 `json:"label"`
+		Endpoint string              `json:"endpoint"`
+		Status   service.ProxyStatus `json:"status"`
+		Label    string              `json:"label"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
-	if !validProxyStatus(req.Status) {
+	if !service.ValidProxyStatus(req.Status) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidProxyStatus})
 		return
 	}
@@ -242,15 +240,15 @@ func (s *Server) handleAdminPatchProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Endpoint string                 `json:"endpoint"`
-		Status   repository.ProxyStatus `json:"status"`
-		Label    string                 `json:"label"`
+		Endpoint string              `json:"endpoint"`
+		Status   service.ProxyStatus `json:"status"`
+		Label    string              `json:"label"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
-	if !validProxyStatus(req.Status) {
+	if !service.ValidProxyStatus(req.Status) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidProxyStatus})
 		return
 	}
@@ -287,15 +285,15 @@ func (s *Server) handleAdminListAvito(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAdminCreateAvito(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Label       string                        `json:"label"`
-		Status      repository.AvitoAccountStatus `json:"status"`
-		ExternalRef string                        `json:"external_ref"`
+		Label       string                     `json:"label"`
+		Status      service.AvitoAccountStatus `json:"status"`
+		ExternalRef string                     `json:"external_ref"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
-	if !validAvitoStatus(req.Status) {
+	if !service.ValidAvitoStatus(req.Status) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidAvitoStatus})
 		return
 	}
@@ -319,15 +317,15 @@ func (s *Server) handleAdminPatchAvito(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Label       string                        `json:"label"`
-		Status      repository.AvitoAccountStatus `json:"status"`
-		ExternalRef string                        `json:"external_ref"`
+		Label       string                     `json:"label"`
+		Status      service.AvitoAccountStatus `json:"status"`
+		ExternalRef string                     `json:"external_ref"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
-	if !validAvitoStatus(req.Status) {
+	if !service.ValidAvitoStatus(req.Status) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidAvitoStatus})
 		return
 	}
@@ -371,7 +369,7 @@ func (s *Server) serveLanding(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveAppPage(w http.ResponseWriter, r *http.Request) {
 	html := tokens.RenderAppFaceHTML()
 	if user, ok := s.sessionUser(r); ok {
-		withSSE := user.Role == repository.UserRoleADMIN
+		withSSE := user.IsAdmin()
 		html = tokens.RenderAppFaceHTMLLoggedIn(user.Email, withSSE)
 	}
 	w.Header().Set(tokens.HeaderContentType, tokens.MIMETextHTML)
@@ -431,8 +429,8 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 }
 
 type createUserRequest struct {
-	Email    string              `json:"email"`
-	PlanType repository.PlanType `json:"plan_type"`
+	Email    string           `json:"email"`
+	PlanType service.PlanType `json:"plan_type"`
 }
 
 func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -446,9 +444,7 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidEmail})
 		return
 	}
-	switch req.PlanType {
-	case repository.PlanTypeFREE, repository.PlanTypePRO, repository.PlanTypeULTRA:
-	default:
+	if !service.ValidPlanType(req.PlanType) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidPlanType})
 		return
 	}
@@ -545,22 +541,4 @@ func uuidFromPG(id pgtype.UUID) string {
 		return ""
 	}
 	return uuid.UUID(id.Bytes).String()
-}
-
-func validProxyStatus(s repository.ProxyStatus) bool {
-	switch s {
-	case repository.ProxyStatusACTIVE, repository.ProxyStatusDISABLED, repository.ProxyStatusBANNED:
-		return true
-	default:
-		return false
-	}
-}
-
-func validAvitoStatus(s repository.AvitoAccountStatus) bool {
-	switch s {
-	case repository.AvitoAccountStatusACTIVE, repository.AvitoAccountStatusDISABLED, repository.AvitoAccountStatusERROR:
-		return true
-	default:
-		return false
-	}
 }

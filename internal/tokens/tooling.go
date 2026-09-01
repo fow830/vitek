@@ -31,6 +31,7 @@ const (
 	PathDEPLOY            = "DEPLOY.md"
 	PathTaskfile          = "Taskfile.yml"
 	PathLRTRule           = ".cursor/rules/lrt.mdc"
+	PathVitekPolicyRule   = ".cursor/rules/vitek-policy.mdc"
 )
 
 // ImageGoBuild returns the golang build image derived from GoToolchain (major.minor).

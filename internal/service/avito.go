@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"vitek/internal/repository"
 )
@@ -12,8 +13,8 @@ type AvitoAccounts struct {
 	q *repository.Queries
 }
 
-func NewAvitoAccounts(q *repository.Queries) *AvitoAccounts {
-	return &AvitoAccounts{q: q}
+func NewAvitoAccounts(pool *pgxpool.Pool) *AvitoAccounts {
+	return &AvitoAccounts{q: repository.New(pool)}
 }
 
 func (s *AvitoAccounts) Create(ctx context.Context, label string, status repository.AvitoAccountStatus, ref string) (repository.AvitoAccount, error) {

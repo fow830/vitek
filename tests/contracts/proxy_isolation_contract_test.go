@@ -13,8 +13,8 @@ import (
 // CONTRACT-PROXY-001: ListActive returns only proxies with status ACTIVE.
 func TestContract_ProxyIsolationActiveOnly(t *testing.T) {
 	ctx := context.Background()
-	_, q := queries(t)
-	proxies := service.NewProxies(q)
+	pool, _ := queries(t)
+	proxies := service.NewProxies(pool)
 
 	_, err := proxies.Create(ctx, "http://active.example:8080", repository.ProxyStatusACTIVE, "")
 	require.NoError(t, err)

@@ -1,0 +1,13 @@
+---
+description: Vitek Architecture & Anti-Drift Policy
+globs: **/*
+---
+# Vitek Development Rules
+
+1. NEVER edit rendered infrastructure files directly (Dockerfile, .env.example, docker-compose.yml).
+   Always edit 'internal/tokens/*.go' and run 'task tokens:gen'.
+2. NEVER write DB models or DTOs manually.
+   Modify 'db/migrations/*.sql' and 'db/queries/*.sql', then run 'task sqlc'.
+3. Transport layer (HTTP/gRPC) must NOT import 'internal/repository' directly — calls must go through 'internal/service'.
+4. Do NOT leave draft files (.md, .txt) in root. Only README.md and DEPLOY.md are allowed.
+5. Every new endpoint or core logic change requires a contract test in 'tests/contracts/'.

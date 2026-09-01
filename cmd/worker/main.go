@@ -12,7 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"vitek/internal/config"
-	"vitek/internal/repository"
 	"vitek/internal/service"
 	"vitek/internal/tokens"
 )
@@ -33,7 +32,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	proxies := service.NewProxies(repository.New(pool))
+	proxies := service.NewProxies(pool)
 
 	log.Printf("%s %s (%s) started env=%s tick=%s", tokens.ProductName, tokens.ProductNameLocal, tokens.BinaryWorker, cfg.AppEnv, cfg.WorkerTick)
 

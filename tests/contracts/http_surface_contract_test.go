@@ -107,7 +107,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 	})
 
 	t.Run("proxies active only via HTTP", func(t *testing.T) {
-		proxies := service.NewProxies(q)
+		proxies := service.NewProxies(pool)
 		_, err := proxies.Create(ctx, "http://active.http.example:8080", repository.ProxyStatusACTIVE, "")
 		require.NoError(t, err)
 		_, err = proxies.Create(ctx, "http://banned.http.example:8080", repository.ProxyStatusBANNED, "")

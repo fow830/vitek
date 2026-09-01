@@ -123,8 +123,8 @@ type Proxies struct {
 	q *repository.Queries
 }
 
-func NewProxies(q *repository.Queries) *Proxies {
-	return &Proxies{q: q}
+func NewProxies(pool *pgxpool.Pool) *Proxies {
+	return &Proxies{q: repository.New(pool)}
 }
 
 func (s *Proxies) Create(ctx context.Context, endpoint string, status repository.ProxyStatus, label string) (repository.Proxy, error) {
