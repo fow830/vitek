@@ -25,6 +25,9 @@ func MagicLinkConsumeURL() string {
 	return HTTPSAppBase() + PathV1AuthMagicLinkConsume
 }
 
+// ProductDomainUnknownHost is used in contract fuzz (must never match real routes).
+const ProductDomainUnknownHost = "evil.example"
+
 // ProductEmail builds an email on ProductDomain (contracts / fixtures).
 func ProductEmail(local string) string {
 	return local + "@" + ProductDomain

@@ -30,6 +30,7 @@ const (
 // PathProbe* are fuzz samples that must always 404 (never registered routes).
 const (
 	PathProbeLegacyAdmin    = "/admin"
+	PathProbeLegacyAdminSlash = "/admin/"
 	PathProbeLegacyAdminSSE = "/admin/sse"
 	PathProbeFoo            = "/foo"
 	PathProbeAPI            = "/api"

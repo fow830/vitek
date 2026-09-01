@@ -44,7 +44,7 @@ var HTTPAppRoutes = []HTTPRouteSpec{
 // HTTPPathProbe404 paths that must never resolve (contract fuzz samples).
 var HTTPPathProbe404 = []string{
 	PathProbeLegacyAdmin,
-	PathProbeLegacyAdmin + "/",
+	PathProbeLegacyAdminSlash,
 	PathProbeLegacyAdminSSE,
 	PathProbeFoo,
 	PathProbeAPI,
@@ -123,8 +123,24 @@ func RequestMatchesRoute(method, path string, route HTTPRouteSpec) bool {
 	return method == route.Method && RoutePathMatches(route.Path, path)
 }
 
+// HTTPPolicyProbeHosts are hosts used in contract fuzz for 404 probes.
+var HTTPPolicyProbeHosts = append(
+	append([]string(nil), HTTPLandingHosts...),
+	ProductDomainApp,
+	ProductDomainUnknownHost,
+)
+
+// policyMethod maps HEAD to GET for allowlist checks (RFC: HEAD ⊆ GET).
+func policyMethod(method string) string {
+	if method == http.MethodHead {
+		return http.MethodGet
+	}
+	return method
+}
+
 // IsAllowedHTTPRequest is the iron allowlist gate (unknown → false → 404).
 func IsAllowedHTTPRequest(method, path, host string) bool {
+	method = policyMethod(method)
 	path = NormalizeRequestPath(path)
 	host = NormalizeHost(host)
 

@@ -16,12 +16,7 @@ func TestContract_UnlistedPathsAlways404(t *testing.T) {
 	pool, _ := queries(t)
 	handler := httpapi.NewServer(pool).Handler()
 
-	hosts := []string{
-		tokens.ProductDomainLanding,
-		tokens.ProductDomainWWW,
-		tokens.ProductDomainApp,
-		"evil.example",
-	}
+	hosts := tokens.HTTPPolicyProbeHosts
 	for _, path := range tokens.HTTPPathProbe404 {
 		for _, host := range hosts {
 			req := httptest.NewRequest(http.MethodGet, path, nil)
@@ -47,7 +42,7 @@ func TestContract_LandingHostRejectsAppAPI(t *testing.T) {
 		{http.MethodPost, tokens.PathV1Users},
 		{http.MethodGet, tokens.PathAppSSE},
 	}
-	for _, host := range []string{tokens.ProductDomainLanding, tokens.ProductDomainWWW} {
+	for _, host := range tokens.HTTPLandingHosts {
 		for _, p := range probes {
 			req := httptest.NewRequest(p.method, p.path, nil)
 			req.Host = host
@@ -94,6 +89,53 @@ func TestContract_WrongMethodOnValidPath404(t *testing.T) {
 	handler := httpapi.NewServer(pool).Handler()
 
 	req := withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1Users, nil))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+// CONTRACT-HTTP-POLICY-006: HEAD is allowed wherever GET is allowed on contracted paths.
+func TestContract_HEADAllowedWhereGETAllowed(t *testing.T) {
+	pool, _ := queries(t)
+	handler := httpapi.NewServer(pool).Handler()
+
+	type headCase struct {
+		host string
+		path string
+	}
+	var cases []headCase
+	for _, route := range tokens.HTTPGlobalRoutes {
+		if route.Method != http.MethodGet {
+			continue
+		}
+		for _, host := range tokens.HTTPPolicyProbeHosts {
+			cases = append(cases, headCase{host, route.Path})
+		}
+	}
+	for _, route := range tokens.HTTPLandingRoutes {
+		if route.Method != http.MethodGet {
+			continue
+		}
+		for _, host := range tokens.HTTPLandingHosts {
+			cases = append(cases, headCase{host, route.Path})
+		}
+	}
+	for _, route := range tokens.HTTPAppRoutes {
+		if route.Method != http.MethodGet {
+			continue
+		}
+		cases = append(cases, headCase{tokens.ProductDomainApp, route.Path})
+	}
+	for _, c := range cases {
+		req := httptest.NewRequest(http.MethodHead, c.path, nil)
+		req.Host = c.host
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		require.NotEqual(t, http.StatusNotFound, rec.Code, "HEAD %s host=%s", c.path, c.host)
+	}
+
+	req := httptest.NewRequest(http.MethodHead, tokens.PathProbeLegacyAdmin, nil)
+	req.Host = tokens.ProductDomainApp
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusNotFound, rec.Code)

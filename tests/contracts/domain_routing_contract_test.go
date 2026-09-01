@@ -33,7 +33,7 @@ func TestContract_LegacyAdminPathGone(t *testing.T) {
 	pool, _ := queries(t)
 	handler := httpapi.NewServer(pool).Handler()
 
-	for _, host := range []string{tokens.ProductDomainLanding, tokens.ProductDomainWWW, tokens.ProductDomainApp} {
+	for _, host := range tokens.HTTPPolicyProbeHosts {
 		req := httptest.NewRequest(http.MethodGet, tokens.PathProbeLegacyAdmin, nil)
 		req.Host = host
 		rec := httptest.NewRecorder()
@@ -47,7 +47,7 @@ func TestContract_LandingHostRoot(t *testing.T) {
 	pool, _ := queries(t)
 	handler := httpapi.NewServer(pool).Handler()
 
-	for _, host := range []string{tokens.ProductDomainLanding, tokens.ProductDomainWWW} {
+	for _, host := range tokens.HTTPLandingHosts {
 		req := httptest.NewRequest(http.MethodGet, tokens.PathRoot, nil)
 		req.Host = host
 		rec := httptest.NewRecorder()
@@ -84,7 +84,7 @@ func TestContract_UnknownHostRootNotFound(t *testing.T) {
 	handler := httpapi.NewServer(pool).Handler()
 
 	req := httptest.NewRequest(http.MethodGet, tokens.PathRoot, nil)
-	req.Host = "evil.example"
+	req.Host = tokens.ProductDomainUnknownHost
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusNotFound, rec.Code)

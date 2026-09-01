@@ -21,3 +21,9 @@ func IsLandingHost(host string) bool {
 func IsAppHost(host string) bool {
 	return NormalizeHost(host) == ProductDomainApp
 }
+
+// HTTPLandingHosts are marketing Host header values (contracts / probes).
+var HTTPLandingHosts = []string{
+	ProductDomainLanding,
+	ProductDomainWWW,
+}
