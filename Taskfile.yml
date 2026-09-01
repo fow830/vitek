@@ -14,7 +14,7 @@ tasks:
   sqlc:
     desc: Generate Go code from SQL via sqlc
     cmds:
-      - sqlc generate
+      - go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate
 
   test:contracts:
     desc: Run LRT executable contracts
