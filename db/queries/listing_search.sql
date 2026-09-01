@@ -24,6 +24,13 @@ SELECT id, user_id, query, status, created_at
 FROM tasks
 WHERE id = $1;
 
+-- name: ListTasksByUser :many
+SELECT id, user_id, query, status, created_at
+FROM tasks
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT $2;
+
 -- name: InsertTaskItem :exec
 INSERT INTO task_items (task_id, item_id, rank)
 VALUES ($1, $2, $3);

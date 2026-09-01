@@ -54,3 +54,50 @@ func appFaceScriptBlock() string {
   </script>
 `
 }
+
+func appFaceSearchScriptBlock() string {
+	return `  <script>
+    const pathMeTasks = '` + PathV1MeTasks + `';
+    const pathTaskResults = (id) => '` + PathV1Tasks + `/' + id + '` + PathV1TaskResultsSuffix + `';
+    async function submitSearch(e) {
+      if (e) e.preventDefault();
+      const url = document.getElementById('` + AppDOMSearchURL + `').value.trim();
+      const status = document.getElementById('` + AppDOMSearchStatus + `');
+      const box = document.getElementById('` + AppDOMSearchResults + `');
+      status.textContent = '…';
+      box.innerHTML = '';
+      const res = await fetch(pathMeTasks, {
+        method: 'POST',
+        headers: { '` + HeaderContentType + `': '` + MIMEApplicationJSON + `' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ ` + JSONFieldQuery + `: url })
+      });
+      if (!res.ok) { status.textContent = '` + AppCopySearchFailed + `'; return false; }
+      const task = await res.json();
+      status.textContent = task.` + JSONFieldStatus + `;
+      pollResults(task.` + JSONFieldID + `);
+      return false;
+    }
+    async function pollResults(taskID) {
+      const status = document.getElementById('` + AppDOMSearchStatus + `');
+      const box = document.getElementById('` + AppDOMSearchResults + `');
+      for (let i = 0; i < 30; i++) {
+        const t = await fetch('` + PathV1Tasks + `/' + taskID, { credentials: 'same-origin' });
+        if (t.ok) {
+          const task = await t.json();
+          status.textContent = task.` + JSONFieldStatus + `;
+          if (task.` + JSONFieldStatus + ` === 'COMPLETED' || task.` + JSONFieldStatus + ` === 'FAILED') break;
+        }
+        await new Promise(r => setTimeout(r, 500));
+      }
+      const res = await fetch(pathTaskResults(taskID), { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows = (data.` + JSONFieldResults + ` || []).map(it =>
+        '<tr><td class="mono">' + it.` + JSONFieldAvitoID + ` + '</td><td>' + it.` + JSONFieldTitle + ` + '</td></tr>'
+      ).join('');
+      box.innerHTML = '<table><thead><tr><th>` + AppCopyColCode + `</th><th>` + AppCopyColTitle + `</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+  </script>
+`
+}

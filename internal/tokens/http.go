@@ -14,6 +14,8 @@ const (
 	PathHealthz                = "/healthz"
 	PathV1Users                = "/v1/users"
 	PathV1Tasks                = "/v1/tasks"
+	PathV1TaskResultsSuffix    = "/results"
+	PathV1MeTasks              = "/v1/me/tasks"
 	PathV1ProxiesActive        = "/v1/proxies/active"
 	PathV1AuthMagicLink        = "/v1/auth/magic-link"
 	PathV1AuthMagicLinkConsume = "/v1/auth/magic-link/consume"
@@ -61,6 +63,12 @@ const (
 	JSONFieldLabel       = "label"
 	JSONFieldAccounts    = "accounts"
 	JSONFieldExternalRef = "external_ref"
+	JSONFieldResults     = "results"
+	JSONFieldItems       = "items"
+	JSONFieldAvitoID     = "avito_id"
+	JSONFieldTitle       = "title"
+	JSONFieldRank        = "rank"
+	JSONFieldTasks       = "tasks"
 
 	HeaderContentType = "Content-Type"
 	HeaderSetCookie   = "Set-Cookie"
@@ -122,9 +130,15 @@ const (
 	ErrMsgAdminAvitoFailed     = "admin avito accounts failed"
 	ErrMsgInvalidResourceID    = "invalid resource id"
 	ErrMsgInvalidListingURL    = "invalid avito listing url"
+	ErrMsgTaskNotFound         = "task not found"
+	ErrMsgListTasksFailed      = "list tasks failed"
+	ErrMsgGetTaskFailed        = "get task failed"
 )
 
-// HTTPGet / HTTPPost / HTTPPatch build ServeMux patterns.
+// HTTPPathTaskResults returns GET /v1/tasks/{id}/results pattern.
+func HTTPPathTaskResults() string {
+	return HTTPPathID(PathV1Tasks) + PathV1TaskResultsSuffix
+}
 func HTTPGet(path string) string   { return "GET " + path }
 func HTTPPost(path string) string  { return "POST " + path }
 func HTTPPatch(path string) string { return "PATCH " + path }

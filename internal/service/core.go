@@ -124,7 +124,34 @@ func (s *Tasks) CreateTask(ctx context.Context, userID pgtype.UUID, query string
 	return task, nil
 }
 
-// Proxies exposes only ACTIVE proxies to callers.
+func (s *Tasks) GetForUser(ctx context.Context, userID, taskID pgtype.UUID) (repository.Task, error) {
+	q := repository.New(s.pool)
+	task, err := q.GetTask(ctx, taskID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return repository.Task{}, domain.ErrTaskNotFound
+		}
+		return repository.Task{}, err
+	}
+	if task.UserID != userID {
+		return repository.Task{}, domain.ErrForbidden
+	}
+	return task, nil
+}
+
+func (s *Tasks) ListForUser(ctx context.Context, userID pgtype.UUID) ([]repository.Task, error) {
+	return repository.New(s.pool).ListTasksByUser(ctx, repository.ListTasksByUserParams{
+		UserID: userID,
+		Limit:  tokens.ListingSearchTaskListLimit,
+	})
+}
+
+func (s *Tasks) ListResultsForUser(ctx context.Context, userID, taskID pgtype.UUID) ([]repository.ListTaskItemsRow, error) {
+	if _, err := s.GetForUser(ctx, userID, taskID); err != nil {
+		return nil, err
+	}
+	return repository.New(s.pool).ListTaskItems(ctx, taskID)
+}
 type Proxies struct {
 	q *repository.Queries
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 
 	"vitek/internal/domain"
+	"vitek/internal/repository"
 	"vitek/internal/service"
 	"vitek/internal/tokens"
 )
@@ -67,6 +68,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathHealthz), s.handleHealthz)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1Users), s.handleCreateUser)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1Tasks), s.handleCreateTask)
+	mux.HandleFunc(tokens.HTTPGet(tokens.HTTPPathID(tokens.PathV1Tasks)), s.requireUser(s.handleGetTask))
+	mux.HandleFunc(tokens.HTTPGet(tokens.HTTPPathTaskResults()), s.requireUser(s.handleGetTaskResults))
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1MeTasks), s.requireUser(s.handleListMyTasks))
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1MeTasks), s.requireUser(s.handleCreateMyTask))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1ProxiesActive), s.handleListActiveProxies)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLink), s.handleMagicLinkRequest)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLinkConsume), s.handleMagicLinkConsume)
@@ -91,6 +96,16 @@ func (s *Server) withHTTPPolicy(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) requireUser(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := s.sessionUser(r); !ok {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+			return
+		}
+		next(w, r)
+	}
 }
 
 func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
@@ -370,7 +385,7 @@ func (s *Server) serveAppPage(w http.ResponseWriter, r *http.Request) {
 	html := tokens.RenderAppFaceHTML()
 	if user, ok := s.sessionUser(r); ok {
 		withSSE := user.IsAdmin()
-		html = tokens.RenderAppFaceHTMLLoggedIn(user.Email, withSSE)
+		html = tokens.RenderAppFaceHTMLLoggedIn(user.Email, uuidFromPG(user.UserID), withSSE)
 	}
 	w.Header().Set(tokens.HeaderContentType, tokens.MIMETextHTML)
 	w.WriteHeader(http.StatusOK)
@@ -507,6 +522,133 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		tokens.JSONFieldQuery:  task.Query,
 		tokens.JSONFieldStatus: string(task.Status),
 	})
+}
+
+func (s *Server) handleCreateMyTask(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	var req struct {
+		Query string `json:"query"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	task, err := s.tasks.CreateTask(r.Context(), user.UserID, req.Query)
+	if err != nil {
+		if errors.Is(err, domain.ErrInvalidListingURL) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidListingURL})
+			return
+		}
+		if errors.Is(err, domain.ErrSubscriptionLimitExceeded) {
+			writeJSON(w, http.StatusConflict, map[string]string{tokens.JSONFieldError: domain.ErrSubscriptionLimitExceeded.Error()})
+			return
+		}
+		if errors.Is(err, domain.ErrNoActiveSubscription) {
+			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: domain.ErrNoActiveSubscription.Error()})
+			return
+		}
+		if errors.Is(err, domain.ErrServiceNotEntitled) {
+			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: domain.ErrServiceNotEntitled.Error()})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgCreateTaskFailed})
+		return
+	}
+	writeJSON(w, http.StatusCreated, taskJSON(task))
+}
+
+func (s *Server) handleListMyTasks(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	list, err := s.tasks.ListForUser(r.Context(), user.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgListTasksFailed})
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, task := range list {
+		out = append(out, taskJSON(task))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldTasks: out})
+}
+
+func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	taskID, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	task, err := s.tasks.GetForUser(r.Context(), user.UserID, taskID)
+	if err != nil {
+		if errors.Is(err, domain.ErrTaskNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{tokens.JSONFieldError: tokens.ErrMsgTaskNotFound})
+			return
+		}
+		if errors.Is(err, domain.ErrForbidden) {
+			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: tokens.ErrMsgForbidden})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgGetTaskFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, taskJSON(task))
+}
+
+func (s *Server) handleGetTaskResults(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	taskID, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	items, err := s.tasks.ListResultsForUser(r.Context(), user.UserID, taskID)
+	if err != nil {
+		if errors.Is(err, domain.ErrTaskNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{tokens.JSONFieldError: tokens.ErrMsgTaskNotFound})
+			return
+		}
+		if errors.Is(err, domain.ErrForbidden) {
+			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: tokens.ErrMsgForbidden})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgListTasksFailed})
+		return
+	}
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, map[string]any{
+			tokens.JSONFieldID:       uuidFromPG(it.ID),
+			tokens.JSONFieldAvitoID:  it.AvitoID,
+			tokens.JSONFieldTitle:    it.Title,
+			tokens.JSONFieldRank:     it.Rank,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldResults: out})
+}
+
+func taskJSON(task repository.Task) map[string]any {
+	return map[string]any{
+		tokens.JSONFieldID:     uuidFromPG(task.ID),
+		tokens.JSONFieldUserID: uuidFromPG(task.UserID),
+		tokens.JSONFieldQuery:  task.Query,
+		tokens.JSONFieldStatus: string(task.Status),
+	}
 }
 
 func (s *Server) handleListActiveProxies(w http.ResponseWriter, r *http.Request) {

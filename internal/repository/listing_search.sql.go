@@ -135,6 +135,45 @@ func (q *Queries) ListTaskItems(ctx context.Context, taskID pgtype.UUID) ([]List
 	return items, nil
 }
 
+const listTasksByUser = `-- name: ListTasksByUser :many
+SELECT id, user_id, query, status, created_at
+FROM tasks
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT $2
+`
+
+type ListTasksByUserParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Limit  int32       `json:"limit"`
+}
+
+func (q *Queries) ListTasksByUser(ctx context.Context, arg ListTasksByUserParams) ([]Task, error) {
+	rows, err := q.db.Query(ctx, listTasksByUser, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Task{}
+	for rows.Next() {
+		var i Task
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Query,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTaskStatus = `-- name: UpdateTaskStatus :one
 UPDATE tasks
 SET status = $2

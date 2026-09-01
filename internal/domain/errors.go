@@ -12,4 +12,6 @@ var (
 	ErrDuplicateAvitoID          = errors.New(tokens.ErrMsgDuplicateAvitoID)
 	ErrServiceNotEntitled        = errors.New(tokens.ErrMsgServiceNotEntitled)
 	ErrInvalidListingURL         = errors.New(tokens.ErrMsgInvalidListingURL)
+	ErrTaskNotFound              = errors.New(tokens.ErrMsgTaskNotFound)
+	ErrForbidden                 = errors.New(tokens.ErrMsgForbidden)
 )

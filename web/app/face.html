@@ -113,8 +113,9 @@
     <div class="shell">
       <aside class="side">
         <div class="side-brand">Вит<em>ёк</em></div>
-        <nav class="nav" id="nav">
+        <nav class="nav" id="app-nav">
           <a href="#overview" class="is-active" data-view="overview">Обзор</a>
+          <a href="#search" data-view="search">Поиск похожих</a>
           <a href="#services" data-view="services">Сервисы</a>
           <a href="#avito" data-view="avito">Аккаунты Авито</a>
           <a href="#proxies" data-view="proxies">Прокси</a>
@@ -148,6 +149,27 @@
                 <tr><td class="mono">listing_warmup</td><td>Listing warmup (clicks)</td><td><span class="status status-off">false</span></td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div class="view" id="view-search">
+          <div class="top"><div>
+            <h1>Поиск похожих</h1>
+            <p>Вставьте ссылку на объявление Avito — worker найдёт похожие.</p>
+          </div></div>
+          <div class="panel">
+            <div class="panel-head"><h2>Поиск похожих</h2></div>
+            <div style="padding:18px">
+              <form id="search-form" onsubmit="return submitSearch(event)">
+                <div class="field">
+                  <label for="search-url">Ссылка на объявление</label>
+                  <input id="search-url" type="url" required placeholder="https://www.avito.ru/moskva/telefony/iphone_15_1234567890" />
+                </div>
+                <button class="btn" type="submit">Искать</button>
+              </form>
+              <p class="hint" id="search-status">Создайте задачу или выберите из списка.</p>
+              <div id="search-results"></div>
+            </div>
           </div>
         </div>
 
@@ -225,12 +247,12 @@
       window.location.href = pathRoot;
       return false;
     }
-    const nav = document.getElementById('nav');
+    const nav = document.getElementById('app-nav');
     if (nav) nav.addEventListener('click', (e) => {
       const a = e.target.closest('a[data-view]');
       if (!a) return;
       e.preventDefault();
-      document.querySelectorAll('#nav a').forEach(x => x.classList.toggle('is-active', x === a));
+      document.querySelectorAll('#app-nav a').forEach(x => x.classList.toggle('is-active', x === a));
       document.querySelectorAll('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + a.dataset.view));
     });
     if (tick) setInterval(() => {

@@ -27,6 +27,10 @@ var HTTPLandingRoutes = []HTTPRouteSpec{
 var HTTPAppRoutes = []HTTPRouteSpec{
 	{Method: http.MethodPost, Path: PathV1Users},
 	{Method: http.MethodPost, Path: PathV1Tasks},
+	{Method: http.MethodGet, Path: HTTPPathID(PathV1Tasks)},
+	{Method: http.MethodGet, Path: HTTPPathTaskResults()},
+	{Method: http.MethodGet, Path: PathV1MeTasks},
+	{Method: http.MethodPost, Path: PathV1MeTasks},
 	{Method: http.MethodGet, Path: PathV1ProxiesActive},
 	{Method: http.MethodPost, Path: PathV1AuthMagicLink},
 	{Method: http.MethodPost, Path: PathV1AuthMagicLinkConsume},
@@ -58,6 +62,9 @@ var HTTPPathAllowlist = []string{
 	PathHealthz,
 	PathV1Users,
 	PathV1Tasks,
+	HTTPPathID(PathV1Tasks),
+	HTTPPathTaskResults(),
+	PathV1MeTasks,
 	PathV1ProxiesActive,
 	PathV1AuthMagicLink,
 	PathV1AuthMagicLinkConsume,
@@ -107,15 +114,22 @@ func RoutePathMatches(routePath, requestPath string) bool {
 	if !strings.Contains(routePath, PathSuffixID) {
 		return routePath == requestPath
 	}
-	prefix := strings.TrimSuffix(routePath, PathSuffixID)
-	if requestPath == prefix {
-		return false
-	}
-	if !strings.HasPrefix(requestPath, prefix+"/") {
+	idx := strings.Index(routePath, PathSuffixID)
+	prefix := routePath[:idx]
+	suffix := routePath[idx+len(PathSuffixID):]
+	if prefix == "" || !strings.HasPrefix(requestPath, prefix+"/") {
 		return false
 	}
 	rest := strings.TrimPrefix(requestPath, prefix+"/")
-	return rest != "" && !strings.Contains(rest, "/")
+	if suffix == "" {
+		return rest != "" && !strings.Contains(rest, "/")
+	}
+	if !strings.HasSuffix(rest, suffix) {
+		return false
+	}
+	idPart := strings.TrimSuffix(rest, suffix)
+	idPart = strings.TrimSuffix(idPart, "/")
+	return idPart != "" && !strings.Contains(idPart, "/")
 }
 
 // RequestMatchesRoute compares method + path against a route spec.

@@ -25,6 +25,8 @@ const (
 	ListingIDParseFallback   = "0"
 
 	ListingSearchStubResultCount = 2
+
+	ListingSearchTaskListLimit int32 = 20
 )
 
 // AvitoListingHosts are allowed Host values for listing_search query URLs.

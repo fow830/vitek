@@ -16,6 +16,7 @@ const (
 // AppNav IDs (shell views).
 const (
 	AppNavIDOverview = "overview"
+	AppNavIDSearch   = "search"
 	AppNavIDServices = "services"
 	AppNavIDAvito    = "avito"
 	AppNavIDProxies  = "proxies"
@@ -25,6 +26,7 @@ const (
 const (
 	AppDOMScreenAuth  = "screen-auth"
 	AppDOMScreenPlatform = "screen-platform"
+	AppDOMNav         = "app-nav"
 	AppDOMStatAvito   = "stat-avito"
 	AppDOMStatProxy   = "stat-proxy"
 	AppDOMStatShipped = "stat-shipped"
@@ -32,7 +34,10 @@ const (
 	AppDOMAuthHint    = "auth-hint"
 	AppDOMMagicForm   = "magic-form"
 	AppDOMEmailInput  = "email"
-	AppDOMNav         = "nav"
+	AppDOMSearchForm    = "search-form"
+	AppDOMSearchURL     = "search-url"
+	AppDOMSearchResults = "search-results"
+	AppDOMSearchStatus  = "search-status"
 	AppClassIsActive  = "is-active"
 	AppClassStatusOk  = "status-ok"
 	AppClassStatusOff = "status-off"
@@ -51,6 +56,12 @@ const (
 	AppCopyConsumeFailed    = "Ошибка consume"
 	AppCopyOverviewTitle    = "Обзор"
 	AppCopyOverviewLede     = "Платформа сервисов. Shipped и reserved — из каталога токенов."
+	AppCopySearchTitle      = "Поиск похожих"
+	AppCopySearchLede       = "Вставьте ссылку на объявление Avito — worker найдёт похожие."
+	AppCopySearchURLLabel   = "Ссылка на объявление"
+	AppCopySearchSubmit     = "Искать"
+	AppCopySearchStatusIdle = "Создайте задачу или выберите из списка."
+	AppCopySearchFailed     = "Ошибка поиска"
 	AppCopyServicesTitle    = "Сервисы"
 	AppCopyServicesLede     = "Каталог product_services (SoT = tokens + БД)."
 	AppCopyAvitoTitle       = "Аккаунты Авито"
@@ -83,6 +94,7 @@ type AppNavItem struct {
 // AppNav is the platform shell navigation SoT.
 var AppNav = []AppNavItem{
 	{ID: AppNavIDOverview, Label: AppCopyOverviewTitle},
+	{ID: AppNavIDSearch, Label: AppCopySearchTitle},
 	{ID: AppNavIDServices, Label: AppCopyServicesTitle},
 	{ID: AppNavIDAvito, Label: AppCopyAvitoTitle},
 	{ID: AppNavIDProxies, Label: AppCopyProxiesTitle},
@@ -188,6 +200,23 @@ func RenderAppFaceHTML() string {
 	writeServicesTable(&b)
 	b.WriteString("          </div>\n        </div>\n\n")
 
+	// Search view (listing_search UI)
+	fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AppDOMViewPrefix, AppNavIDSearch)
+	writeViewHeader(&b, AppCopySearchTitle, AppCopySearchLede)
+	b.WriteString("          <div class=\"panel\">\n            <div class=\"panel-head\"><h2>")
+	b.WriteString(esc(AppCopySearchTitle))
+	b.WriteString("</h2></div>\n            <div style=\"padding:18px\">\n")
+	fmt.Fprintf(&b, "              <form id=\"%s\" onsubmit=\"return submitSearch(event)\">\n", AppDOMSearchForm)
+	b.WriteString("                <div class=\"field\">\n")
+	fmt.Fprintf(&b, "                  <label for=\"%s\">%s</label>\n", AppDOMSearchURL, esc(AppCopySearchURLLabel))
+	fmt.Fprintf(&b, "                  <input id=\"%s\" type=\"url\" required placeholder=\"%s\" />\n", AppDOMSearchURL, esc(FixtureListingURL))
+	b.WriteString("                </div>\n")
+	fmt.Fprintf(&b, "                <button class=\"btn\" type=\"submit\">%s</button>\n", esc(AppCopySearchSubmit))
+	b.WriteString("              </form>\n")
+	fmt.Fprintf(&b, "              <p class=\"hint\" id=\"%s\">%s</p>\n", AppDOMSearchStatus, esc(AppCopySearchStatusIdle))
+	fmt.Fprintf(&b, "              <div id=\"%s\"></div>\n", AppDOMSearchResults)
+	b.WriteString("            </div>\n          </div>\n        </div>\n\n")
+
 	// Services view
 	fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AppDOMViewPrefix, AppNavIDServices)
 	writeViewHeader(&b, AppCopyServicesTitle, AppCopyServicesLede)
@@ -196,7 +225,7 @@ func RenderAppFaceHTML() string {
 	b.WriteString("          </div>\n        </div>\n\n")
 
 	// Remaining nav views (empty panels until list UI is contracted).
-	for _, item := range AppNav[2:] {
+	for _, item := range AppNav[3:] {
 		fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AppDOMViewPrefix, esc(item.ID))
 		writeViewHeader(&b, item.Label, ledeForNav(item.ID))
 		b.WriteString("          <div class=\"panel empty\">")
@@ -212,7 +241,7 @@ func RenderAppFaceHTML() string {
 
 // RenderAppFaceHTMLLoggedIn returns platform shell for an authenticated session.
 // SSE boot is attached only when withSSE is true (ADMIN).
-func RenderAppFaceHTMLLoggedIn(email string, withSSE bool) string {
+func RenderAppFaceHTMLLoggedIn(email, _ string, withSSE bool) string {
 	out := RenderAppFaceHTML()
 	out = strings.Replace(out,
 		`id="`+AppDOMScreenAuth+`" class="screen `+AppClassIsActive+`"`,
@@ -227,6 +256,7 @@ func RenderAppFaceHTMLLoggedIn(email string, withSSE bool) string {
 		`id="`+AppDOMScreenPlatform+`" class="screen"`,
 		platformActive, 1)
 	out = strings.Replace(out, html.EscapeString(FixtureSessionEmail()), html.EscapeString(email), 1)
+	out = strings.Replace(out, "</body>", appFaceSearchScriptBlock()+"</body>", 1)
 	return out
 }
 
@@ -240,6 +270,8 @@ func writeViewHeader(b *strings.Builder, title, lede string) {
 
 func ledeForNav(id string) string {
 	switch id {
+	case AppNavIDSearch:
+		return AppCopySearchLede
 	case AppNavIDAvito:
 		return AppCopyAvitoLede
 	case AppNavIDProxies:
