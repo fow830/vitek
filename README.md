@@ -1,8 +1,8 @@
 # Vitek
 
-Local run only. Invariants: `tests/contracts/` + `db/migrations/`.
+Local run only. **SoT = `tests/contracts/` + `db/migrations/` + `internal/tokens`.** No side docs, no отсебятина.
 
-Product: **Витёк** — multi-service Avito SaaS platform. First shipped service: similar listings search. Auth skeleton: Magic Link (DB only).
+Product: **Витёк** — multi-service Avito SaaS. First shipped service: similar listings search. Auth skeleton: Magic Link (DB only).
 
 ## Requirements
 
@@ -20,15 +20,15 @@ task dev
 task test:contracts
 ```
 
-Env / UI / compose / sqlc / Dockerfile: `task tokens:gen` (SoT = `internal/tokens`).
+Env / CSS / compose / sqlc / Dockerfile: `task tokens:gen` (SoT = `internal/tokens`).
 
 ## Tasks
 
 ```bash
-task dev            # docker compose up -d
-task tokens:gen     # regenerate .env.example, web/tokens.css, docker-compose.yml, sqlc.yaml, Dockerfile
-task sqlc           # generate DB types (needs migrations + queries)
-task test:contracts # LRT contracts
+task dev            # docker compose up -d (Postgres)
+task tokens:gen     # regenerate derived files from tokens
+task sqlc           # generate DB types
+task test:contracts # LRT contracts (only truth that matters)
 task test:all       # full suite + coverage
 task check:lrt      # docs allowlist only
 ```

@@ -11,16 +11,15 @@ WHERE token_hash = $1
   AND expires_at > now()
 RETURNING id, email, token_hash, role_hint, expires_at, consumed_at, created_at;
 
--- name: ListShippedProductServices :many
+-- name: ListProductServices :many
 SELECT code, title, shipped, created_at
 FROM product_services
-WHERE shipped = true
 ORDER BY code ASC;
 
--- name: GetProductService :one
-SELECT code, title, shipped, created_at
-FROM product_services
-WHERE code = $1;
+-- name: ListPlanLimits :many
+SELECT plan_type, max_tasks
+FROM plan_limits
+ORDER BY plan_type ASC;
 
 -- name: GrantUserService :one
 INSERT INTO user_service_entitlements (user_id, service_code)

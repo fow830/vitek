@@ -4,6 +4,9 @@ package tokens
 // Schema skeleton only until HTTP/UI is built — see magic_link_challenges.
 const AuthMethodMagicLink = "MAGIC_LINK"
 
+// AuthMethodsAllowlist is the only permitted auth method (contract-enforced).
+var AuthMethodsAllowlist = []string{AuthMethodMagicLink}
+
 // Product services: Vitek is a multi-service platform. Listing search is the
 // first shipped service — not the hard-coded identity of the product.
 // Roles (USER/ADMIN) live only in Postgres enum + sqlc (repository.UserRole*).
@@ -17,15 +20,47 @@ const (
 	ServiceTitleListingWarmup = "Listing warmup (clicks)"
 )
 
-// ShippedServiceCodes must match product_services rows with shipped = true.
-var ShippedServiceCodes = []string{
-	ServiceCodeListingSearch,
+// ProductServiceSpec is the catalog SoT mirrored by product_services seed + contracts.
+type ProductServiceSpec struct {
+	Code    string
+	Title   string
+	Shipped bool
 }
 
-// ReservedServiceCodes may exist in catalog with shipped = false; must never ship yet.
-var ReservedServiceCodes = []string{
-	ServiceCodeListingWarmup,
+// ProductServiceCatalog is the full catalog (shipped + reserved).
+var ProductServiceCatalog = []ProductServiceSpec{
+	{Code: ServiceCodeListingSearch, Title: ServiceTitleListingSearch, Shipped: true},
+	{Code: ServiceCodeListingWarmup, Title: ServiceTitleListingWarmup, Shipped: false},
 }
+
+// ShippedServiceCodes derived from ProductServiceCatalog.
+func ShippedServiceCodes() []string {
+	out := make([]string, 0, len(ProductServiceCatalog))
+	for _, s := range ProductServiceCatalog {
+		if s.Shipped {
+			out = append(out, s.Code)
+		}
+	}
+	return out
+}
+
+// ReservedServiceCodes derived from ProductServiceCatalog.
+func ReservedServiceCodes() []string {
+	out := make([]string, 0, len(ProductServiceCatalog))
+	for _, s := range ProductServiceCatalog {
+		if !s.Shipped {
+			out = append(out, s.Code)
+		}
+	}
+	return out
+}
+
+// Plan task limits — must match plan_limits seed (FREE/PRO/ULTRA).
+const (
+	PlanMaxTasksFREE  int32 = 1
+	PlanMaxTasksPRO   int32 = 20
+	PlanMaxTasksULTRA int32 = 100
+)
 
 // AdminManagedTables: schema-ready resources for the future admin web UI
 // (Magic Link auth, Avito accounts, proxies, entitlements). No HTTP admin yet.
@@ -40,3 +75,20 @@ var AdminManagedTables = []string{
 
 // TableUsersPasswordColumn must never exist (Magic Link only).
 const TableUsersPasswordColumn = "password"
+
+// ForbiddenPackagePathFragments: Day-0 negative surface (must not appear yet).
+var ForbiddenPackagePathFragments = []string{
+	"telegram",
+	"tgbot",
+	"aiogram",
+	"browser_session",
+	"feed_matcher",
+}
+
+// HTTPPathAllowlist is the only HTTP API surface until contracts expand it.
+var HTTPPathAllowlist = []string{
+	PathHealthz,
+	PathV1Users,
+	PathV1Tasks,
+	PathV1ProxiesActive,
+}

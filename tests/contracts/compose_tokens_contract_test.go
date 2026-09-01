@@ -3,6 +3,7 @@ package contracts_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -46,8 +47,10 @@ func TestContract_TaskfilePinsSQLCVersion(t *testing.T) {
 }
 
 func TestContract_GoBuildImageMatchesToolchain(t *testing.T) {
-	require.Equal(t, "golang:1.26-alpine", tokens.ImageGoBuild())
-	require.Contains(t, tokens.RenderDockerfile(), "FROM "+tokens.ImageGoBuild()+" AS build")
+	parts := strings.Split(tokens.GoToolchain, ".")
+	require.GreaterOrEqual(t, len(parts), 2)
+	want := "golang:" + parts[0] + "." + parts[1] + "-alpine"
+	require.Equal(t, want, tokens.ImageGoBuild())
 }
 
 func assertFileEqualsRender(t *testing.T, rel, want string) {

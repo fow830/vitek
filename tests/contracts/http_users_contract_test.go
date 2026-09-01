@@ -21,13 +21,13 @@ func TestContract_CreateUserHTTPValidationAndConflict(t *testing.T) {
 
 	t.Run("malformed email returns 400", func(t *testing.T) {
 		body, err := json.Marshal(map[string]any{
-			"email":     "not-an-email",
-			"plan_type": repository.PlanTypeFREE,
+			tokens.JSONFieldEmail:    "not-an-email",
+			tokens.JSONFieldPlanType: repository.PlanTypeFREE,
 		})
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(body))
-		req.Header.Set("Content-Type", tokens.MIMEApplicationJSON)
+		req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
@@ -36,19 +36,19 @@ func TestContract_CreateUserHTTPValidationAndConflict(t *testing.T) {
 
 	t.Run("duplicate email returns 409", func(t *testing.T) {
 		payload, err := json.Marshal(map[string]any{
-			"email":     "dup@vitek.io",
-			"plan_type": repository.PlanTypeFREE,
+			tokens.JSONFieldEmail:    "dup@vitek.io",
+			tokens.JSONFieldPlanType: repository.PlanTypeFREE,
 		})
 		require.NoError(t, err)
 
 		req1 := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload))
-		req1.Header.Set("Content-Type", tokens.MIMEApplicationJSON)
+		req1.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		rec1 := httptest.NewRecorder()
 		handler.ServeHTTP(rec1, req1)
 		require.Equal(t, http.StatusCreated, rec1.Code)
 
 		req2 := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload))
-		req2.Header.Set("Content-Type", tokens.MIMEApplicationJSON)
+		req2.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		rec2 := httptest.NewRecorder()
 		handler.ServeHTTP(rec2, req2)
 		require.Equal(t, http.StatusConflict, rec2.Code)

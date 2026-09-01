@@ -13,9 +13,7 @@ import (
 type Config struct {
 	AppEnv      string
 	HTTPAddr    string
-	LogLevel    string
 	DatabaseURL string
-	RedisURL    string
 	WorkerTick  time.Duration
 }
 
@@ -30,9 +28,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		AppEnv:      get(tokens.EnvAppEnv, tokens.DefaultAppEnv),
 		HTTPAddr:    get(tokens.EnvHTTPAddr, tokens.DefaultHTTPAddr()),
-		LogLevel:    get(tokens.EnvLogLevel, tokens.DefaultLogLevel),
 		DatabaseURL: get(tokens.EnvDatabaseURL, tokens.DefaultDatabaseURL()),
-		RedisURL:    get(tokens.EnvRedisURL, tokens.DefaultRedisURL()),
 		WorkerTick:  tick,
 	}
 
@@ -42,17 +38,8 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("%s: unsupported value %q", tokens.EnvAppEnv, cfg.AppEnv)
 	}
 
-	switch cfg.LogLevel {
-	case tokens.LogLevelDebug, tokens.LogLevelInfo, tokens.LogLevelWarn, tokens.LogLevelError:
-	default:
-		return Config{}, fmt.Errorf("%s: unsupported value %q", tokens.EnvLogLevel, cfg.LogLevel)
-	}
-
 	if strings.TrimSpace(cfg.DatabaseURL) == "" {
 		return Config{}, fmt.Errorf("%s is required", tokens.EnvDatabaseURL)
-	}
-	if strings.TrimSpace(cfg.RedisURL) == "" {
-		return Config{}, fmt.Errorf("%s is required", tokens.EnvRedisURL)
 	}
 	if cfg.WorkerTick <= 0 {
 		return Config{}, fmt.Errorf("%s must be > 0", tokens.EnvWorkerTick)

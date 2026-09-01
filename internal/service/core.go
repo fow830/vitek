@@ -43,12 +43,14 @@ func (s *Users) CreateUser(ctx context.Context, email string, plan repository.Pl
 	if err != nil {
 		return repository.User{}, err
 	}
-	_, err = qtx.GrantUserService(ctx, repository.GrantUserServiceParams{
-		UserID:      user.ID,
-		ServiceCode: tokens.ServiceCodeListingSearch,
-	})
-	if err != nil {
-		return repository.User{}, err
+	for _, code := range tokens.ShippedServiceCodes() {
+		_, err = qtx.GrantUserService(ctx, repository.GrantUserServiceParams{
+			UserID:      user.ID,
+			ServiceCode: code,
+		})
+		if err != nil {
+			return repository.User{}, err
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

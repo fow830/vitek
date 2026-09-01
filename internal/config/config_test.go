@@ -11,8 +11,8 @@ import (
 
 func TestLoad_Defaults(t *testing.T) {
 	for _, k := range []string{
-		tokens.EnvAppEnv, tokens.EnvHTTPAddr, tokens.EnvLogLevel,
-		tokens.EnvDatabaseURL, tokens.EnvRedisURL, tokens.EnvWorkerTick,
+		tokens.EnvAppEnv, tokens.EnvHTTPAddr,
+		tokens.EnvDatabaseURL, tokens.EnvWorkerTick,
 	} {
 		t.Setenv(k, "")
 	}
@@ -21,26 +21,13 @@ func TestLoad_Defaults(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, tokens.DefaultAppEnv, cfg.AppEnv)
 	require.Equal(t, tokens.DefaultHTTPAddr(), cfg.HTTPAddr)
-	require.Equal(t, tokens.DefaultLogLevel, cfg.LogLevel)
 	require.Equal(t, tokens.DefaultDatabaseURL(), cfg.DatabaseURL)
-	require.Equal(t, tokens.DefaultRedisURL(), cfg.RedisURL)
 	require.Equal(t, tokens.DefaultWorkerTick, cfg.WorkerTick.String())
 }
 
 func TestLoad_RejectsBadAppEnv(t *testing.T) {
 	t.Setenv(tokens.EnvAppEnv, "lab")
 	t.Setenv(tokens.EnvDatabaseURL, tokens.DefaultDatabaseURL())
-	t.Setenv(tokens.EnvRedisURL, tokens.DefaultRedisURL())
-
-	_, err := config.Load()
-	require.Error(t, err)
-}
-
-func TestLoad_RejectsBadLogLevel(t *testing.T) {
-	t.Setenv(tokens.EnvAppEnv, tokens.AppEnvLocal)
-	t.Setenv(tokens.EnvLogLevel, "verbose")
-	t.Setenv(tokens.EnvDatabaseURL, tokens.DefaultDatabaseURL())
-	t.Setenv(tokens.EnvRedisURL, tokens.DefaultRedisURL())
 
 	_, err := config.Load()
 	require.Error(t, err)

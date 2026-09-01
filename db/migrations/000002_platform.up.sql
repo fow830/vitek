@@ -1,4 +1,3 @@
--- +goose Up
 -- Platform: Magic Link auth, multi-service catalog, Avito accounts, admin-managed surface.
 
 CREATE TYPE user_role AS ENUM ('USER', 'ADMIN');

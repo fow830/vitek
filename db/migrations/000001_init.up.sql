@@ -1,4 +1,3 @@
--- +goose Up
 -- golang-migrate style applied by suite (exec *.up.sql in order)
 
 CREATE TYPE plan_type AS ENUM ('FREE', 'PRO', 'ULTRA');

@@ -10,10 +10,9 @@ const (
 // Compose service names.
 const (
 	ComposeServicePostgres = "postgres"
-	ComposeServiceRedis    = "redis"
 )
 
-// RenderComposeYAML returns the canonical docker-compose.yml body.
+// RenderComposeYAML returns the canonical docker-compose.yml body (Postgres only until Redis is contracted).
 func RenderComposeYAML() string {
 	return "" +
 		"services:\n" +
@@ -29,16 +28,6 @@ func RenderComposeYAML() string {
 		"      - " + VolumePostgres + ":/var/lib/postgresql/data\n" +
 		"    healthcheck:\n" +
 		"      test: [\"CMD-SHELL\", \"pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB\"]\n" +
-		"      interval: " + HealthInterval + "\n" +
-		"      timeout: " + HealthTimeout + "\n" +
-		"      retries: " + HealthRetries + "\n" +
-		"\n" +
-		"  " + ComposeServiceRedis + ":\n" +
-		"    image: " + ImageRedis + "\n" +
-		"    ports:\n" +
-		"      - \"${" + EnvRedisPort + ":-" + DefaultRedisPort + "}:" + ContainerRedisPort + "\"\n" +
-		"    healthcheck:\n" +
-		"      test: [\"CMD\", \"redis-cli\", \"ping\"]\n" +
 		"      interval: " + HealthInterval + "\n" +
 		"      timeout: " + HealthTimeout + "\n" +
 		"      retries: " + HealthRetries + "\n" +

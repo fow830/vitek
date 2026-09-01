@@ -1,6 +1,6 @@
 # Deploy
 
-CI/CD and environment parameters only. Image tags, ports, env keys, and HTTP paths are defined in `internal/tokens`.
+CI/CD and environment parameters only. Image tags, ports, env keys, and HTTP paths are defined in `internal/tokens` and verified by `tests/contracts`.
 
 ## Build
 
@@ -26,13 +26,11 @@ Images and stages are defined by `internal/tokens` → `task tokens:gen` → `Do
 docker run --rm -p 8080:8080 \
   -e APP_ENV=staging \
   -e DATABASE_URL="$DATABASE_URL" \
-  -e REDIS_URL="$REDIS_URL" \
   vitek-api:local
 
 docker run --rm \
   -e APP_ENV=staging \
   -e DATABASE_URL="$DATABASE_URL" \
-  -e REDIS_URL="$REDIS_URL" \
   -e WORKER_TICK=5s \
   vitek-worker:local
 ```
@@ -45,9 +43,7 @@ Keys are defined in `internal/tokens` (`Env*`). Required in non-local:
 |----------------|----------|---------------------------|
 | `APP_ENV`      | yes      | `staging` \| `production` |
 | `DATABASE_URL` | yes      | PostgreSQL DSN            |
-| `REDIS_URL`    | yes      | Redis DSN                 |
 | `HTTP_ADDR`    | no       | default from tokens       |
-| `LOG_LEVEL`    | no       | default from tokens       |
 | `WORKER_TICK`  | no       | default from tokens       |
 
 Secrets must not be committed.
@@ -60,11 +56,13 @@ migrate -path db/migrations -database "$DATABASE_URL" up
 
 ## HTTP surface
 
+Paths from `tokens.HTTPPathAllowlist` (contracted):
+
 | Method | Path                 | Notes                |
 |--------|----------------------|----------------------|
 | GET    | `/healthz`           | DB ping              |
-| POST   | `/v1/users`          | body: `{email, plan_type}`; 400 bad email, 409 duplicate |
-| POST   | `/v1/tasks`          | create task (limits + listing_search entitlement) |
+| POST   | `/v1/users`          | body: `{email, plan_type}`; 400 bad email/plan, 409 duplicate |
+| POST   | `/v1/tasks`          | limits + listing_search entitlement |
 | GET    | `/v1/proxies/active` | ACTIVE proxies only  |
 
 ## CI gates

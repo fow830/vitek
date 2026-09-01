@@ -161,7 +161,7 @@ func (s *Server) handleListActiveProxies(w http.ResponseWriter, r *http.Request)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", tokens.MIMEApplicationJSON)
+	w.Header().Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }

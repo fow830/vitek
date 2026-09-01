@@ -9,14 +9,11 @@ import (
 var EnvExampleKeys = []string{
 	EnvAppEnv,
 	EnvHTTPAddr,
-	EnvLogLevel,
 	EnvDatabaseURL,
-	EnvRedisURL,
 	EnvPostgresUser,
 	EnvPostgresPassword,
 	EnvPostgresDB,
 	EnvPostgresPort,
-	EnvRedisPort,
 	EnvHTTPPort,
 	EnvWorkerTick,
 }
@@ -26,14 +23,11 @@ func EnvExampleValues() map[string]string {
 	return map[string]string{
 		EnvAppEnv:           DefaultAppEnv,
 		EnvHTTPAddr:         DefaultHTTPAddr(),
-		EnvLogLevel:         DefaultLogLevel,
 		EnvDatabaseURL:      DefaultDatabaseURL(),
-		EnvRedisURL:         DefaultRedisURL(),
 		EnvPostgresUser:     DefaultPostgresUser,
 		EnvPostgresPassword: DefaultPostgresPassword,
 		EnvPostgresDB:       DefaultPostgresDB,
 		EnvPostgresPort:     DefaultPostgresPort,
-		EnvRedisPort:        DefaultRedisPort,
 		EnvHTTPPort:         DefaultHTTPPort,
 		EnvWorkerTick:       DefaultWorkerTick,
 	}

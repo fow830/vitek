@@ -31,6 +31,8 @@ const (
 	JSONFieldEndpoint = "endpoint"
 	JSONFieldPlanType = "plan_type"
 
+	HeaderContentType = "Content-Type"
+
 	HealthStatusOK        = "ok"
 	HealthStatusUnhealthy = "unhealthy"
 )

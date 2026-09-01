@@ -129,24 +129,6 @@ func (q *Queries) CreateUserWithRole(ctx context.Context, arg CreateUserWithRole
 	return i, err
 }
 
-const getProductService = `-- name: GetProductService :one
-SELECT code, title, shipped, created_at
-FROM product_services
-WHERE code = $1
-`
-
-func (q *Queries) GetProductService(ctx context.Context, code string) (ProductService, error) {
-	row := q.db.QueryRow(ctx, getProductService, code)
-	var i ProductService
-	err := row.Scan(
-		&i.Code,
-		&i.Title,
-		&i.Shipped,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const grantUserService = `-- name: GrantUserService :one
 INSERT INTO user_service_entitlements (user_id, service_code)
 VALUES ($1, $2)
@@ -185,15 +167,40 @@ func (q *Queries) HasUserService(ctx context.Context, arg HasUserServiceParams) 
 	return exists, err
 }
 
-const listShippedProductServices = `-- name: ListShippedProductServices :many
+const listPlanLimits = `-- name: ListPlanLimits :many
+SELECT plan_type, max_tasks
+FROM plan_limits
+ORDER BY plan_type ASC
+`
+
+func (q *Queries) ListPlanLimits(ctx context.Context) ([]PlanLimit, error) {
+	rows, err := q.db.Query(ctx, listPlanLimits)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlanLimit{}
+	for rows.Next() {
+		var i PlanLimit
+		if err := rows.Scan(&i.PlanType, &i.MaxTasks); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductServices = `-- name: ListProductServices :many
 SELECT code, title, shipped, created_at
 FROM product_services
-WHERE shipped = true
 ORDER BY code ASC
 `
 
-func (q *Queries) ListShippedProductServices(ctx context.Context) ([]ProductService, error) {
-	rows, err := q.db.Query(ctx, listShippedProductServices)
+func (q *Queries) ListProductServices(ctx context.Context) ([]ProductService, error) {
+	rows, err := q.db.Query(ctx, listProductServices)
 	if err != nil {
 		return nil, err
 	}
