@@ -268,9 +268,11 @@ func TestContract_ListingSearch_FilterURLNewOnly(t *testing.T) {
 
 	filterURL := tokens.FixtureFilterListingURL
 	require.True(t, tokens.IsListingFilterURL(filterURL))
+	canonicalFilter := tokens.CanonicalListingSearchQuery(filterURL)
 
 	task1, err := service.NewTasks(pool).CreateTask(ctx, user.ID, filterURL)
 	require.NoError(t, err)
+	require.Equal(t, canonicalFilter, task1.Query)
 	ok, err := worker.ProcessOne(ctx)
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -293,11 +295,11 @@ func TestContract_ListingSearch_FilterURLNewOnly(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, items2)
 
-	mobileURL := tokens.FixtureMobileFilterListingURL
+	mobileURL := tokens.FixtureMobileFilterListingURL + "?context=volatile-tracking"
 	require.True(t, tokens.IsListingFilterURL(mobileURL))
 	task3, err := service.NewTasks(pool).CreateTask(ctx, user.ID, mobileURL)
 	require.NoError(t, err)
-	require.Equal(t, filterURL, task3.Query)
+	require.Equal(t, canonicalFilter, task3.Query)
 
 	ok, err = worker.ProcessOne(ctx)
 	require.NoError(t, err)

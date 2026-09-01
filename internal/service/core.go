@@ -70,9 +70,14 @@ func NewTasks(pool *pgxpool.Pool) *Tasks {
 }
 
 func (s *Tasks) CreateTask(ctx context.Context, userID pgtype.UUID, query string) (repository.Task, error) {
-	query = tokens.NormalizeListingSearchURL(strings.TrimSpace(query))
+	query = strings.TrimSpace(query)
 	if !tokens.ValidListingURL(query) {
 		return repository.Task{}, domain.ErrInvalidListingURL
+	}
+	if tokens.IsListingFilterURL(query) {
+		query = tokens.CanonicalListingSearchQuery(query)
+	} else {
+		query = tokens.NormalizeListingSearchURL(query)
 	}
 
 	tx, err := s.pool.Begin(ctx)

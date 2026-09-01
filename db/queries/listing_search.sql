@@ -61,3 +61,12 @@ WHERE t.user_id = $1
   AND t.query = $2
   AND t.status = 'COMPLETED'
   AND t.id != $3;
+
+-- name: ListPriorAvitoIDsForUserCompletedTasks :many
+SELECT t.query, i.avito_id
+FROM tasks t
+JOIN task_items ti ON ti.task_id = t.id
+JOIN items i ON i.id = ti.item_id
+WHERE t.user_id = $1
+  AND t.status = 'COMPLETED'
+  AND t.id != $2;

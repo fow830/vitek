@@ -88,6 +88,46 @@ func (q *Queries) InsertTaskItem(ctx context.Context, arg InsertTaskItemParams) 
 	return err
 }
 
+const listPriorAvitoIDsForUserCompletedTasks = `-- name: ListPriorAvitoIDsForUserCompletedTasks :many
+SELECT t.query, i.avito_id
+FROM tasks t
+JOIN task_items ti ON ti.task_id = t.id
+JOIN items i ON i.id = ti.item_id
+WHERE t.user_id = $1
+  AND t.status = 'COMPLETED'
+  AND t.id != $2
+`
+
+type ListPriorAvitoIDsForUserCompletedTasksParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	ID     pgtype.UUID `json:"id"`
+}
+
+type ListPriorAvitoIDsForUserCompletedTasksRow struct {
+	Query   string `json:"query"`
+	AvitoID string `json:"avito_id"`
+}
+
+func (q *Queries) ListPriorAvitoIDsForUserCompletedTasks(ctx context.Context, arg ListPriorAvitoIDsForUserCompletedTasksParams) ([]ListPriorAvitoIDsForUserCompletedTasksRow, error) {
+	rows, err := q.db.Query(ctx, listPriorAvitoIDsForUserCompletedTasks, arg.UserID, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPriorAvitoIDsForUserCompletedTasksRow{}
+	for rows.Next() {
+		var i ListPriorAvitoIDsForUserCompletedTasksRow
+		if err := rows.Scan(&i.Query, &i.AvitoID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPriorAvitoIDsForUserQuery = `-- name: ListPriorAvitoIDsForUserQuery :many
 SELECT DISTINCT i.avito_id
 FROM tasks t

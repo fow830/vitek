@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"vitek/internal/repository"
+	"vitek/internal/tokens"
 )
 
 // ListingSearchWorker claims PENDING tasks and stores similar items.
@@ -55,17 +56,20 @@ func (w *ListingSearchWorker) ProcessOne(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
-	seen, err := qtx.ListPriorAvitoIDsForUserQuery(ctx, repository.ListPriorAvitoIDsForUserQueryParams{
+	dedupKey := tokens.CanonicalListingSearchQuery(task.Query)
+	rows, err := qtx.ListPriorAvitoIDsForUserCompletedTasks(ctx, repository.ListPriorAvitoIDsForUserCompletedTasksParams{
 		UserID: task.UserID,
-		Query:  task.Query,
 		ID:     task.ID,
 	})
 	if err != nil {
 		return false, err
 	}
-	seenSet := make(map[string]struct{}, len(seen))
-	for _, avitoID := range seen {
-		seenSet[avitoID] = struct{}{}
+	seenSet := make(map[string]struct{})
+	for _, row := range rows {
+		if tokens.CanonicalListingSearchQuery(row.Query) != dedupKey {
+			continue
+		}
+		seenSet[row.AvitoID] = struct{}{}
 	}
 	filtered := make([]SimilarListing, 0, len(similar))
 	for _, hit := range similar {

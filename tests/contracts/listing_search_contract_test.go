@@ -155,6 +155,21 @@ func TestContract_ListingSearch_FilterStreamURL(t *testing.T) {
 	require.Equal(t, tokens.FixtureAvitoCategoryID, cat)
 }
 
+// CONTRACT-LISTING-014: canonical filter key + f extraction from path slug.
+func TestContract_ListingSearch_CanonicalFilterKey(t *testing.T) {
+	base := tokens.FixtureFilterListingURL
+	withContext := base + "&context=H4sIvolatile"
+	pathOnly := tokens.CanonicalListingSearchQuery(base)
+
+	require.Equal(t, pathOnly, tokens.CanonicalListingSearchQuery(withContext))
+	require.Equal(t, pathOnly, tokens.CanonicalListingSearchQuery(tokens.FixtureMobileFilterListingURL))
+	require.Equal(t, tokens.FixtureFilterQueryF, tokens.ListingSearchFilterFFromURL(base))
+	require.Equal(t, "ASgBAgICAkS0wa3OqzmwwQ2I_Dc", tokens.ListingSearchFilterFFromPath("/"+tokens.FixtureFilterListingSlug))
+
+	fetchQ := tokens.ListingSearchFilterQueryForFetch(pathOnly)
+	require.Equal(t, "ASgBAgICAkS0wa3OqzmwwQ2I_Dc", fetchQ.Get(tokens.AvitoQueryFilterF))
+}
+
 // CONTRACT-LISTING-013: new-only dedup is scoped to user+query; other users see full stream.
 func TestContract_ListingSearch_NewOnlyPerUser(t *testing.T) {
 	ctx := context.Background()

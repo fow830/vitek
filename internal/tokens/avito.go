@@ -68,7 +68,7 @@ func AvitoFilterSearchURL(base, locationID, categoryID string, filterQuery url.V
 	if f := strings.TrimSpace(filterQuery.Get(AvitoQueryFilterF)); f != "" {
 		v.Set(AvitoQueryFilterF, f)
 	}
-	for _, key := range []string{"geoCoords", "moreExpensive", "context"} {
+	for _, key := range []string{"geoCoords"} {
 		if val := strings.TrimSpace(filterQuery.Get(key)); val != "" {
 			v.Set(key, val)
 		}

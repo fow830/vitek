@@ -234,6 +234,79 @@ var (
 	avitoHTMLCategoryIDPattern = regexp.MustCompile(`categoryId["':]+(\d+)`)
 )
 
+// ListingSearchDedupVolatileQueryKeys are dropped when canonicalizing filter URLs.
+var ListingSearchDedupVolatileQueryKeys = []string{
+	"context",
+	"geoCoords",
+	"radius",
+	"moreExpensive",
+}
+
+// ListingSearchPathFilterTokenPrefix marks Avito filter blob suffix in SERP path slugs.
+const ListingSearchPathFilterTokenPrefix = "ASgB"
+
+// CanonicalListingSearchQuery returns a stable task/dedup key (host + path; filter query stripped).
+func CanonicalListingSearchQuery(raw string) string {
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(NormalizeListingSearchURL(raw))
+	if err != nil {
+		return raw
+	}
+	u.Host = AvitoListingHostPrimary
+	u.RawQuery = ""
+	u.Fragment = ""
+	path := strings.TrimSuffix(u.Path, "/")
+	if path == "" {
+		path = "/"
+	}
+	return AvitoURLSchemeHTTPS + "://" + AvitoListingHostPrimary + path
+}
+
+// ListingSearchFilterFFromURL returns Avito filter blob from query or path slug.
+func ListingSearchFilterFFromURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(NormalizeListingSearchURL(raw))
+	if err != nil {
+		return ""
+	}
+	if f := strings.TrimSpace(u.Query().Get(AvitoQueryFilterF)); f != "" {
+		return f
+	}
+	return ListingSearchFilterFFromPath(u.Path)
+}
+
+// ListingSearchFilterFFromPath extracts ASgB… token from a filter SERP path slug.
+func ListingSearchFilterFFromPath(path string) string {
+	seg := path
+	if i := strings.LastIndex(seg, "/"); i >= 0 {
+		seg = seg[i+1:]
+	}
+	if idx := strings.Index(seg, "-"+ListingSearchPathFilterTokenPrefix); idx >= 0 {
+		return seg[idx+1:]
+	}
+	if strings.HasPrefix(seg, ListingSearchPathFilterTokenPrefix) {
+		return seg
+	}
+	return ""
+}
+
+// ListingSearchFilterQueryForFetch builds query params forwarded to Avito items API.
+func ListingSearchFilterQueryForFetch(raw string) url.Values {
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(NormalizeListingSearchURL(raw))
+	if err != nil {
+		return url.Values{}
+	}
+	out := url.Values{}
+	if f := ListingSearchFilterFFromURL(raw); f != "" {
+		out.Set(AvitoQueryFilterF, f)
+	}
+	if pt := strings.TrimSpace(u.Query().Get(AvitoQueryPresentationType)); pt != "" {
+		out.Set(AvitoQueryPresentationType, pt)
+	}
+	return out
+}
+
 // ParseAvitoFilterPageIDs extracts location/category ids embedded in a filter SERP HTML page.
 func ParseAvitoFilterPageIDs(html string) (locationID, categoryID string, ok bool) {
 	loc := avitoHTMLLocationIDPattern.FindStringSubmatch(html)

@@ -95,7 +95,7 @@ func (c *AvitoClient) FindFromFilterURL(ctx context.Context, proxyEndpoint, filt
 	if !ok {
 		return nil, domain.ErrListingSearchAvitoFetch
 	}
-	apiURL := tokens.AvitoFilterSearchURL(c.base, locationID, categoryID, u.Query(), tokens.AvitoSimilarSearchLimit)
+	apiURL := tokens.AvitoFilterSearchURL(c.base, locationID, categoryID, tokens.ListingSearchFilterQueryForFetch(filterURL), tokens.AvitoSimilarSearchLimit)
 	body, err := c.doGET(ctx, proxyEndpoint, apiURL, tokens.AvitoHTTPAccept)
 	if err != nil {
 		return nil, err
