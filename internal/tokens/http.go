@@ -16,6 +16,8 @@ const (
 	PathV1Tasks                = "/v1/tasks"
 	PathV1TaskResultsSuffix    = "/results"
 	PathV1MeTasks              = "/v1/me/tasks"
+	PathV1MeWatches             = "/v1/me/watches"
+	PathV1WatchResultsSuffix    = "/results"
 	PathV1ProxiesActive        = "/v1/proxies/active"
 	PathV1AuthMagicLink        = "/v1/auth/magic-link"
 	PathV1AuthMagicLinkConsume = "/v1/auth/magic-link/consume"
@@ -72,6 +74,8 @@ const (
 	JSONFieldTitle       = "title"
 	JSONFieldRank        = "rank"
 	JSONFieldTasks       = "tasks"
+	JSONFieldKind        = "kind"
+	JSONFieldFoundAt     = "found_at"
 
 	HeaderContentType = "Content-Type"
 	HeaderSetCookie   = "Set-Cookie"
@@ -139,6 +143,8 @@ const (
 	ErrMsgInvalidResourceID    = "invalid resource id"
 	ErrMsgInvalidListingURL    = "invalid avito listing url"
 	ErrMsgTaskNotFound         = "task not found"
+	ErrMsgWatchNotFound        = "watch not found"
+	ErrMsgCreateWatchFailed    = "create watch failed"
 	ErrMsgListTasksFailed      = "list tasks failed"
 	ErrMsgGetTaskFailed        = "get task failed"
 	ErrMsgInvalidPassword      = "invalid password"
@@ -148,6 +154,11 @@ const (
 // HTTPPathTaskResults returns GET /v1/tasks/{id}/results pattern.
 func HTTPPathTaskResults() string {
 	return HTTPPathID(PathV1Tasks) + PathV1TaskResultsSuffix
+}
+
+// HTTPPathMeWatchResults returns GET /v1/me/watches/{id}/results pattern.
+func HTTPPathMeWatchResults() string {
+	return HTTPPathID(PathV1MeWatches) + PathV1WatchResultsSuffix
 }
 func HTTPGet(path string) string   { return "GET " + path }
 func HTTPPost(path string) string  { return "POST " + path }

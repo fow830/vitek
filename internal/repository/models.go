@@ -54,6 +54,49 @@ func (ns NullAvitoAccountStatus) Value() (driver.Value, error) {
 	return string(ns.AvitoAccountStatus), nil
 }
 
+type ListingWatchStatus string
+
+const (
+	ListingWatchStatusACTIVE   ListingWatchStatus = "ACTIVE"
+	ListingWatchStatusPAUSED   ListingWatchStatus = "PAUSED"
+	ListingWatchStatusDISABLED ListingWatchStatus = "DISABLED"
+)
+
+func (e *ListingWatchStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ListingWatchStatus(s)
+	case string:
+		*e = ListingWatchStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ListingWatchStatus: %T", src)
+	}
+	return nil
+}
+
+type NullListingWatchStatus struct {
+	ListingWatchStatus ListingWatchStatus `json:"listing_watch_status"`
+	Valid              bool               `json:"valid"` // Valid is true if ListingWatchStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullListingWatchStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ListingWatchStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ListingWatchStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullListingWatchStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ListingWatchStatus), nil
+}
+
 type PlanType string
 
 const (
@@ -254,6 +297,22 @@ type ListingFilterSeen struct {
 	FilterKey string             `json:"filter_key"`
 	AvitoID   string             `json:"avito_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type ListingFilterWatch struct {
+	ID           pgtype.UUID        `json:"id"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	FilterKey    string             `json:"filter_key"`
+	Query        string             `json:"query"`
+	Status       ListingWatchStatus `json:"status"`
+	LastPolledAt pgtype.Timestamptz `json:"last_polled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+type ListingWatchHit struct {
+	WatchID pgtype.UUID        `json:"watch_id"`
+	ItemID  pgtype.UUID        `json:"item_id"`
+	FoundAt pgtype.Timestamptz `json:"found_at"`
 }
 
 type MagicLinkChallenge struct {

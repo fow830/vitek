@@ -13,6 +13,7 @@ var (
 	ErrServiceNotEntitled        = errors.New(tokens.ErrMsgServiceNotEntitled)
 	ErrInvalidListingURL         = errors.New(tokens.ErrMsgInvalidListingURL)
 	ErrTaskNotFound              = errors.New(tokens.ErrMsgTaskNotFound)
+	ErrWatchNotFound             = errors.New(tokens.ErrMsgWatchNotFound)
 	ErrForbidden                 = errors.New(tokens.ErrMsgForbidden)
 	ErrListingSearchNoProxy      = errors.New(tokens.ErrMsgListingSearchNoProxy)
 	ErrListingSearchNoAccount    = errors.New(tokens.ErrMsgListingSearchNoAccount)

@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"vitek/internal/repository"
 	"vitek/internal/tokens"
 )
 
@@ -29,5 +30,24 @@ func TaskResultJSON(it ListTaskItemsRow) map[string]any {
 		tokens.JSONFieldAvitoID: it.AvitoID,
 		tokens.JSONFieldTitle:   it.Title,
 		tokens.JSONFieldRank:    it.Rank,
+	}
+}
+
+func WatchJSON(watch repository.ListingFilterWatch) map[string]any {
+	return map[string]any{
+		tokens.JSONFieldID:     UUIDString(watch.ID),
+		tokens.JSONFieldUserID: UUIDString(watch.UserID),
+		tokens.JSONFieldQuery:  watch.Query,
+		tokens.JSONFieldStatus: string(watch.Status),
+		tokens.JSONFieldKind:   tokens.ListingSearchKindWatch,
+	}
+}
+
+func WatchHitJSON(it repository.ListWatchHitsRow) map[string]any {
+	return map[string]any{
+		tokens.JSONFieldID:      UUIDString(it.ID),
+		tokens.JSONFieldAvitoID: it.AvitoID,
+		tokens.JSONFieldTitle:   it.Title,
+		tokens.JSONFieldFoundAt: it.FoundAt.Time,
 	}
 }

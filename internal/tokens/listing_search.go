@@ -41,6 +41,12 @@ const (
 
 	ListingSearchPollMaxAttempts = 30
 	ListingSearchPollIntervalMs  = 500
+	ListingSearchWatchPollIntervalMs = 60000
+
+	ListingSearchKindWatch = "watch"
+	ListingSearchKindTask  = "task"
+
+	ListingWatchStatusActive = "ACTIVE"
 )
 
 // TaskStatus* mirror PostgreSQL task_status enum (SoT for JSON + generated JS).
@@ -88,6 +94,13 @@ var FixtureInvalidListingURL = AvitoListingURL(FixtureInvalidListingHost, Fixtur
 var SchemaListingSearchTables = []string{
 	"task_items",
 	"listing_filter_seen",
+	"listing_filter_watches",
+	"listing_watch_hits",
+}
+
+// SchemaListingWatchStatuses mirror PostgreSQL listing_watch_status enum.
+var SchemaListingWatchStatuses = []string{
+	ListingWatchStatusActive,
 }
 
 // SchemaListingSearchTaskStatuses are task_status enum values added for listing_search.

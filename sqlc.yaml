@@ -9,6 +9,7 @@ sql:
       - "db/migrations/000004_listing_search.up.sql"
       - "db/migrations/000005_avito_secrets.up.sql"
       - "db/migrations/000006_listing_filter_seen.up.sql"
+      - "db/migrations/000007_listing_filter_watches.up.sql"
     gen:
       go:
         package: "repository"

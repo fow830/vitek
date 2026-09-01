@@ -65,4 +65,9 @@ func runTick(ctx context.Context, proxies *service.Proxies, listing *service.Lis
 	if _, err := listing.ProcessOne(ctx); err != nil {
 		log.Printf(tokens.LogWorkerListingSearchErr, err)
 	}
+	if n, err := listing.ProcessWatchPolls(ctx); err != nil {
+		log.Printf(tokens.LogWorkerWatchPollErr, err)
+	} else if n > 0 {
+		log.Printf(tokens.LogWorkerWatchPollDone, n)
+	}
 }

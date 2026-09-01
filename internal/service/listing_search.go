@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"vitek/internal/repository"
@@ -68,6 +69,94 @@ func (w *ListingSearchWorker) ProcessOne(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (w *ListingSearchWorker) ProcessWatchPolls(ctx context.Context) (int, error) {
+	tx, err := w.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	qtx := repository.New(tx)
+	watches, err := qtx.ListDueFilterWatches(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	n := 0
+	for _, watch := range watches {
+		if err := w.pollWatch(ctx, qtx, watch); err != nil {
+			return n, err
+		}
+		n++
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func (w *ListingSearchWorker) pollWatch(ctx context.Context, qtx *repository.Queries, watch repository.ListingFilterWatch) error {
+	similar, err := w.processor.FindSimilar(ctx, watch.Query)
+	if err != nil {
+		return err
+	}
+	if err := w.storeFilterPoll(ctx, qtx, watch.UserID, watch.ID, watch.FilterKey, similar, true); err != nil {
+		return err
+	}
+	return qtx.TouchFilterWatchPolled(ctx, watch.ID)
+}
+
+func (w *ListingSearchWorker) storeFilterPoll(
+	ctx context.Context,
+	qtx *repository.Queries,
+	userID, watchID pgtype.UUID,
+	filterKey string,
+	similar []SimilarListing,
+	recordWatchHits bool,
+) error {
+	seen, err := qtx.ListFilterSeenAvitoIDs(ctx, repository.ListFilterSeenAvitoIDsParams{
+		UserID:    userID,
+		FilterKey: filterKey,
+	})
+	if err != nil {
+		return err
+	}
+	seenSet := make(map[string]struct{}, len(seen))
+	for _, avitoID := range seen {
+		seenSet[avitoID] = struct{}{}
+	}
+
+	baseline := len(seenSet) == 0
+	for _, hit := range similar {
+		item, recErr := w.items.UpsertTx(ctx, qtx, hit.AvitoID, hit.Title)
+		if recErr != nil {
+			return recErr
+		}
+		if err := qtx.InsertFilterSeen(ctx, repository.InsertFilterSeenParams{
+			UserID:    userID,
+			FilterKey: filterKey,
+			AvitoID:   hit.AvitoID,
+		}); err != nil {
+			return err
+		}
+		if baseline {
+			continue
+		}
+		if _, ok := seenSet[hit.AvitoID]; ok {
+			continue
+		}
+		if recordWatchHits {
+			if err := qtx.InsertWatchHit(ctx, repository.InsertWatchHitParams{
+				WatchID: watchID,
+				ItemID:  item.ID,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (w *ListingSearchWorker) completeFilterTask(ctx context.Context, qtx *repository.Queries, task repository.Task, similar []SimilarListing) error {

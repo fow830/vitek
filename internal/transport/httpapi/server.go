@@ -22,6 +22,7 @@ type Server struct {
 	pool              *pgxpool.Pool
 	users             *service.Users
 	tasks             *service.Tasks
+	filterWatches     *service.FilterWatches
 	proxies           *service.Proxies
 	avito             *service.AvitoAccounts
 	auth              *service.Auth
@@ -50,6 +51,7 @@ func NewServer(pool *pgxpool.Pool, opts ...Option) *Server {
 		pool:              pool,
 		users:             service.NewUsers(pool),
 		tasks:             service.NewTasks(pool),
+		filterWatches:     service.NewFilterWatches(pool),
 		proxies:           service.NewProxies(pool),
 		avito:             service.NewAvitoAccounts(pool),
 		auth:              service.NewAuth(pool, service.NewMemoryMagicLinkMailer()),
@@ -71,6 +73,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPGet(tokens.HTTPPathTaskResults()), s.requireUser(s.handleGetTaskResults))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1MeTasks), s.requireUser(s.handleListMyTasks))
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1MeTasks), s.requireUser(s.handleCreateMyTask))
+	mux.HandleFunc(tokens.HTTPGet(tokens.HTTPPathMeWatchResults()), s.requireUser(s.handleGetMyWatchResults))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1ProxiesActive), s.handleListActiveProxies)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLink), s.handleMagicLinkRequest)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLinkConsume), s.handleMagicLinkConsume)
@@ -613,6 +616,27 @@ func (s *Server) handleCreateMyTask(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
+	if tokens.IsListingFilterURL(req.Query) {
+		watch, err := s.filterWatches.Start(r.Context(), user.UserID, req.Query)
+		if err != nil {
+			if errors.Is(err, domain.ErrInvalidListingURL) {
+				writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidListingURL})
+				return
+			}
+			if errors.Is(err, domain.ErrNoActiveSubscription) {
+				writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: domain.ErrNoActiveSubscription.Error()})
+				return
+			}
+			if errors.Is(err, domain.ErrServiceNotEntitled) {
+				writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: domain.ErrServiceNotEntitled.Error()})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgCreateWatchFailed})
+			return
+		}
+		writeJSON(w, http.StatusCreated, service.WatchJSON(watch))
+		return
+	}
 	task, err := s.tasks.CreateTask(r.Context(), user.UserID, req.Query)
 	if err != nil {
 		if errors.Is(err, domain.ErrInvalidListingURL) {
@@ -709,6 +733,37 @@ func (s *Server) handleGetTaskResults(w http.ResponseWriter, r *http.Request) {
 	out := make([]map[string]any, 0, len(items))
 	for _, it := range items {
 		out = append(out, service.TaskResultJSON(it))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldResults: out})
+}
+
+func (s *Server) handleGetMyWatchResults(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	watchID, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	items, err := s.filterWatches.ListResultsForUser(r.Context(), user.UserID, watchID)
+	if err != nil {
+		if errors.Is(err, domain.ErrWatchNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{tokens.JSONFieldError: tokens.ErrMsgWatchNotFound})
+			return
+		}
+		if errors.Is(err, domain.ErrForbidden) {
+			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: tokens.ErrMsgForbidden})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgListTasksFailed})
+		return
+	}
+	out := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		out = append(out, service.WatchHitJSON(it))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldResults: out})
 }

@@ -59,4 +59,6 @@ const (
 	LogWorkerProxiesErr = "proxies: %v"
 	LogWorkerTickActive = "tick: active_proxies=%d"
 	LogWorkerListingSearchErr = "listing_search: %v"
+	LogWorkerWatchPollErr     = "listing_watch: %v"
+	LogWorkerWatchPollDone    = "listing_watch: polled=%d"
 )
