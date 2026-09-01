@@ -14,6 +14,8 @@ const (
 	PathDesignCSS      = "web/tokens.css"
 	PathGoMod          = "go.mod"
 	PathREADME         = "README.md"
+	PathDockerfile     = "Dockerfile"
+	PathDEPLOY         = "DEPLOY.md"
 )
 
 // RenderSQLCYAML returns the canonical sqlc.yaml body.

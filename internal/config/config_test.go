@@ -12,7 +12,7 @@ import (
 func TestLoad_Defaults(t *testing.T) {
 	for _, k := range []string{
 		tokens.EnvAppEnv, tokens.EnvHTTPAddr, tokens.EnvLogLevel,
-		tokens.EnvDatabaseURL, tokens.EnvRedisURL,
+		tokens.EnvDatabaseURL, tokens.EnvRedisURL, tokens.EnvWorkerTick,
 	} {
 		t.Setenv(k, "")
 	}
@@ -24,6 +24,7 @@ func TestLoad_Defaults(t *testing.T) {
 	require.Equal(t, tokens.DefaultLogLevel, cfg.LogLevel)
 	require.Equal(t, tokens.DefaultDatabaseURL(), cfg.DatabaseURL)
 	require.Equal(t, tokens.DefaultRedisURL(), cfg.RedisURL)
+	require.Equal(t, tokens.DefaultWorkerTick, cfg.WorkerTick.String())
 }
 
 func TestLoad_RejectsBadAppEnv(t *testing.T) {

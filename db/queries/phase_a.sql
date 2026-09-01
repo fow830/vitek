@@ -18,6 +18,19 @@ SELECT id, user_id, plan_type, active, created_at
 FROM subscriptions
 WHERE user_id = $1 AND active = true;
 
+-- name: GetActiveSubscriptionForUpdate :one
+SELECT
+    s.id,
+    s.user_id,
+    s.plan_type,
+    s.active,
+    s.created_at,
+    pl.max_tasks
+FROM subscriptions s
+JOIN plan_limits pl ON s.plan_type = pl.plan_type
+WHERE s.user_id = $1 AND s.active = true
+FOR UPDATE OF s;
+
 -- name: CountUserTasks :one
 SELECT count(*)::bigint AS count
 FROM tasks

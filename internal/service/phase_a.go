@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"vitek/internal/domain"
 	"vitek/internal/repository"
@@ -36,17 +37,25 @@ func (s *Users) CreateUser(ctx context.Context, email string, plan repository.Pl
 	return user, nil
 }
 
-// Tasks enforces plan limits when creating search tasks.
+// Tasks enforces plan limits when creating search tasks (transactional, FOR UPDATE).
 type Tasks struct {
-	q *repository.Queries
+	pool *pgxpool.Pool
 }
 
-func NewTasks(q *repository.Queries) *Tasks {
-	return &Tasks{q: q}
+func NewTasks(pool *pgxpool.Pool) *Tasks {
+	return &Tasks{pool: pool}
 }
 
 func (s *Tasks) CreateTask(ctx context.Context, userID pgtype.UUID, query string) (repository.Task, error) {
-	sub, err := s.q.GetActiveSubscriptionByUser(ctx, userID)
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return repository.Task{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	qtx := repository.New(tx)
+
+	sub, err := qtx.GetActiveSubscriptionForUpdate(ctx, userID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return repository.Task{}, domain.ErrNoActiveSubscription
@@ -54,23 +63,26 @@ func (s *Tasks) CreateTask(ctx context.Context, userID pgtype.UUID, query string
 		return repository.Task{}, err
 	}
 
-	maxTasks, err := s.q.GetPlanMaxTasks(ctx, sub.PlanType)
+	count, err := qtx.CountUserTasks(ctx, userID)
 	if err != nil {
 		return repository.Task{}, err
 	}
-
-	count, err := s.q.CountUserTasks(ctx, userID)
-	if err != nil {
-		return repository.Task{}, err
-	}
-	if count >= int64(maxTasks) {
+	if count >= int64(sub.MaxTasks) {
 		return repository.Task{}, domain.ErrSubscriptionLimitExceeded
 	}
 
-	return s.q.CreateTask(ctx, repository.CreateTaskParams{
+	task, err := qtx.CreateTask(ctx, repository.CreateTaskParams{
 		UserID: userID,
 		Query:  query,
 	})
+	if err != nil {
+		return repository.Task{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return repository.Task{}, err
+	}
+	return task, nil
 }
 
 // Proxies exposes only ACTIVE proxies to callers.

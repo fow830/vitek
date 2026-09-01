@@ -18,6 +18,10 @@ func TestContract_SQLCIsRenderedFromTokens(t *testing.T) {
 	assertFileEqualsRender(t, tokens.PathSQLC, tokens.RenderSQLCYAML())
 }
 
+func TestContract_DockerfileIsRenderedFromTokens(t *testing.T) {
+	assertFileEqualsRender(t, tokens.PathDockerfile, tokens.RenderDockerfile())
+}
+
 func TestContract_GoModToolchainMatchesToken(t *testing.T) {
 	root := moduleRoot(t)
 	raw, err := os.ReadFile(filepath.Join(root, tokens.PathGoMod))

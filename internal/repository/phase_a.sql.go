@@ -128,6 +128,43 @@ func (q *Queries) GetActiveSubscriptionByUser(ctx context.Context, userID pgtype
 	return i, err
 }
 
+const getActiveSubscriptionForUpdate = `-- name: GetActiveSubscriptionForUpdate :one
+SELECT
+    s.id,
+    s.user_id,
+    s.plan_type,
+    s.active,
+    s.created_at,
+    pl.max_tasks
+FROM subscriptions s
+JOIN plan_limits pl ON s.plan_type = pl.plan_type
+WHERE s.user_id = $1 AND s.active = true
+FOR UPDATE OF s
+`
+
+type GetActiveSubscriptionForUpdateRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	PlanType  PlanType           `json:"plan_type"`
+	Active    bool               `json:"active"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	MaxTasks  int32              `json:"max_tasks"`
+}
+
+func (q *Queries) GetActiveSubscriptionForUpdate(ctx context.Context, userID pgtype.UUID) (GetActiveSubscriptionForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getActiveSubscriptionForUpdate, userID)
+	var i GetActiveSubscriptionForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PlanType,
+		&i.Active,
+		&i.CreatedAt,
+		&i.MaxTasks,
+	)
+	return i, err
+}
+
 const getItemByAvitoID = `-- name: GetItemByAvitoID :one
 SELECT id, avito_id, title, created_at
 FROM items

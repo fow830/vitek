@@ -18,6 +18,7 @@ var EnvExampleKeys = []string{
 	EnvPostgresPort,
 	EnvRedisPort,
 	EnvHTTPPort,
+	EnvWorkerTick,
 }
 
 // EnvExampleValues maps each EnvExampleKeys entry to its local default.
@@ -34,6 +35,7 @@ func EnvExampleValues() map[string]string {
 		EnvPostgresPort:     DefaultPostgresPort,
 		EnvRedisPort:        DefaultRedisPort,
 		EnvHTTPPort:         DefaultHTTPPort,
+		EnvWorkerTick:       DefaultWorkerTick,
 	}
 }
 

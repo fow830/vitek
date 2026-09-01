@@ -14,6 +14,7 @@ const (
 	EnvPostgresPort     = "POSTGRES_PORT"
 	EnvRedisPort        = "REDIS_PORT"
 	EnvHTTPPort         = "HTTP_PORT"
+	EnvWorkerTick       = "WORKER_TICK"
 )
 
 // AppEnv allowed values.
