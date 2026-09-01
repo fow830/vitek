@@ -1,0 +1,19 @@
+:root {
+  --color-canvas: #0B0D10;
+  --color-surface: #12151A;
+  --color-border: #2A3038;
+  --color-text: #E8EAED;
+  --color-text-muted: #9AA0A6;
+  --color-accent: #3B82F6;
+  --color-danger: #EF4444;
+  --color-success: #22C55E;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+}

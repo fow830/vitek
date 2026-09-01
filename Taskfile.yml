@@ -1,0 +1,32 @@
+version: "3"
+
+tasks:
+  dev:
+    desc: Start local Docker dependencies
+    cmds:
+      - docker compose up -d
+
+  tokens:gen:
+    desc: Regenerate derived files from internal/tokens
+    cmds:
+      - go run ./cmd/tokensgen
+
+  sqlc:
+    desc: Generate Go code from SQL via sqlc
+    cmds:
+      - sqlc generate
+
+  test:contracts:
+    desc: Run LRT executable contracts
+    cmds:
+      - go test -v -race ./tests/contracts/...
+
+  test:all:
+    desc: Full test run including LRT policy
+    cmds:
+      - go test -v -race -coverprofile=coverage.out ./...
+
+  check:lrt:
+    desc: Express LRT docs-policy check
+    cmds:
+      - go test -v -run TestContract_LRTDocsPolicy ./tests/contracts/
