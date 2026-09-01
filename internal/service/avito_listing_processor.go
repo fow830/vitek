@@ -41,6 +41,10 @@ func (p *AvitoListingProcessor) FindSimilar(ctx context.Context, listingURL stri
 	if _, err := p.avito.PickActive(ctx); err != nil {
 		return nil, domain.ErrListingSearchNoAccount
 	}
+	proxy := proxies[0].Endpoint
+	if tokens.IsListingFilterURL(listingURL) {
+		return p.client.FindFromFilterURL(ctx, proxy, listingURL)
+	}
 	itemID := tokens.ListingIDFromURL(listingURL)
-	return p.client.FindSimilar(ctx, proxies[0].Endpoint, itemID)
+	return p.client.FindSimilar(ctx, proxy, itemID)
 }

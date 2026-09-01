@@ -32,6 +32,15 @@ func startAvitoMock(t *testing.T) *httptest.Server {
 				tokens.AvitoJSONFieldLocationID: tokens.FixtureAvitoLocationID,
 			})
 		case r.URL.Path == tokens.AvitoWebPathItemSearch:
+			if r.URL.Query().Get(tokens.AvitoQueryFilterF) != "" {
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					tokens.AvitoJSONFieldItems: []map[string]any{
+						{tokens.AvitoJSONFieldID: tokens.FixtureAvitoItemID1, tokens.AvitoJSONFieldTitle: tokens.FixtureAvitoItemTitle1},
+						{tokens.AvitoJSONFieldID: tokens.FixtureAvitoItemID2, tokens.AvitoJSONFieldTitle: "Filter hit 2"},
+					},
+				})
+				return
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				tokens.AvitoJSONFieldItems: []map[string]any{
 					{tokens.AvitoJSONFieldID: tokens.FixtureListingID1, tokens.AvitoJSONFieldTitle: "skip source"},
@@ -40,6 +49,11 @@ func startAvitoMock(t *testing.T) *httptest.Server {
 				},
 			})
 		default:
+			if strings.Contains(r.URL.Path, "apple-") {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				_, _ = w.Write([]byte(tokens.FixtureAvitoFilterPageHTML))
+				return
+			}
 			http.NotFound(w, r)
 		}
 	}))
@@ -188,4 +202,45 @@ func TestContract_ListingSearch_ProcessorFactory(t *testing.T) {
 
 	_, err = service.NewListingProcessor(pool, tokens.FixtureInvalidEnum, "")
 	require.Error(t, err)
+}
+
+// CONTRACT-LISTING-011: Avito processor completes task for filter/stream URL.
+func TestContract_ListingSearch_AvitoProcessorFilterURL(t *testing.T) {
+	ctx := context.Background()
+	pool, q := queries(t)
+	mock := startAvitoMock(t)
+	t.Cleanup(mock.Close)
+
+	client := service.NewAvitoClient(service.WithAvitoHTTPBase(mock.URL))
+	worker := service.NewListingSearchWorker(pool, service.NewAvitoListingProcessor(pool, client))
+
+	users := service.NewUsers(pool)
+	user, err := users.CreateUser(ctx, tokens.ProductEmail("listing-filter"), repository.PlanTypeFREE)
+	require.NoError(t, err)
+
+	proxies := service.NewProxies(pool)
+	_, err = proxies.Create(ctx, mock.URL, repository.ProxyStatusACTIVE, "mock-proxy")
+	require.NoError(t, err)
+
+	_, err = service.NewAvitoAccounts(pool).CreateWithSecret(ctx, "acc-filter", repository.AvitoAccountStatusACTIVE, "login@test", "secret")
+	require.NoError(t, err)
+
+	filterURL := tokens.FixtureFilterListingURL
+	require.True(t, tokens.IsListingFilterURL(filterURL))
+
+	task, err := service.NewTasks(pool).CreateTask(ctx, user.ID, filterURL)
+	require.NoError(t, err)
+
+	ok, err := worker.ProcessOne(ctx)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	got, err := q.GetTask(ctx, task.ID)
+	require.NoError(t, err)
+	require.Equal(t, repository.TaskStatusCOMPLETED, got.Status)
+
+	items, err := q.ListTaskItems(ctx, task.ID)
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.Equal(t, tokens.FixtureAvitoItemID1, items[0].AvitoID)
 }

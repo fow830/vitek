@@ -17,6 +17,9 @@ const (
 	AvitoQueryCategoryID    = "categoryId"
 	AvitoQueryLocationID    = "locationId"
 	AvitoQueryLimit         = "limit"
+	AvitoQueryFilterF       = "f"
+	AvitoQueryPresentationType = "presentationType"
+	AvitoPresentationTypeSerp  = "serp"
 	AvitoSimilarSearchLimit = 10
 
 	AvitoJSONFieldItems      = "items"
@@ -34,7 +37,10 @@ const (
 	FixtureAvitoItemID2    = "7654321099"
 	FixtureAvitoItemTitle1 = "iPhone 15 Pro 256GB"
 	FixtureAvitoCategoryID = "84"
-	FixtureAvitoLocationID = "637640"
+	FixtureAvitoLocationID = "636736"
+	FixtureAvitoFilterPageHTML = `<!doctype html><html><body>` +
+		`"locationId":` + FixtureAvitoLocationID + `,"categoryId":` + FixtureAvitoCategoryID +
+		`</body></html>`
 
 	ErrMsgListingSearchNoProxy            = "no active proxy for listing search"
 	ErrMsgListingSearchNoAccount          = "no active avito account for listing search"
@@ -50,6 +56,24 @@ var SchemaAvitoSecretsTables = []string{
 // AvitoItemDetailsURL builds GET item details URL for a numeric Avito item id.
 func AvitoItemDetailsURL(base, itemID string) string {
 	return strings.TrimSuffix(base, "/") + AvitoWebPathItemDetails + itemID
+}
+
+// AvitoFilterSearchURL builds GET /web/1/main/items for a filter/stream query.
+func AvitoFilterSearchURL(base, locationID, categoryID string, filterQuery url.Values, limit int) string {
+	v := url.Values{}
+	v.Set(AvitoQueryCategoryID, categoryID)
+	v.Set(AvitoQueryLocationID, locationID)
+	v.Set(AvitoQueryLimit, strconv.Itoa(limit))
+	v.Set(AvitoQueryPresentationType, AvitoPresentationTypeSerp)
+	if f := strings.TrimSpace(filterQuery.Get(AvitoQueryFilterF)); f != "" {
+		v.Set(AvitoQueryFilterF, f)
+	}
+	for _, key := range []string{"geoCoords", "moreExpensive", "context"} {
+		if val := strings.TrimSpace(filterQuery.Get(key)); val != "" {
+			v.Set(key, val)
+		}
+	}
+	return strings.TrimSuffix(base, "/") + AvitoWebPathItemSearch + "?" + v.Encode()
 }
 
 // AvitoItemSearchURL builds GET similar search URL with query params.

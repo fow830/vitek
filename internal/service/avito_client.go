@@ -77,8 +77,34 @@ func (c *AvitoClient) FindSimilar(ctx context.Context, proxyEndpoint, sourceItem
 	return out, nil
 }
 
+func (c *AvitoClient) FindFromFilterURL(ctx context.Context, proxyEndpoint, filterURL string) ([]SimilarListing, error) {
+	filterURL = tokens.NormalizeListingSearchURL(filterURL)
+	u, err := url.Parse(filterURL)
+	if err != nil {
+		return nil, domain.ErrInvalidListingURL
+	}
+	pageURL := strings.TrimSuffix(c.base, "/") + u.Path
+	if q := u.RawQuery; q != "" {
+		pageURL += "?" + q
+	}
+	htmlBody, err := c.doGET(ctx, proxyEndpoint, pageURL, tokens.MIMETextHTML)
+	if err != nil {
+		return nil, err
+	}
+	locationID, categoryID, ok := tokens.ParseAvitoFilterPageIDs(string(htmlBody))
+	if !ok {
+		return nil, domain.ErrListingSearchAvitoFetch
+	}
+	apiURL := tokens.AvitoFilterSearchURL(c.base, locationID, categoryID, u.Query(), tokens.AvitoSimilarSearchLimit)
+	body, err := c.doGET(ctx, proxyEndpoint, apiURL, tokens.AvitoHTTPAccept)
+	if err != nil {
+		return nil, err
+	}
+	return c.parseItemsJSON(body)
+}
+
 func (c *AvitoClient) fetchItemDetails(ctx context.Context, proxyEndpoint, itemID string) (avitoItemDetails, error) {
-	body, err := c.doGET(ctx, proxyEndpoint, tokens.AvitoItemDetailsURL(c.base, itemID))
+	body, err := c.doGET(ctx, proxyEndpoint, tokens.AvitoItemDetailsURL(c.base, itemID), tokens.AvitoHTTPAccept)
 	if err != nil {
 		return avitoItemDetails{}, err
 	}
@@ -105,10 +131,14 @@ func (c *AvitoClient) fetchItemDetails(ctx context.Context, proxyEndpoint, itemI
 }
 
 func (c *AvitoClient) fetchSearch(ctx context.Context, proxyEndpoint, categoryID, locationID string, limit int) ([]SimilarListing, error) {
-	body, err := c.doGET(ctx, proxyEndpoint, tokens.AvitoItemSearchURL(c.base, categoryID, locationID, limit))
+	body, err := c.doGET(ctx, proxyEndpoint, tokens.AvitoItemSearchURL(c.base, categoryID, locationID, limit), tokens.AvitoHTTPAccept)
 	if err != nil {
 		return nil, err
 	}
+	return c.parseItemsJSON(body)
+}
+
+func (c *AvitoClient) parseItemsJSON(body []byte) ([]SimilarListing, error) {
 	var raw map[string]any
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, domain.ErrListingSearchAvitoFetch
@@ -136,13 +166,13 @@ func (c *AvitoClient) fetchSearch(ctx context.Context, proxyEndpoint, categoryID
 	return out, nil
 }
 
-func (c *AvitoClient) doGET(ctx context.Context, proxyEndpoint, targetURL string) ([]byte, error) {
+func (c *AvitoClient) doGET(ctx context.Context, proxyEndpoint, targetURL, accept string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set(tokens.HeaderUserAgent, tokens.AvitoHTTPUserAgent)
-	req.Header.Set(tokens.HeaderAccept, tokens.AvitoHTTPAccept)
+	req.Header.Set(tokens.HeaderAccept, accept)
 	req.Header.Set(tokens.HeaderAcceptLanguage, tokens.AvitoHTTPAcceptLanguage)
 
 	client := c.client

@@ -2,6 +2,7 @@ package tokens
 
 import (
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -19,8 +20,12 @@ const (
 	FixtureListingID1   = "1234567890"
 	FixtureListingID2   = "9876543210"
 
-	FixtureMobileListingSlug = "sankt-petersburg/telefony/iphone_15_1234567890"
-	FixtureCategoryListingSlug = "sankt-petersburg/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wa3OqzmwwQ2I_l"
+	FixtureMobileListingSlug = "sankt-peterburg/telefony/iphone_15_1234567890"
+	FixtureFilterListingSlug = "sankt-peterburg/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wa3OqzmwwQ2I_Dc"
+	FixtureFilterQueryF      = "ASgBAQECAkS0wA3OqzmwwQ2I_DcDQLLADUSSn~0R1qHtEcqxjBXMsYwV5uANNPbBXPjBXPrBXOjrDjT6_dsC_P3bAv792wIBRcaaDBV7ImZyb20iOjAsInRvIjo3MDAwMH0"
+
+	ListingSearchQueryKindItem   = "item"
+	ListingSearchQueryKindFilter = "filter"
 
 	ListingIDMinDigits = 5
 
@@ -68,8 +73,9 @@ var FixtureListingURL2 = AvitoListingURL(AvitoListingHostPrimary, FixtureListing
 // FixtureMobileListingURL is a contracted valid mobile Avito listing URL.
 var FixtureMobileListingURL = AvitoListingURL(AvitoListingHostMobile, FixtureMobileListingSlug)
 
-// FixtureCategoryListingURL is an Avito catalog URL (not a single listing).
-var FixtureCategoryListingURL = AvitoListingURL(AvitoListingHostMobile, FixtureCategoryListingSlug)
+// FixtureFilterListingURL is a contracted Avito filter/stream URL (SERP).
+var FixtureFilterListingURL = AvitoListingURL(AvitoListingHostPrimary, FixtureFilterListingSlug) +
+	"?presentationType=serp&f=" + url.QueryEscape(FixtureFilterQueryF)
 
 // FixtureInvalidListingURL must be rejected by ValidListingURL.
 var FixtureInvalidListingURL = AvitoListingURL(FixtureInvalidListingHost, FixtureInvalidListingPath)
@@ -89,7 +95,7 @@ func AvitoListingURL(host, slug string) string {
 	return AvitoURLSchemeHTTPS + "://" + host + "/" + strings.TrimPrefix(slug, "/")
 }
 
-// ValidListingURL reports whether query is an Avito listing URL (listing_search input).
+// ValidListingURL reports whether query is an Avito listing or filter URL (listing_search input).
 func ValidListingURL(raw string) bool {
 	raw = strings.TrimSpace(raw)
 	u, err := url.Parse(raw)
@@ -112,13 +118,48 @@ func ValidListingURL(raw string) bool {
 	}
 	for _, h := range AvitoListingHosts {
 		if host == h {
-			if strings.Trim(u.Path, "/") == "" {
-				return false
-			}
-			return ValidListingID(ListingIDFromURL(raw))
+			return strings.Trim(u.Path, "/") != ""
 		}
 	}
 	return false
+}
+
+// IsListingItemURL reports whether the URL points at a single Avito item card.
+func IsListingItemURL(raw string) bool {
+	return ValidListingURL(raw) && ValidListingID(ListingIDFromURL(raw))
+}
+
+// IsListingFilterURL reports whether the URL is an Avito filter/stream (SERP) page.
+func IsListingFilterURL(raw string) bool {
+	return ValidListingURL(raw) && !IsListingItemURL(raw)
+}
+
+// ListingSearchQueryKind classifies listing_search task input.
+func ListingSearchQueryKind(raw string) string {
+	if IsListingItemURL(raw) {
+		return ListingSearchQueryKindItem
+	}
+	if IsListingFilterURL(raw) {
+		return ListingSearchQueryKindFilter
+	}
+	return ""
+}
+
+// NormalizeListingSearchURL canonicalizes host for upstream Avito requests.
+func NormalizeListingSearchURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	host := strings.ToLower(u.Host)
+	if i := strings.Index(host, ":"); i >= 0 {
+		host = host[:i]
+	}
+	if host == AvitoListingHostMobile {
+		u.Host = AvitoListingHostPrimary
+	}
+	return u.String()
 }
 
 // ValidListingID reports whether id looks like an Avito numeric item id.
@@ -157,6 +198,46 @@ func ListingIDFromURL(raw string) string {
 		return ListingIDParseFallback
 	}
 	return last
+}
+
+// ListingStubKeyFromURL returns a stable stub key for item or filter URLs.
+func ListingStubKeyFromURL(raw string) string {
+	if id := ListingIDFromURL(raw); ValidListingID(id) {
+		return id
+	}
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return ListingIDParseFallback
+	}
+	if f := u.Query().Get(AvitoQueryFilterF); f != "" {
+		if len(f) > 16 {
+			return f[:16]
+		}
+		return f
+	}
+	seg := u.Path
+	if i := strings.LastIndex(seg, "/"); i >= 0 {
+		seg = seg[i+1:]
+	}
+	if seg == "" {
+		return ListingIDParseFallback
+	}
+	return seg
+}
+
+var (
+	avitoHTMLLocationIDPattern = regexp.MustCompile(`locationId["':]+(\d+)`)
+	avitoHTMLCategoryIDPattern = regexp.MustCompile(`categoryId["':]+(\d+)`)
+)
+
+// ParseAvitoFilterPageIDs extracts location/category ids embedded in a filter SERP HTML page.
+func ParseAvitoFilterPageIDs(html string) (locationID, categoryID string, ok bool) {
+	loc := avitoHTMLLocationIDPattern.FindStringSubmatch(html)
+	cat := avitoHTMLCategoryIDPattern.FindStringSubmatch(html)
+	if len(loc) != 2 || len(cat) != 2 {
+		return "", "", false
+	}
+	return loc[1], cat[1], true
 }
 
 // StubSimilarAvitoID builds a contracted stub result avito_id.

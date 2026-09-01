@@ -25,7 +25,7 @@ func NewStubListingProcessor() *StubListingProcessor {
 }
 
 func (p *StubListingProcessor) FindSimilar(_ context.Context, listingURL string) ([]SimilarListing, error) {
-	id := tokens.ListingIDFromURL(listingURL)
+	id := tokens.ListingStubKeyFromURL(listingURL)
 	out := make([]SimilarListing, 0, tokens.ListingSearchStubResultCount)
 	for i := 1; i <= tokens.ListingSearchStubResultCount; i++ {
 		out = append(out, SimilarListing{

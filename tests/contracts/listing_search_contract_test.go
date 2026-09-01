@@ -140,9 +140,17 @@ func TestContract_ListingSearch_TokensAligned(t *testing.T) {
 	)
 }
 
-// CONTRACT-LISTING-006: mobile listing URLs accepted; catalog URLs rejected.
-func TestContract_ListingSearch_MobileListingURL(t *testing.T) {
+// CONTRACT-LISTING-006: item + filter stream URLs accepted; hosts classified.
+func TestContract_ListingSearch_FilterStreamURL(t *testing.T) {
 	require.True(t, tokens.ValidListingURL(tokens.FixtureMobileListingURL))
-	require.Equal(t, tokens.FixtureListingID1, tokens.ListingIDFromURL(tokens.FixtureMobileListingURL))
-	require.False(t, tokens.ValidListingURL(tokens.FixtureCategoryListingURL))
+	require.True(t, tokens.IsListingItemURL(tokens.FixtureMobileListingURL))
+	require.True(t, tokens.ValidListingURL(tokens.FixtureFilterListingURL))
+	require.True(t, tokens.IsListingFilterURL(tokens.FixtureFilterListingURL))
+	require.Equal(t, tokens.ListingSearchQueryKindFilter, tokens.ListingSearchQueryKind(tokens.FixtureFilterListingURL))
+	require.Equal(t, tokens.ListingSearchQueryKindItem, tokens.ListingSearchQueryKind(tokens.FixtureListingURL))
+
+	loc, cat, ok := tokens.ParseAvitoFilterPageIDs(tokens.FixtureAvitoFilterPageHTML)
+	require.True(t, ok)
+	require.Equal(t, tokens.FixtureAvitoLocationID, loc)
+	require.Equal(t, tokens.FixtureAvitoCategoryID, cat)
 }
