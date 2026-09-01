@@ -5,9 +5,25 @@ const (
 	ProductName      = "Vitek"
 	ProductNameLocal = "Витёк"
 	ModulePath       = "vitek"
-	ProductDomain    = "vitek.tech"
-	ProductDomainWWW = "www.vitek.tech"
+	ProductDomainLanding = "vitek.tech"
+	ProductDomainWWW     = "www.vitek.tech"
+	ProductDomainApp     = "app.vitek.tech"
 )
+
+// ProductDomain is the marketing/landing apex (alias of ProductDomainLanding).
+const ProductDomain = ProductDomainLanding
+
+const HTTPSScheme = "https://"
+
+// HTTPSAppBase returns the platform origin (mailer + redirects).
+func HTTPSAppBase() string {
+	return HTTPSScheme + ProductDomainApp
+}
+
+// MagicLinkConsumeURL is the mailer POST target on the app domain.
+func MagicLinkConsumeURL() string {
+	return HTTPSAppBase() + PathV1AuthMagicLinkConsume
+}
 
 // ProductEmail builds an email on ProductDomain (contracts / fixtures).
 func ProductEmail(local string) string {

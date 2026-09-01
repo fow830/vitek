@@ -2,7 +2,7 @@
 
 Local run only. **SoT = `tests/contracts/` + `db/migrations/` + `internal/tokens`.** No side docs, no отсебятина.
 
-Product: **Витёк** — multi-service Avito SaaS. Domain: vitek.tech. First shipped service: similar listings search. Auth: Magic Link (HTTP + sessions + admin face).
+Product: **Витёк** — multi-service Avito SaaS. Landing: vitek.tech; platform: app.vitek.tech. First shipped service: similar listings search. Auth: Magic Link (HTTP + sessions + app shell).
 
 ## Requirements
 
@@ -20,7 +20,7 @@ task dev
 task test:contracts
 ```
 
-Env / CSS / compose / sqlc / Dockerfile / admin face: `task tokens:gen` (SoT = `internal/tokens`).
+Env / CSS / compose / sqlc / Dockerfile / app face: `task tokens:gen` (SoT = `internal/tokens`).
 
 ## Tasks
 

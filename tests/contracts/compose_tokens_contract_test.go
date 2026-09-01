@@ -38,6 +38,7 @@ func TestContract_READMETitleMatchesProduct(t *testing.T) {
 	require.Contains(t, string(raw), "# "+tokens.ProductName)
 	require.Contains(t, string(raw), tokens.ProductNameLocal)
 	require.Contains(t, string(raw), tokens.ProductDomain)
+	require.Contains(t, string(raw), tokens.ProductDomainApp)
 }
 
 func TestContract_DEPLOYMentionsProductionDomainTokens(t *testing.T) {
@@ -47,6 +48,7 @@ func TestContract_DEPLOYMentionsProductionDomainTokens(t *testing.T) {
 	body := string(raw)
 	require.Contains(t, body, tokens.ProductDomain)
 	require.Contains(t, body, tokens.ProductDomainWWW)
+	require.Contains(t, body, tokens.ProductDomainApp)
 	require.Contains(t, body, tokens.ComposeContainerPostgresProd)
 	require.Contains(t, body, tokens.ComposeNetworkProd)
 }

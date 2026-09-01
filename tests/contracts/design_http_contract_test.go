@@ -27,10 +27,10 @@ func TestContract_DesignCSSHTTPSurface(t *testing.T) {
 	require.Equal(t, want, rec.Body.String())
 	require.Contains(t, want, tokens.CSSColorAccent+": "+tokens.ColorAccent)
 
-	admin := httptest.NewRequest(http.MethodGet, tokens.PathAdmin, nil)
-	adminRec := httptest.NewRecorder()
-	handler.ServeHTTP(adminRec, admin)
-	require.Equal(t, http.StatusOK, adminRec.Code)
-	require.Contains(t, adminRec.Body.String(), `href="`+tokens.PathTokensCSS+`"`)
-	require.Contains(t, strings.ToLower(adminRec.Body.String()), tokens.CSSColorAccent)
+	app := appHostRequest(http.MethodGet, tokens.PathRoot)
+	appRec := httptest.NewRecorder()
+	handler.ServeHTTP(appRec, app)
+	require.Equal(t, http.StatusOK, appRec.Code)
+	require.Contains(t, appRec.Body.String(), `href="`+tokens.PathTokensCSS+`"`)
+	require.Contains(t, strings.ToLower(appRec.Body.String()), tokens.CSSColorAccent)
 }

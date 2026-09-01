@@ -32,8 +32,8 @@ func TestContract_HTTPSurface(t *testing.T) {
 		tokens.HTTPPathID(tokens.PathV1AdminProxies),
 		tokens.PathV1AdminAvitoAccounts,
 		tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts),
-		tokens.PathAdmin,
-		tokens.PathAdminSSE,
+		tokens.PathRoot,
+		tokens.PathAppSSE,
 		tokens.PathTokensCSS,
 	})
 
@@ -59,7 +59,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 			tokens.JSONFieldPlanType: tokens.FixtureInvalidEnum,
 		})
 		require.NoError(t, err)
-		req := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload))
+		req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload)))
 		req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
@@ -77,7 +77,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 				tokens.JSONFieldQuery:  query,
 			})
 			require.NoError(t, err)
-			req := httptest.NewRequest(http.MethodPost, tokens.PathV1Tasks, bytes.NewReader(body))
+			req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1Tasks, bytes.NewReader(body)))
 			req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
@@ -113,7 +113,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 		_, err = proxies.Create(ctx, "http://banned.http.example:8080", repository.ProxyStatusBANNED, "")
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, tokens.PathV1ProxiesActive, nil)
+		req := withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1ProxiesActive, nil))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		require.Equal(t, http.StatusOK, rec.Code)

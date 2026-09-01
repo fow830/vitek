@@ -20,11 +20,22 @@ const (
 	PathV1AuthLogout           = "/v1/auth/logout"
 	PathV1AdminProxies         = "/v1/admin/proxies"
 	PathV1AdminAvitoAccounts   = "/v1/admin/avito-accounts"
-	PathAdmin                  = "/admin"
-	PathAdminSSE               = "/admin/sse"
+	PathRoot                   = "/"
+	PathAppSSE                 = "/sse"
 	PathTokensCSS              = "/tokens.css"
 	PathParamID                = "id"
 	PathSuffixID               = "/{id}"
+)
+
+// PathProbe* are fuzz samples that must always 404 (never registered routes).
+const (
+	PathProbeLegacyAdmin    = "/admin"
+	PathProbeLegacyAdminSSE = "/admin/sse"
+	PathProbeFoo            = "/foo"
+	PathProbeAPI            = "/api"
+	PathProbeV1Hack         = "/v1/hack"
+	PathProbeWPLogin        = "/wp-login.php"
+	PathProbeDotEnv         = "/.env"
 )
 
 // MIME and JSON field / status tokens.

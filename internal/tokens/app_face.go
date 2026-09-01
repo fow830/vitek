@@ -7,89 +7,89 @@ import (
 	"strings"
 )
 
-// Admin face title / live clock label.
+// App face title / live clock label.
 const (
-	AdminFaceTitleSuffix = "Admin"
-	AdminCopyLiveClock   = "LIVE"
+	AppFaceTitleSuffix = "Platform"
+	AppCopyLiveClock   = "LIVE"
 )
 
-// AdminNav IDs (shell views).
+// AppNav IDs (shell views).
 const (
-	AdminNavIDOverview = "overview"
-	AdminNavIDServices = "services"
-	AdminNavIDAvito    = "avito"
-	AdminNavIDProxies  = "proxies"
+	AppNavIDOverview = "overview"
+	AppNavIDServices = "services"
+	AppNavIDAvito    = "avito"
+	AppNavIDProxies  = "proxies"
 )
 
-// Admin DOM ids — shared by face HTML, face JS, and Datastar SSE patches.
+// App DOM ids — shared by face HTML, face JS, and Datastar SSE patches.
 const (
-	AdminDOMScreenAuth  = "screen-auth"
-	AdminDOMScreenAdmin = "screen-admin"
-	AdminDOMStatAvito   = "stat-avito"
-	AdminDOMStatProxy   = "stat-proxy"
-	AdminDOMStatShipped = "stat-shipped"
-	AdminDOMTick        = "tick"
-	AdminDOMAuthHint    = "auth-hint"
-	AdminDOMMagicForm   = "magic-form"
-	AdminDOMEmailInput  = "email"
-	AdminDOMNav         = "nav"
-	AdminClassIsActive  = "is-active"
-	AdminClassStatusOk  = "status-ok"
-	AdminClassStatusOff = "status-off"
-	AdminDOMViewPrefix  = "view-"
+	AppDOMScreenAuth  = "screen-auth"
+	AppDOMScreenPlatform = "screen-platform"
+	AppDOMStatAvito   = "stat-avito"
+	AppDOMStatProxy   = "stat-proxy"
+	AppDOMStatShipped = "stat-shipped"
+	AppDOMTick        = "tick"
+	AppDOMAuthHint    = "auth-hint"
+	AppDOMMagicForm   = "magic-form"
+	AppDOMEmailInput  = "email"
+	AppDOMNav         = "nav"
+	AppClassIsActive  = "is-active"
+	AppClassStatusOk  = "status-ok"
+	AppClassStatusOff = "status-off"
+	AppDOMViewPrefix  = "view-"
 )
 
-// Admin UI copy (RU) — SoT for generated face.html.
+// App UI copy (RU) — SoT for generated app/face.html.
 const (
-	AdminCopyAuthLede         = "Админка платформы. Вход только по Magic Link — без паролей."
-	AdminCopyEmailLabel       = "Email"
-	AdminCopyEmailPlaceholder = "you@company.ru"
-	AdminCopySendLink         = "Прислать ссылку"
-	AdminCopyAuthHint         = "Magic Link: письмо/локальный token → сессия → " + PathAdmin + "."
-	AdminCopySentHint         = "Ссылка создана. Локально token вернётся в ответе API."
-	AdminCopyRequestFailed    = "Ошибка запроса Magic Link"
-	AdminCopyConsumeFailed    = "Ошибка consume"
-	AdminCopyOverviewTitle    = "Обзор"
-	AdminCopyOverviewLede     = "Платформа сервисов. Shipped и reserved — из каталога токенов."
-	AdminCopyServicesTitle    = "Сервисы"
-	AdminCopyServicesLede     = "Каталог product_services (SoT = tokens + БД)."
-	AdminCopyAvitoTitle       = "Аккаунты Авито"
-	AdminCopyAvitoLede        = "Пул аккаунтов. CRUD через " + PathV1AdminAvitoAccounts + "."
-	AdminCopyProxiesTitle     = "Прокси"
-	AdminCopyProxiesLede      = "Управление прокси. CRUD через " + PathV1AdminProxies + "."
-	AdminCopyEmptyPanel       = "Нет строк — создайте через admin API."
-	AdminCopyLogout           = "Выйти"
-	AdminCopyStatAvito        = "Аккаунты Авито"
-	AdminCopyStatProxies      = "Прокси ACTIVE"
-	AdminCopyStatShipped      = "Сервисы shipped"
-	AdminCopyColCode          = "Code"
-	AdminCopyColTitle         = "Title"
-	AdminCopyColShipped       = "Shipped"
+	AppCopyAuthLede         = "Платформа. Вход только по Magic Link — без паролей."
+	AppCopyEmailLabel       = "Email"
+	AppCopyEmailPlaceholder = "you@company.ru"
+	AppCopySendLink         = "Прислать ссылку"
+	AppCopyAuthHint         = "Magic Link: письмо → " + ProductDomainApp + "."
+	AppCopySentHint         = "Ссылка создана. Локально token вернётся в ответе API."
+	AppCopyRequestFailed    = "Ошибка запроса Magic Link"
+	AppCopyConsumeFailed    = "Ошибка consume"
+	AppCopyOverviewTitle    = "Обзор"
+	AppCopyOverviewLede     = "Платформа сервисов. Shipped и reserved — из каталога токенов."
+	AppCopyServicesTitle    = "Сервисы"
+	AppCopyServicesLede     = "Каталог product_services (SoT = tokens + БД)."
+	AppCopyAvitoTitle       = "Аккаунты Авито"
+	AppCopyAvitoLede        = "Пул аккаунтов. CRUD через " + PathV1AdminAvitoAccounts + "."
+	AppCopyProxiesTitle     = "Прокси"
+	AppCopyProxiesLede      = "Управление прокси. CRUD через " + PathV1AdminProxies + "."
+	AppCopyEmptyPanel       = "Нет строк — создайте через platform API."
+	AppCopyLogout           = "Выйти"
+	AppCopyStatAvito        = "Аккаунты Авито"
+	AppCopyStatProxies      = "Прокси ACTIVE"
+	AppCopyStatShipped      = "Сервисы shipped"
+	AppCopyColCode          = "Code"
+	AppCopyColTitle         = "Title"
+	AppCopyColShipped       = "Shipped"
 )
 
-// AdminSSEStatsPatch is the Datastar element patch for overview counters.
-func AdminSSEStatsPatch(avitoN, proxyN, shippedN int) string {
-	return `<b id="` + AdminDOMStatAvito + `">` + strconv.Itoa(avitoN) + `</b>` +
-		`<b id="` + AdminDOMStatProxy + `">` + strconv.Itoa(proxyN) + `</b>` +
-		`<b id="` + AdminDOMStatShipped + `">` + strconv.Itoa(shippedN) + `</b>`
+// AppSSEStatsPatch is the Datastar element patch for overview counters.
+func AppSSEStatsPatch(avitoN, proxyN, shippedN int) string {
+	return `<b id="` + AppDOMStatAvito + `">` + strconv.Itoa(avitoN) + `</b>` +
+		`<b id="` + AppDOMStatProxy + `">` + strconv.Itoa(proxyN) + `</b>` +
+		`<b id="` + AppDOMStatShipped + `">` + strconv.Itoa(shippedN) + `</b>`
 }
 
-// AdminNavItem is a shell navigation entry.
-type AdminNavItem struct {
+// AppNavItem is a shell navigation entry.
+type AppNavItem struct {
 	ID    string
 	Label string
 }
 
-// AdminNav is the admin shell navigation SoT.
-var AdminNav = []AdminNavItem{
-	{ID: AdminNavIDOverview, Label: AdminCopyOverviewTitle},
-	{ID: AdminNavIDServices, Label: AdminCopyServicesTitle},
-	{ID: AdminNavIDAvito, Label: AdminCopyAvitoTitle},
-	{ID: AdminNavIDProxies, Label: AdminCopyProxiesTitle},
+// AppNav is the platform shell navigation SoT.
+var AppNav = []AppNavItem{
+	{ID: AppNavIDOverview, Label: AppCopyOverviewTitle},
+	{ID: AppNavIDServices, Label: AppCopyServicesTitle},
+	{ID: AppNavIDAvito, Label: AppCopyAvitoTitle},
+	{ID: AppNavIDProxies, Label: AppCopyProxiesTitle},
 }
 
-// FixtureAdminEmail is the side-meta identity shown before login (ProductDomain-derived).
-func FixtureAdminEmail() string {
+// FixtureSessionEmail is the side-meta identity shown before login (ProductDomain-derived).
+func FixtureSessionEmail() string {
 	return ProductEmail("admin")
 }
 
@@ -110,15 +110,15 @@ func ProductBrandAccent() string {
 	return string(r[len(r)-2:])
 }
 
-// RenderAdminFaceHTML returns the canonical web/admin/face.html body (tokens only).
-func RenderAdminFaceHTML() string {
+// RenderAppFaceHTML returns the canonical web/app/face.html body (tokens only).
+func RenderAppFaceHTML() string {
 	var b strings.Builder
 	esc := html.EscapeString
 	stem := esc(ProductBrandStem())
 	accent := esc(ProductBrandAccent())
-	title := esc(ProductNameLocal + " — " + AdminFaceTitleSuffix)
-	emailPh := esc(AdminCopyEmailPlaceholder)
-	fixtureEmail := esc(FixtureAdminEmail())
+	title := esc(ProductNameLocal + " — " + AppFaceTitleSuffix)
+	emailPh := esc(AppCopyEmailPlaceholder)
+	fixtureEmail := esc(FixtureSessionEmail())
 
 	b.WriteString("<!DOCTYPE html>\n")
 	fmt.Fprintf(&b, "<html lang=\"%s\" %s>\n<head>\n", LocaleHTML, AttrDataStar)
@@ -130,58 +130,58 @@ func RenderAdminFaceHTML() string {
 	fmt.Fprintf(&b, "  <link href=\"%s\" rel=\"stylesheet\" />\n", esc(FontsGoogleCSSURL))
 	fmt.Fprintf(&b, "  <link rel=\"stylesheet\" href=\"%s\" />\n", esc(PathTokensCSS))
 	fmt.Fprintf(&b, "  <script type=\"module\" src=\"%s\" data-star></script>\n", esc(DatastarCDNURL))
-	b.WriteString(adminFaceStyleBlock())
+	b.WriteString(appFaceStyleBlock())
 	b.WriteString("</head>\n<body>\n")
 
 	// Auth
-	fmt.Fprintf(&b, "  <section id=\"%s\" class=\"screen %s\">\n", AdminDOMScreenAuth, AdminClassIsActive)
+	fmt.Fprintf(&b, "  <section id=\"%s\" class=\"screen %s\">\n", AppDOMScreenAuth, AppClassIsActive)
 	b.WriteString("    <div class=\"auth\">\n      <div class=\"auth-card\">\n")
 	fmt.Fprintf(&b, "        <p class=\"brand\">%s<span>%s</span></p>\n", stem, accent)
-	fmt.Fprintf(&b, "        <p class=\"lede\">%s</p>\n", esc(AdminCopyAuthLede))
-	fmt.Fprintf(&b, "        <form id=\"%s\" onsubmit=\"return enterAdmin(event)\">\n", AdminDOMMagicForm)
+	fmt.Fprintf(&b, "        <p class=\"lede\">%s</p>\n", esc(AppCopyAuthLede))
+	fmt.Fprintf(&b, "        <form id=\"%s\" onsubmit=\"return enterApp(event)\">\n", AppDOMMagicForm)
 	b.WriteString("          <div class=\"field\">\n")
-	fmt.Fprintf(&b, "            <label for=\"%s\">%s</label>\n", AdminDOMEmailInput, esc(AdminCopyEmailLabel))
-	fmt.Fprintf(&b, "            <input id=\"%s\" type=\"email\" required placeholder=\"%s\" autocomplete=\"email\" />\n", AdminDOMEmailInput, emailPh)
+	fmt.Fprintf(&b, "            <label for=\"%s\">%s</label>\n", AppDOMEmailInput, esc(AppCopyEmailLabel))
+	fmt.Fprintf(&b, "            <input id=\"%s\" type=\"email\" required placeholder=\"%s\" autocomplete=\"email\" />\n", AppDOMEmailInput, emailPh)
 	b.WriteString("          </div>\n")
-	fmt.Fprintf(&b, "          <button class=\"btn\" type=\"submit\">%s</button>\n", esc(AdminCopySendLink))
+	fmt.Fprintf(&b, "          <button class=\"btn\" type=\"submit\">%s</button>\n", esc(AppCopySendLink))
 	b.WriteString("        </form>\n")
-	fmt.Fprintf(&b, "        <p class=\"hint\" id=\"%s\">%s</p>\n", AdminDOMAuthHint, esc(AdminCopyAuthHint))
+	fmt.Fprintf(&b, "        <p class=\"hint\" id=\"%s\">%s</p>\n", AppDOMAuthHint, esc(AppCopyAuthHint))
 	b.WriteString("      </div>\n    </div>\n  </section>\n\n")
 
-	// Admin shell
-	fmt.Fprintf(&b, "  <section id=\"%s\" class=\"screen\">\n    <div class=\"shell\">\n", AdminDOMScreenAdmin)
+	// Platform shell
+	fmt.Fprintf(&b, "  <section id=\"%s\" class=\"screen\">\n    <div class=\"shell\">\n", AppDOMScreenPlatform)
 	b.WriteString("      <aside class=\"side\">\n")
 	fmt.Fprintf(&b, "        <div class=\"side-brand\">%s<em>%s</em></div>\n", stem, accent)
-	fmt.Fprintf(&b, "        <nav class=\"nav\" id=\"%s\">\n", AdminDOMNav)
-	for i, item := range AdminNav {
+	fmt.Fprintf(&b, "        <nav class=\"nav\" id=\"%s\">\n", AppDOMNav)
+	for i, item := range AppNav {
 		active := ""
 		if i == 0 {
-			active = ` class="` + AdminClassIsActive + `"`
+			active = ` class="` + AppClassIsActive + `"`
 		}
 		fmt.Fprintf(&b, "          <a href=\"#%s\"%s data-view=\"%s\">%s</a>\n",
 			esc(item.ID), active, esc(item.ID), esc(item.Label))
 	}
 	b.WriteString("        </nav>\n        <div class=\"side-meta\">\n")
-	fmt.Fprintf(&b, "          <span class=\"pulse\"><i></i> %s</span>\n", esc(AdminCopyLiveClock))
+	fmt.Fprintf(&b, "          <span class=\"pulse\"><i></i> %s</span>\n", esc(AppCopyLiveClock))
 	fmt.Fprintf(&b, "          <span>%s</span>\n", fixtureEmail)
-	fmt.Fprintf(&b, "          <a href=\"#\" onclick=\"return backAuth()\">%s</a>\n", esc(AdminCopyLogout))
+	fmt.Fprintf(&b, "          <a href=\"#\" onclick=\"return backAuth()\">%s</a>\n", esc(AppCopyLogout))
 	b.WriteString("        </div>\n      </aside>\n\n      <main class=\"main\">\n")
 
 	// Overview
 	shippedN := strconv.Itoa(len(ShippedServiceCodes()))
-	fmt.Fprintf(&b, "        <div class=\"view %s\" id=\"%s%s\">\n", AdminClassIsActive, AdminDOMViewPrefix, AdminNavIDOverview)
+	fmt.Fprintf(&b, "        <div class=\"view %s\" id=\"%s%s\">\n", AppClassIsActive, AppDOMViewPrefix, AppNavIDOverview)
 	b.WriteString("          <div class=\"top\"><div>\n")
-	fmt.Fprintf(&b, "            <h1>%s</h1>\n", esc(AdminCopyOverviewTitle))
-	fmt.Fprintf(&b, "            <p>%s</p>\n", esc(AdminCopyOverviewLede))
+	fmt.Fprintf(&b, "            <h1>%s</h1>\n", esc(AppCopyOverviewTitle))
+	fmt.Fprintf(&b, "            <p>%s</p>\n", esc(AppCopyOverviewLede))
 	b.WriteString("          </div>\n")
-	fmt.Fprintf(&b, "          <div class=\"live-bar\">%s <samp id=\"%s\">--:--:--</samp></div>\n", esc(AdminCopyLiveClock), AdminDOMTick)
+	fmt.Fprintf(&b, "          <div class=\"live-bar\">%s <samp id=\"%s\">--:--:--</samp></div>\n", esc(AppCopyLiveClock), AppDOMTick)
 	b.WriteString("          </div>\n          <div class=\"grid\">\n")
-	fmt.Fprintf(&b, "            <div class=\"stat\"><span>%s</span><b id=\"%s\">—</b></div>\n", esc(AdminCopyStatAvito), AdminDOMStatAvito)
-	fmt.Fprintf(&b, "            <div class=\"stat\"><span>%s</span><b id=\"%s\">—</b></div>\n", esc(AdminCopyStatProxies), AdminDOMStatProxy)
-	fmt.Fprintf(&b, "            <div class=\"stat\"><span>%s</span><b id=\"%s\">%s</b></div>\n", esc(AdminCopyStatShipped), AdminDOMStatShipped, esc(shippedN))
+	fmt.Fprintf(&b, "            <div class=\"stat\"><span>%s</span><b id=\"%s\">—</b></div>\n", esc(AppCopyStatAvito), AppDOMStatAvito)
+	fmt.Fprintf(&b, "            <div class=\"stat\"><span>%s</span><b id=\"%s\">—</b></div>\n", esc(AppCopyStatProxies), AppDOMStatProxy)
+	fmt.Fprintf(&b, "            <div class=\"stat\"><span>%s</span><b id=\"%s\">%s</b></div>\n", esc(AppCopyStatShipped), AppDOMStatShipped, esc(shippedN))
 	b.WriteString("          </div>\n          <div class=\"panel\">\n")
 	b.WriteString("            <div class=\"panel-head\"><h2>")
-	b.WriteString(esc(AdminCopyServicesTitle))
+	b.WriteString(esc(AppCopyServicesTitle))
 	b.WriteString("</h2><span class=\"chip\">")
 	b.WriteString(esc(AuthMethodMagicLink))
 	b.WriteString("</span></div>\n")
@@ -189,37 +189,44 @@ func RenderAdminFaceHTML() string {
 	b.WriteString("          </div>\n        </div>\n\n")
 
 	// Services view
-	fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AdminDOMViewPrefix, AdminNavIDServices)
-	writeViewHeader(&b, AdminCopyServicesTitle, AdminCopyServicesLede)
+	fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AppDOMViewPrefix, AppNavIDServices)
+	writeViewHeader(&b, AppCopyServicesTitle, AppCopyServicesLede)
 	b.WriteString("          <div class=\"panel\">\n")
 	writeServicesTable(&b)
 	b.WriteString("          </div>\n        </div>\n\n")
 
 	// Remaining nav views (empty panels until list UI is contracted).
-	for _, item := range AdminNav[2:] {
-		fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AdminDOMViewPrefix, esc(item.ID))
+	for _, item := range AppNav[2:] {
+		fmt.Fprintf(&b, "        <div class=\"view\" id=\"%s%s\">\n", AppDOMViewPrefix, esc(item.ID))
 		writeViewHeader(&b, item.Label, ledeForNav(item.ID))
 		b.WriteString("          <div class=\"panel empty\">")
-		b.WriteString(esc(AdminCopyEmptyPanel))
+		b.WriteString(esc(AppCopyEmptyPanel))
 		b.WriteString("</div>\n        </div>\n\n")
 	}
 
 	b.WriteString("      </main>\n    </div>\n  </section>\n")
-	b.WriteString(adminFaceScriptBlock())
+	b.WriteString(appFaceScriptBlock())
 	b.WriteString("</body>\n</html>\n")
 	return b.String()
 }
 
-// RenderAdminFaceHTMLLoggedIn returns face with admin shell active and SSE boot.
-func RenderAdminFaceHTMLLoggedIn(email string) string {
-	out := RenderAdminFaceHTML()
+// RenderAppFaceHTMLLoggedIn returns platform shell for an authenticated session.
+// SSE boot is attached only when withSSE is true (ADMIN).
+func RenderAppFaceHTMLLoggedIn(email string, withSSE bool) string {
+	out := RenderAppFaceHTML()
 	out = strings.Replace(out,
-		`id="`+AdminDOMScreenAuth+`" class="screen `+AdminClassIsActive+`"`,
-		`id="`+AdminDOMScreenAuth+`" class="screen"`, 1)
+		`id="`+AppDOMScreenAuth+`" class="screen `+AppClassIsActive+`"`,
+		`id="`+AppDOMScreenAuth+`" class="screen"`, 1)
+	platformActive := `id="` + AppDOMScreenPlatform + `" class="screen ` + AppClassIsActive + `"`
+	if withSSE {
+		platformActive += `" data-on:load="@get('` + PathAppSSE + `')"`
+	} else {
+		platformActive += `"`
+	}
 	out = strings.Replace(out,
-		`id="`+AdminDOMScreenAdmin+`" class="screen"`,
-		`id="`+AdminDOMScreenAdmin+`" class="screen `+AdminClassIsActive+`" data-on:load="@get('`+PathAdminSSE+`')"`, 1)
-	out = strings.Replace(out, html.EscapeString(FixtureAdminEmail()), html.EscapeString(email), 1)
+		`id="`+AppDOMScreenPlatform+`" class="screen"`,
+		platformActive, 1)
+	out = strings.Replace(out, html.EscapeString(FixtureSessionEmail()), html.EscapeString(email), 1)
 	return out
 }
 
@@ -233,27 +240,27 @@ func writeViewHeader(b *strings.Builder, title, lede string) {
 
 func ledeForNav(id string) string {
 	switch id {
-	case AdminNavIDAvito:
-		return AdminCopyAvitoLede
-	case AdminNavIDProxies:
-		return AdminCopyProxiesLede
-	case AdminNavIDServices:
-		return AdminCopyServicesLede
+	case AppNavIDAvito:
+		return AppCopyAvitoLede
+	case AppNavIDProxies:
+		return AppCopyProxiesLede
+	case AppNavIDServices:
+		return AppCopyServicesLede
 	default:
-		return AdminCopyOverviewLede
+		return AppCopyOverviewLede
 	}
 }
 
 func writeServicesTable(b *strings.Builder) {
 	esc := html.EscapeString
 	b.WriteString("            <table>\n              <thead><tr>")
-	fmt.Fprintf(b, "<th>%s</th><th>%s</th><th>%s</th>", esc(AdminCopyColCode), esc(AdminCopyColTitle), esc(AdminCopyColShipped))
+	fmt.Fprintf(b, "<th>%s</th><th>%s</th><th>%s</th>", esc(AppCopyColCode), esc(AppCopyColTitle), esc(AppCopyColShipped))
 	b.WriteString("</tr></thead>\n              <tbody>\n")
 	for _, s := range ProductServiceCatalog {
-		shippedClass := AdminClassStatusOff
+		shippedClass := AppClassStatusOff
 		shippedVal := BoolStringFalse
 		if s.Shipped {
-			shippedClass = AdminClassStatusOk
+			shippedClass = AppClassStatusOk
 			shippedVal = BoolStringTrue
 		}
 		fmt.Fprintf(b, "                <tr><td class=\"mono\">%s</td><td>%s</td><td><span class=\"status %s\">%s</span></td></tr>\n",
@@ -262,7 +269,7 @@ func writeServicesTable(b *strings.Builder) {
 	b.WriteString("              </tbody>\n            </table>\n")
 }
 
-func adminFaceStyleBlock() string {
+func appFaceStyleBlock() string {
 	// Layout chrome only; colors/fonts/spacing via CSS variables from tokens.css.
 	return `  <style>
     * { box-sizing: border-box; }
@@ -277,7 +284,7 @@ func adminFaceStyleBlock() string {
     button, input { font: inherit; }
     a { color: inherit; text-decoration: none; }
     .screen { display: none; min-height: 100vh; }
-    .screen.` + AdminClassIsActive + ` { display: block; }
+    .screen.` + AppClassIsActive + ` { display: block; }
     .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--space-lg); position: relative; overflow: hidden; }
     .auth::before {
       content: ""; position: absolute; inset: auto -20% -30% -20%; height: 55%;
@@ -312,7 +319,7 @@ func adminFaceStyleBlock() string {
     .side-brand em { font-style: normal; color: var(--color-accent); }
     .nav { display: grid; gap: 4px; }
     .nav a { padding: 10px 12px; border-radius: var(--radius-sm); color: var(--color-text-muted); font-weight: 500; }
-    .nav a.` + AdminClassIsActive + `, .nav a:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-text); }
+    .nav a.` + AppClassIsActive + `, .nav a:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-text); }
     .side-meta { margin-top: var(--space-xl); padding-top: var(--space-lg); border-top: 1px solid var(--color-border); font-size: .85rem; color: var(--color-text-muted); display: grid; gap: 6px; }
     .pulse { display: inline-flex; align-items: center; gap: 8px; color: var(--color-success); font-family: var(--font-mono); font-size: .78rem; }
     .pulse i { width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); animation: ping 1.6s infinite; }
@@ -336,11 +343,11 @@ func adminFaceStyleBlock() string {
     th { color: var(--color-text-muted); font-weight: 500; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
     tr:last-child td { border-bottom: 0; }
     .status { font-family: var(--font-mono); font-size: .78rem; padding: 4px 8px; border-radius: var(--radius-sm); }
-    .` + AdminClassStatusOk + ` { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 14%, transparent); }
-    .` + AdminClassStatusOff + ` { color: var(--color-text-muted); background: color-mix(in srgb, var(--color-border) 35%, transparent); }
+    .` + AppClassStatusOk + ` { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 14%, transparent); }
+    .` + AppClassStatusOff + ` { color: var(--color-text-muted); background: color-mix(in srgb, var(--color-border) 35%, transparent); }
     .mono { font-family: var(--font-mono); font-size: .85rem; color: var(--color-text-muted); }
     .view { display: none; }
-    .view.` + AdminClassIsActive + ` { display: block; animation: in .35s ease; }
+    .view.` + AppClassIsActive + ` { display: block; animation: in .35s ease; }
     @keyframes in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
     .live-bar { display: flex; align-items: center; gap: var(--space-sm); color: var(--color-text-muted); font-size: .85rem; }
     .live-bar samp { font-family: var(--font-mono); color: var(--color-accent); }

@@ -91,21 +91,3 @@ var ForbiddenGoModPathFragments = []string{
 	"github.com/redis/go-redis",
 	"github.com/go-redis/redis",
 }
-
-// HTTPPathAllowlist is the contracted HTTP surface.
-var HTTPPathAllowlist = []string{
-	PathHealthz,
-	PathV1Users,
-	PathV1Tasks,
-	PathV1ProxiesActive,
-	PathV1AuthMagicLink,
-	PathV1AuthMagicLinkConsume,
-	PathV1AuthLogout,
-	PathV1AdminProxies,
-	HTTPPathID(PathV1AdminProxies),
-	PathV1AdminAvitoAccounts,
-	HTTPPathID(PathV1AdminAvitoAccounts),
-	PathAdmin,
-	PathAdminSSE,
-	PathTokensCSS,
-}

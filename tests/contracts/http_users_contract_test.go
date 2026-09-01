@@ -26,7 +26,7 @@ func TestContract_CreateUserHTTPValidationAndConflict(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(body))
+		req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(body)))
 		req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
@@ -41,13 +41,13 @@ func TestContract_CreateUserHTTPValidationAndConflict(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		req1 := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload))
+		req1 := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload)))
 		req1.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		rec1 := httptest.NewRecorder()
 		handler.ServeHTTP(rec1, req1)
 		require.Equal(t, http.StatusCreated, rec1.Code)
 
-		req2 := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload))
+		req2 := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload)))
 		req2.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		rec2 := httptest.NewRecorder()
 		handler.ServeHTTP(rec2, req2)

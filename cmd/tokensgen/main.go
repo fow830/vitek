@@ -20,7 +20,7 @@ func main() {
 		tokens.PathCompose:    tokens.RenderComposeYAML(),
 		tokens.PathSQLC:       tokens.RenderSQLCYAML(),
 		tokens.PathDockerfile: tokens.RenderDockerfile(),
-		tokens.PathAdminFace:  tokens.RenderAdminFaceHTML(),
+		tokens.PathAppFace:  tokens.RenderAppFaceHTML(),
 	}
 
 	for rel, body := range writes {
@@ -38,7 +38,7 @@ func main() {
 		tokens.PathCompose,
 		tokens.PathSQLC,
 		tokens.PathDockerfile,
-		tokens.PathAdminFace,
+		tokens.PathAppFace,
 	)
 }
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Витёк — Admin</title>
+  <title>Витёк — Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Manrope:wght@400;500;600;700&amp;family=Syne:wght@600;700;800&amp;display=swap" rel="stylesheet" />
@@ -96,20 +96,20 @@
     <div class="auth">
       <div class="auth-card">
         <p class="brand">Вит<span>ёк</span></p>
-        <p class="lede">Админка платформы. Вход только по Magic Link — без паролей.</p>
-        <form id="magic-form" onsubmit="return enterAdmin(event)">
+        <p class="lede">Платформа. Вход только по Magic Link — без паролей.</p>
+        <form id="magic-form" onsubmit="return enterApp(event)">
           <div class="field">
             <label for="email">Email</label>
             <input id="email" type="email" required placeholder="you@company.ru" autocomplete="email" />
           </div>
           <button class="btn" type="submit">Прислать ссылку</button>
         </form>
-        <p class="hint" id="auth-hint">Magic Link: письмо/локальный token → сессия → /admin.</p>
+        <p class="hint" id="auth-hint">Magic Link: письмо → app.vitek.tech.</p>
       </div>
     </div>
   </section>
 
-  <section id="screen-admin" class="screen">
+  <section id="screen-platform" class="screen">
     <div class="shell">
       <aside class="side">
         <div class="side-brand">Вит<em>ёк</em></div>
@@ -172,7 +172,7 @@
             <h1>Аккаунты Авито</h1>
             <p>Пул аккаунтов. CRUD через /v1/admin/avito-accounts.</p>
           </div></div>
-          <div class="panel empty">Нет строк — создайте через admin API.</div>
+          <div class="panel empty">Нет строк — создайте через platform API.</div>
         </div>
 
         <div class="view" id="view-proxies">
@@ -180,7 +180,7 @@
             <h1>Прокси</h1>
             <p>Управление прокси. CRUD через /v1/admin/proxies.</p>
           </div></div>
-          <div class="panel empty">Нет строк — создайте через admin API.</div>
+          <div class="panel empty">Нет строк — создайте через platform API.</div>
         </div>
 
       </main>
@@ -192,8 +192,8 @@
     const pathRequest = '/v1/auth/magic-link';
     const pathConsume = '/v1/auth/magic-link/consume';
     const pathLogout = '/v1/auth/logout';
-    const pathAdmin = '/admin';
-    async function enterAdmin(e) {
+    const pathRoot = '/';
+    async function enterApp(e) {
       if (e) e.preventDefault();
       const email = document.getElementById('email').value.trim();
       if (!email.includes('@')) return false;
@@ -212,7 +212,7 @@
           credentials: 'same-origin'
         });
         if (!creq.ok) { hint.textContent = 'Ошибка consume'; return false; }
-        window.location.href = pathAdmin;
+        window.location.href = pathRoot;
         return false;
       }
       hint.textContent = 'Ссылка создана. Локально token вернётся в ответе API.';
@@ -222,7 +222,7 @@
       try {
         await fetch(pathLogout, { method: 'POST', credentials: 'same-origin' });
       } catch (_) {}
-      window.location.href = pathAdmin;
+      window.location.href = pathRoot;
       return false;
     }
     const nav = document.getElementById('nav');

@@ -34,7 +34,7 @@ func TestContract_MagicLinkHTTP_RequestAndConsume(t *testing.T) {
 
 	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("admin-ml")})
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -44,7 +44,7 @@ func TestContract_MagicLinkHTTP_RequestAndConsume(t *testing.T) {
 
 	consumeBody, err := json.Marshal(map[string]any{tokens.JSONFieldToken: mailer.LastToken})
 	require.NoError(t, err)
-	creq := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(consumeBody))
+	creq := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(consumeBody)))
 	creq.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	crec := httptest.NewRecorder()
 	handler.ServeHTTP(crec, creq)
@@ -57,7 +57,7 @@ func TestContract_MagicLinkHTTP_RequestAndConsume(t *testing.T) {
 	require.Equal(t, string(repository.UserRoleADMIN), out[tokens.JSONFieldRole])
 
 	// reuse token fails
-	creq2 := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(consumeBody))
+	creq2 := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(consumeBody)))
 	creq2.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	crec2 := httptest.NewRecorder()
 	handler.ServeHTTP(crec2, creq2)
@@ -93,7 +93,7 @@ func TestContract_MagicLinkHTTP_UnknownEmailAccepted(t *testing.T) {
 
 	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("newuser")})
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -103,7 +103,7 @@ func TestContract_MagicLinkHTTP_UnknownEmailAccepted(t *testing.T) {
 
 	consumeBody, err := json.Marshal(map[string]any{tokens.JSONFieldToken: mailer.LastToken})
 	require.NoError(t, err)
-	creq := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(consumeBody))
+	creq := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(consumeBody)))
 	creq.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	crec := httptest.NewRecorder()
 	handler.ServeHTTP(crec, creq)
@@ -133,14 +133,14 @@ func TestContract_MagicLinkHTTP_UnknownEmailAccepted(t *testing.T) {
 		tokens.JSONFieldQuery:  "ml-signup-task",
 	})
 	require.NoError(t, err)
-	treq := httptest.NewRequest(http.MethodPost, tokens.PathV1Tasks, bytes.NewReader(taskBody))
+	treq := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1Tasks, bytes.NewReader(taskBody)))
 	treq.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	trec := httptest.NewRecorder()
 	handler.ServeHTTP(trec, treq)
 	require.Equal(t, http.StatusCreated, trec.Code)
 }
 
-// CONTRACT-AUTH-ML-004: logout revokes session; cookie no longer authorizes admin SSE.
+// CONTRACT-AUTH-ML-004: logout revokes session; cookie no longer authorizes app SSE.
 func TestContract_MagicLinkHTTP_LogoutRevokesSession(t *testing.T) {
 	pool, q := queries(t)
 	mailer := service.NewMemoryMagicLinkMailer()
@@ -155,7 +155,7 @@ func TestContract_MagicLinkHTTP_LogoutRevokesSession(t *testing.T) {
 
 	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("logout-admin")})
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -163,7 +163,7 @@ func TestContract_MagicLinkHTTP_LogoutRevokesSession(t *testing.T) {
 
 	cbody, err := json.Marshal(map[string]any{tokens.JSONFieldToken: mailer.LastToken})
 	require.NoError(t, err)
-	creq := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(cbody))
+	creq := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(cbody)))
 	creq.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	crec := httptest.NewRecorder()
 	handler.ServeHTTP(crec, creq)
@@ -177,14 +177,14 @@ func TestContract_MagicLinkHTTP_LogoutRevokesSession(t *testing.T) {
 	}
 	require.NotEmpty(t, cookie)
 
-	lreq := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthLogout, nil)
+	lreq := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthLogout, nil))
 	lreq.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
 	lrec := httptest.NewRecorder()
 	handler.ServeHTTP(lrec, lreq)
 	require.Equal(t, http.StatusOK, lrec.Code)
 	require.Contains(t, lrec.Header().Get(tokens.HeaderSetCookie), tokens.CookieSessionName+"=")
 
-	sreq := httptest.NewRequest(http.MethodGet, tokens.PathAdminSSE, nil)
+	sreq := appHostRequest(http.MethodGet, tokens.PathAppSSE)
 	sreq.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
 	srec := httptest.NewRecorder()
 	handler.ServeHTTP(srec, sreq)
@@ -206,7 +206,7 @@ func TestContract_MagicLinkHTTP_SecureCookieFlag(t *testing.T) {
 		t.Helper()
 		body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("secure")})
 		require.NoError(t, err)
-		req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+		req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body)))
 		req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
@@ -214,7 +214,7 @@ func TestContract_MagicLinkHTTP_SecureCookieFlag(t *testing.T) {
 
 		cbody, err := json.Marshal(map[string]any{tokens.JSONFieldToken: mailer.LastToken})
 		require.NoError(t, err)
-		creq := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(cbody))
+		creq := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(cbody)))
 		creq.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 		crec := httptest.NewRecorder()
 		handler.ServeHTTP(crec, creq)
@@ -240,7 +240,7 @@ func TestContract_MagicLinkHTTP_DefaultDoesNotExposeToken(t *testing.T) {
 
 	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("noexpose")})
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -253,7 +253,7 @@ func TestContract_MagicLinkHTTP_DefaultDoesNotExposeToken(t *testing.T) {
 	require.False(t, hasToken, "production-default must not put raw token in JSON")
 }
 
-// CONTRACT-AUTH-ML-007: WithExposeMagicLinkTokens(true) returns token for local/admin face.
+// CONTRACT-AUTH-ML-007: WithExposeMagicLinkTokens(true) returns token for local app shell.
 func TestContract_MagicLinkHTTP_ExposeTokenOptIn(t *testing.T) {
 	pool, _ := queries(t)
 	mailer := service.NewMemoryMagicLinkMailer()
@@ -264,7 +264,7 @@ func TestContract_MagicLinkHTTP_ExposeTokenOptIn(t *testing.T) {
 
 	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: tokens.ProductEmail("expose")})
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)

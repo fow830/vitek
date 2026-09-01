@@ -79,10 +79,20 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1AdminAvitoAccounts), s.requireAdmin(s.handleAdminListAvito))
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AdminAvitoAccounts), s.requireAdmin(s.handleAdminCreateAvito))
 	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts)), s.requireAdmin(s.handleAdminPatchAvito))
-	mux.HandleFunc(tokens.HTTPGet(tokens.PathAdmin), s.handleAdminPage)
-	mux.HandleFunc(tokens.HTTPGet(tokens.PathAdminSSE), s.requireAdmin(s.handleAdminSSE))
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathRoot), s.handleRoot)
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathAppSSE), s.requireAdmin(s.handleAppSSE))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathTokensCSS), s.handleDesignCSS)
-	return mux
+	return s.withHTTPPolicy(mux)
+}
+
+func (s *Server) withHTTPPolicy(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !tokens.IsAllowedHTTPRequest(r.Method, r.URL.Path, r.Host) {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
@@ -340,17 +350,36 @@ func (s *Server) handleDesignCSS(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(tokens.RenderDesignCSS()))
 }
 
-func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
-	html := tokens.RenderAdminFaceHTML()
-	if user, ok := s.sessionUser(r); ok && user.Role == repository.UserRoleADMIN {
-		html = tokens.RenderAdminFaceHTMLLoggedIn(user.Email)
+func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
+	host := tokens.NormalizeHost(r.Host)
+	switch {
+	case tokens.IsLandingHost(host):
+		s.serveLanding(w, r)
+	case tokens.IsAppHost(host):
+		s.serveAppPage(w, r)
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+func (s *Server) serveLanding(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set(tokens.HeaderContentType, tokens.MIMETextHTML)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(tokens.RenderLandingHTML()))
+}
+
+func (s *Server) serveAppPage(w http.ResponseWriter, r *http.Request) {
+	html := tokens.RenderAppFaceHTML()
+	if user, ok := s.sessionUser(r); ok {
+		withSSE := user.Role == repository.UserRoleADMIN
+		html = tokens.RenderAppFaceHTMLLoggedIn(user.Email, withSSE)
 	}
 	w.Header().Set(tokens.HeaderContentType, tokens.MIMETextHTML)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(html))
 }
 
-func (s *Server) handleAdminSSE(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAppSSE(w http.ResponseWriter, r *http.Request) {
 	sse := datastar.NewSSE(w, r)
 	ctx := r.Context()
 	ticker := time.NewTicker(tokens.SSETickInterval)
@@ -365,7 +394,7 @@ func (s *Server) handleAdminSSE(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		return sse.PatchElements(tokens.AdminSSEStatsPatch(
+		return sse.PatchElements(tokens.AppSSEStatsPatch(
 			int(avitoN),
 			len(active),
 			len(tokens.ShippedServiceCodes()),

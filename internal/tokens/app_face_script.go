@@ -1,23 +1,23 @@
 package tokens
 
-func adminFaceScriptBlock() string {
+func appFaceScriptBlock() string {
 	return `  <script>
-    const tick = document.getElementById('` + AdminDOMTick + `');
-    const hint = document.getElementById('` + AdminDOMAuthHint + `');
+    const tick = document.getElementById('` + AppDOMTick + `');
+    const hint = document.getElementById('` + AppDOMAuthHint + `');
     const pathRequest = '` + PathV1AuthMagicLink + `';
     const pathConsume = '` + PathV1AuthMagicLinkConsume + `';
     const pathLogout = '` + PathV1AuthLogout + `';
-    const pathAdmin = '` + PathAdmin + `';
-    async function enterAdmin(e) {
+    const pathRoot = '` + PathRoot + `';
+    async function enterApp(e) {
       if (e) e.preventDefault();
-      const email = document.getElementById('` + AdminDOMEmailInput + `').value.trim();
+      const email = document.getElementById('` + AppDOMEmailInput + `').value.trim();
       if (!email.includes('@')) return false;
       const res = await fetch(pathRequest, {
         method: 'POST',
         headers: { '` + HeaderContentType + `': '` + MIMEApplicationJSON + `' },
         body: JSON.stringify({ ` + JSONFieldEmail + `: email })
       });
-      if (!res.ok) { hint.textContent = '` + AdminCopyRequestFailed + `'; return false; }
+      if (!res.ok) { hint.textContent = '` + AppCopyRequestFailed + `'; return false; }
       const data = await res.json();
       if (data.` + JSONFieldToken + `) {
         const creq = await fetch(pathConsume, {
@@ -26,27 +26,27 @@ func adminFaceScriptBlock() string {
           body: JSON.stringify({ ` + JSONFieldToken + `: data.` + JSONFieldToken + ` }),
           credentials: 'same-origin'
         });
-        if (!creq.ok) { hint.textContent = '` + AdminCopyConsumeFailed + `'; return false; }
-        window.location.href = pathAdmin;
+        if (!creq.ok) { hint.textContent = '` + AppCopyConsumeFailed + `'; return false; }
+        window.location.href = pathRoot;
         return false;
       }
-      hint.textContent = '` + AdminCopySentHint + `';
+      hint.textContent = '` + AppCopySentHint + `';
       return false;
     }
     async function backAuth() {
       try {
         await fetch(pathLogout, { method: 'POST', credentials: 'same-origin' });
       } catch (_) {}
-      window.location.href = pathAdmin;
+      window.location.href = pathRoot;
       return false;
     }
-    const nav = document.getElementById('` + AdminDOMNav + `');
+    const nav = document.getElementById('` + AppDOMNav + `');
     if (nav) nav.addEventListener('click', (e) => {
       const a = e.target.closest('a[data-view]');
       if (!a) return;
       e.preventDefault();
-      document.querySelectorAll('#` + AdminDOMNav + ` a').forEach(x => x.classList.toggle('` + AdminClassIsActive + `', x === a));
-      document.querySelectorAll('.view').forEach(v => v.classList.toggle('` + AdminClassIsActive + `', v.id === '` + AdminDOMViewPrefix + `' + a.dataset.view));
+      document.querySelectorAll('#` + AppDOMNav + ` a').forEach(x => x.classList.toggle('` + AppClassIsActive + `', x === a));
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('` + AppClassIsActive + `', v.id === '` + AppDOMViewPrefix + `' + a.dataset.view));
     });
     if (tick) setInterval(() => {
       tick.textContent = new Date().toLocaleTimeString('` + LocaleBCP47 + `', { hour12: false });

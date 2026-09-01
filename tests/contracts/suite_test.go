@@ -2,6 +2,8 @@ package contracts_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sort"
@@ -82,4 +84,21 @@ func queries(t *testing.T) (*pgxpool.Pool, *repository.Queries) {
 	t.Helper()
 	pool := setupTestDB(t)
 	return pool, repository.New(pool)
+}
+
+func appHostRequest(method, path string) *http.Request {
+	req := httptest.NewRequest(method, path, nil)
+	req.Host = tokens.ProductDomainApp
+	return req
+}
+
+func landingHostRequest(method, path string) *http.Request {
+	req := httptest.NewRequest(method, path, nil)
+	req.Host = tokens.ProductDomainLanding
+	return req
+}
+
+func withAppHost(req *http.Request) *http.Request {
+	req.Host = tokens.ProductDomainApp
+	return req
 }

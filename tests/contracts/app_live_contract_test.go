@@ -18,8 +18,8 @@ import (
 	httpapi "vitek/internal/transport/httpapi"
 )
 
-// CONTRACT-ADMIN-LIVE-001: /admin serves tokenized HTML; /admin/sse streams Datastar events for admin.
-func TestContract_AdminLiveSurface(t *testing.T) {
+// CONTRACT-APP-LIVE-001: app host / serves tokenized HTML; /sse streams Datastar events for admin.
+func TestContract_AppLiveSurface(t *testing.T) {
 	pool, q := queries(t)
 	mailer := service.NewMemoryMagicLinkMailer()
 	handler := httpapi.NewServer(pool, httpapi.WithMagicLinkMailer(mailer)).Handler()
@@ -32,13 +32,13 @@ func TestContract_AdminLiveSurface(t *testing.T) {
 	require.NoError(t, err)
 	cookie := loginCookie(t, handler, mailer, tokens.ProductEmail("live-admin"))
 
-	req := httptest.NewRequest(http.MethodGet, tokens.PathAdmin, nil)
+	req := appHostRequest(http.MethodGet, tokens.PathRoot)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Body.String(), tokens.ProductBrandStem())
 
-	req = httptest.NewRequest(http.MethodGet, tokens.PathAdmin, nil)
+	req = appHostRequest(http.MethodGet, tokens.PathRoot)
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -49,36 +49,34 @@ func TestContract_AdminLiveSurface(t *testing.T) {
 	require.Contains(t, body, tokens.ProductBrandAccent())
 	require.Contains(t, body, tokens.ServiceCodeListingSearch)
 	require.Contains(t, strings.ToLower(body), tokens.AttrDataStar)
-	require.Contains(t, body, tokens.AdminDOMScreenAdmin)
-	require.Contains(t, body, tokens.AdminClassIsActive)
+	require.Contains(t, body, tokens.AppDOMScreenPlatform)
+	require.Contains(t, body, tokens.AppClassIsActive)
 
-	// anon blocked from SSE
-	sreq := httptest.NewRequest(http.MethodGet, tokens.PathAdminSSE, nil)
+	sreq := appHostRequest(http.MethodGet, tokens.PathAppSSE)
 	srec := httptest.NewRecorder()
 	handler.ServeHTTP(srec, sreq)
 	require.Equal(t, http.StatusUnauthorized, srec.Code)
 
-	// USER role forbidden from SSE
 	_, err = q.CreateUserWithRole(ctx, repository.CreateUserWithRoleParams{
 		Email: tokens.ProductEmail("live-user"),
 		Role:  repository.UserRoleUSER,
 	})
 	require.NoError(t, err)
 	userCookie := loginCookie(t, handler, mailer, tokens.ProductEmail("live-user"))
-	ureq := httptest.NewRequest(http.MethodGet, tokens.PathAdminSSE, nil)
+	ureq := appHostRequest(http.MethodGet, tokens.PathAppSSE)
 	ureq.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+userCookie)
 	urec := httptest.NewRecorder()
 	handler.ServeHTTP(urec, ureq)
 	require.Equal(t, http.StatusForbidden, urec.Code)
 
-	// Real HTTP server — ResponseRecorder is not concurrent-safe under -race.
 	ts := httptest.NewServer(handler)
 	t.Cleanup(ts.Close)
 
 	streamCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	t.Cleanup(cancel)
-	sreq, err = http.NewRequestWithContext(streamCtx, http.MethodGet, ts.URL+tokens.PathAdminSSE, nil)
+	sreq, err = http.NewRequestWithContext(streamCtx, http.MethodGet, ts.URL+tokens.PathAppSSE, nil)
 	require.NoError(t, err)
+	sreq.Host = tokens.ProductDomainApp
 	sreq.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
 
 	sresp, err := http.DefaultClient.Do(sreq)
@@ -88,9 +86,9 @@ func TestContract_AdminLiveSurface(t *testing.T) {
 	require.Contains(t, sresp.Header.Get(tokens.HeaderContentType), tokens.MIMETextEventStream)
 
 	got := readSSEUntil(t, sresp.Body, 3*time.Second, func(acc string) bool {
-		return strings.Contains(acc, tokens.AdminDOMStatAvito)
+		return strings.Contains(acc, tokens.AppDOMStatAvito)
 	})
-	require.Contains(t, got, tokens.AdminDOMStatAvito)
+	require.Contains(t, got, tokens.AppDOMStatAvito)
 	require.Contains(t, got, tokens.DatastarPatchMarker)
 }
 

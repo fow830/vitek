@@ -24,7 +24,7 @@ const (
 	PathCompose           = "docker-compose.yml"
 	PathEnvExample        = ".env.example"
 	PathDesignCSS         = "web/tokens.css"
-	PathAdminFace         = "web/admin/face.html"
+	PathAppFace           = "web/app/face.html"
 	PathGoMod             = "go.mod"
 	PathREADME            = "README.md"
 	PathDockerfile        = "Dockerfile"

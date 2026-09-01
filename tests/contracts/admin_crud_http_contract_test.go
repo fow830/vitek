@@ -38,13 +38,13 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 	userCookie := loginCookie(t, handler, mailer, tokens.ProductEmail("crud-user"))
 
 	// anon
-	req := httptest.NewRequest(http.MethodGet, tokens.PathV1AdminProxies, nil)
+	req := withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1AdminProxies, nil))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 
 	// user forbidden
-	req = httptest.NewRequest(http.MethodGet, tokens.PathV1AdminProxies, nil)
+	req = withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1AdminProxies, nil))
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+userCookie)
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -57,7 +57,7 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 		tokens.JSONFieldLabel:    "msk",
 	})
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodPost, tokens.PathV1AdminProxies, bytes.NewReader(payload))
+	req = withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AdminProxies, bytes.NewReader(payload)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+adminCookie)
 	rec = httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 	id := created[tokens.JSONFieldID].(string)
 
 	// admin list
-	req = httptest.NewRequest(http.MethodGet, tokens.PathV1AdminProxies, nil)
+	req = withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1AdminProxies, nil))
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+adminCookie)
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -85,7 +85,7 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 		tokens.JSONFieldLabel:    "msk-off",
 	})
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodPatch, tokens.HTTPResourceID(tokens.PathV1AdminProxies, id), bytes.NewReader(patch))
+	req = withAppHost(httptest.NewRequest(http.MethodPatch, tokens.HTTPResourceID(tokens.PathV1AdminProxies, id), bytes.NewReader(patch)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+adminCookie)
 	rec = httptest.NewRecorder()
@@ -102,7 +102,7 @@ func TestContract_AdminProxiesCRUD(t *testing.T) {
 		tokens.JSONFieldLabel:    "x",
 	})
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodPost, tokens.PathV1AdminProxies, bytes.NewReader(bad))
+	req = withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AdminProxies, bytes.NewReader(bad)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+adminCookie)
 	rec = httptest.NewRecorder()
@@ -131,14 +131,14 @@ func TestContract_AdminAvitoAccountsCRUD(t *testing.T) {
 		tokens.JSONFieldExternalRef: "ref-1",
 	})
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AdminAvitoAccounts, bytes.NewReader(payload))
+	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AdminAvitoAccounts, bytes.NewReader(payload)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusCreated, rec.Code)
 
-	req = httptest.NewRequest(http.MethodGet, tokens.PathV1AdminAvitoAccounts, nil)
+	req = withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1AdminAvitoAccounts, nil))
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -155,7 +155,7 @@ func TestContract_AdminAvitoAccountsCRUD(t *testing.T) {
 		tokens.JSONFieldExternalRef: "ref-1b",
 	})
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodPatch, tokens.HTTPResourceID(tokens.PathV1AdminAvitoAccounts, id), bytes.NewReader(patch))
+	req = withAppHost(httptest.NewRequest(http.MethodPatch, tokens.HTTPResourceID(tokens.PathV1AdminAvitoAccounts, id), bytes.NewReader(patch)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
 	rec = httptest.NewRecorder()
@@ -172,7 +172,7 @@ func TestContract_AdminAvitoAccountsCRUD(t *testing.T) {
 		tokens.JSONFieldExternalRef: "r",
 	})
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodPost, tokens.PathV1AdminAvitoAccounts, bytes.NewReader(bad))
+	req = withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AdminAvitoAccounts, bytes.NewReader(bad)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
 	rec = httptest.NewRecorder()
@@ -184,7 +184,7 @@ func loginCookie(t *testing.T, handler http.Handler, mailer *service.MemoryMagic
 	t.Helper()
 	body, err := json.Marshal(map[string]any{tokens.JSONFieldEmail: email})
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body))
+	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLink, bytes.NewReader(body)))
 	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -193,7 +193,7 @@ func loginCookie(t *testing.T, handler http.Handler, mailer *service.MemoryMagic
 
 	cbody, err := json.Marshal(map[string]any{tokens.JSONFieldToken: mailer.LastToken})
 	require.NoError(t, err)
-	creq := httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(cbody))
+	creq := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AuthMagicLinkConsume, bytes.NewReader(cbody)))
 	creq.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
 	crec := httptest.NewRecorder()
 	handler.ServeHTTP(crec, creq)

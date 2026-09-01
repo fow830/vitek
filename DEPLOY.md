@@ -5,7 +5,8 @@ CI/CD and environment parameters only. Image tags, ports, env keys, and HTTP pat
 ## Production (vdserv)
 
 - Host: `vdserv` (`83.217.192.46`, SSH alias `vdserv`, key `~/.ssh/id_vdback_agent`)
-- Domain: `https://vitek.tech` (+ `www.vitek.tech`) — SoT `tokens.ProductDomain` / `ProductDomainWWW`
+- Domain landing: `https://vitek.tech` (+ `www.vitek.tech`) — SoT `tokens.ProductDomainLanding` / `ProductDomainWWW`
+- Domain app: `https://app.vitek.tech` — SoT `tokens.ProductDomainApp`
 - App root: `/opt/vitek` (compose + `.env` + `src/` + `nginx/`)
 - Shares TLS edge with VapeDetector via `vd-nginx` (`/opt/vitek/nginx/vitek.conf` mounted into conf.d)
 - DB hostname in DSN must be `vitek-postgres` (SoT `tokens.ComposeContainerPostgresProd`; not compose service name `postgres` — clash on shared network)
@@ -25,8 +26,10 @@ Smoke:
 
 ```bash
 curl -s https://vitek.tech/healthz
-curl -sI https://vitek.tech/admin
-curl -sI https://vitek.tech/tokens.css
+curl -sI https://vitek.tech/
+curl -sI https://vitek.tech/admin   # expect 404
+curl -sI https://app.vitek.tech/
+curl -sI https://app.vitek.tech/tokens.css
 ```
 
 ## Build (local)
@@ -71,7 +74,7 @@ migrate -path db/migrations -database "$DATABASE_URL" up
 
 ## HTTP surface
 
-Paths from `tokens.HTTPPathAllowlist` (contracted): healthz, users, tasks, proxies/active, Magic Link request/consume, admin proxies/avito, `/admin` + `/admin/sse`, `/tokens.css`.
+Paths from `tokens.HTTPPathAllowlist` + `tokens.HTTP*Routes` policy (contracted). Anything else → **404 on all hosts**. Landing: `/` + magic-link POST only. App: full surface. Probe samples: `tokens.HTTPPathProbe404`.
 
 ## CI gates
 
