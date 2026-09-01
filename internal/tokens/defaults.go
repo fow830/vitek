@@ -31,6 +31,7 @@ const (
 	DefaultPostgresUser     = "vitek"
 	DefaultPostgresPassword = "vitek"
 	DefaultPostgresDB       = "vitek"
+	DefaultTestPostgresDB   = "vitek_test"
 	DefaultPostgresPort     = "5432"
 	DefaultRedisPort        = "6379"
 )

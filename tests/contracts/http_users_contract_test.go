@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"vitek/internal/repository"
+	"vitek/internal/tokens"
 	httpapi "vitek/internal/transport/httpapi"
 )
 
@@ -25,8 +26,8 @@ func TestContract_CreateUserHTTPValidationAndConflict(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodPost, "/v1/users", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
+		req := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(body))
+		req.Header.Set("Content-Type", tokens.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
@@ -40,14 +41,14 @@ func TestContract_CreateUserHTTPValidationAndConflict(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		req1 := httptest.NewRequest(http.MethodPost, "/v1/users", bytes.NewReader(payload))
-		req1.Header.Set("Content-Type", "application/json")
+		req1 := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload))
+		req1.Header.Set("Content-Type", tokens.MIMEApplicationJSON)
 		rec1 := httptest.NewRecorder()
 		handler.ServeHTTP(rec1, req1)
 		require.Equal(t, http.StatusCreated, rec1.Code)
 
-		req2 := httptest.NewRequest(http.MethodPost, "/v1/users", bytes.NewReader(payload))
-		req2.Header.Set("Content-Type", "application/json")
+		req2 := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload))
+		req2.Header.Set("Content-Type", tokens.MIMEApplicationJSON)
 		rec2 := httptest.NewRecorder()
 		handler.ServeHTTP(rec2, req2)
 		require.Equal(t, http.StatusConflict, rec2.Code)

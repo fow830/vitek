@@ -19,7 +19,7 @@ func moduleRoot(t *testing.T) string {
 
 	dir := wd
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, tokens.PathGoMod)); err == nil {
 			return dir
 		}
 		parent := filepath.Dir(dir)

@@ -5,7 +5,7 @@ func RenderDockerfile() string {
 	return "" +
 		"# syntax=docker/dockerfile:1\n" +
 		"\n" +
-		"FROM " + ImageGoBuild + " AS build\n" +
+		"FROM " + ImageGoBuild() + " AS build\n" +
 		"WORKDIR /src\n" +
 		"RUN apk add --no-cache ca-certificates\n" +
 		"COPY go.mod go.sum ./\n" +

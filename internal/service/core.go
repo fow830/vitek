@@ -11,33 +11,53 @@ import (
 
 	"vitek/internal/domain"
 	"vitek/internal/repository"
+	"vitek/internal/tokens"
 )
 
-// Users creates users with an active subscription plan.
+// Users creates users with an active subscription and default shipped-service entitlement.
 type Users struct {
-	q *repository.Queries
+	pool *pgxpool.Pool
 }
 
-func NewUsers(q *repository.Queries) *Users {
-	return &Users{q: q}
+func NewUsers(pool *pgxpool.Pool) *Users {
+	return &Users{pool: pool}
 }
 
 func (s *Users) CreateUser(ctx context.Context, email string, plan repository.PlanType) (repository.User, error) {
-	user, err := s.q.CreateUser(ctx, email)
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return repository.User{}, err
 	}
-	_, err = s.q.CreateSubscription(ctx, repository.CreateSubscriptionParams{
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	qtx := repository.New(tx)
+
+	user, err := qtx.CreateUser(ctx, email)
+	if err != nil {
+		return repository.User{}, err
+	}
+	_, err = qtx.CreateSubscription(ctx, repository.CreateSubscriptionParams{
 		UserID:   user.ID,
 		PlanType: plan,
 	})
 	if err != nil {
 		return repository.User{}, err
 	}
+	_, err = qtx.GrantUserService(ctx, repository.GrantUserServiceParams{
+		UserID:      user.ID,
+		ServiceCode: tokens.ServiceCodeListingSearch,
+	})
+	if err != nil {
+		return repository.User{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return repository.User{}, err
+	}
 	return user, nil
 }
 
-// Tasks enforces plan limits when creating search tasks (transactional, FOR UPDATE).
+// Tasks enforces entitlements + plan limits when creating search tasks (transactional, FOR UPDATE).
 type Tasks struct {
 	pool *pgxpool.Pool
 }
@@ -54,6 +74,17 @@ func (s *Tasks) CreateTask(ctx context.Context, userID pgtype.UUID, query string
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	qtx := repository.New(tx)
+
+	ok, err := qtx.HasUserService(ctx, repository.HasUserServiceParams{
+		UserID:      userID,
+		ServiceCode: tokens.ServiceCodeListingSearch,
+	})
+	if err != nil {
+		return repository.Task{}, err
+	}
+	if !ok {
+		return repository.Task{}, domain.ErrServiceNotEntitled
+	}
 
 	sub, err := qtx.GetActiveSubscriptionForUpdate(ctx, userID)
 	if err != nil {
@@ -121,7 +152,7 @@ func (s *Items) Record(ctx context.Context, avitoID, title string) (repository.I
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if errors.As(err, &pgErr) && pgErr.Code == tokens.PGCodeUniqueViolation {
 			return repository.Item{}, domain.ErrDuplicateAvitoID
 		}
 		return repository.Item{}, err

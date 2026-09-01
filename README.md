@@ -2,6 +2,8 @@
 
 Local run only. Invariants: `tests/contracts/` + `db/migrations/`.
 
+Product: **Витёк** — multi-service Avito SaaS platform. First shipped service: similar listings search. Auth skeleton: Magic Link (DB only).
+
 ## Requirements
 
 - Go 1.26+
@@ -18,13 +20,13 @@ task dev
 task test:contracts
 ```
 
-Env / UI / compose / sqlc: `task tokens:gen` (SoT = `internal/tokens`).
+Env / UI / compose / sqlc / Dockerfile: `task tokens:gen` (SoT = `internal/tokens`).
 
 ## Tasks
 
 ```bash
 task dev            # docker compose up -d
-task tokens:gen     # regenerate .env.example + web/tokens.css
+task tokens:gen     # regenerate .env.example, web/tokens.css, docker-compose.yml, sqlc.yaml, Dockerfile
 task sqlc           # generate DB types (needs migrations + queries)
 task test:contracts # LRT contracts
 task test:all       # full suite + coverage

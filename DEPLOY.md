@@ -1,6 +1,6 @@
 # Deploy
 
-CI/CD and environment parameters only.
+CI/CD and environment parameters only. Image tags, ports, env keys, and HTTP paths are defined in `internal/tokens`.
 
 ## Build
 
@@ -58,13 +58,13 @@ Secrets must not be committed.
 migrate -path db/migrations -database "$DATABASE_URL" up
 ```
 
-## HTTP surface (Phase B)
+## HTTP surface
 
 | Method | Path                 | Notes                |
 |--------|----------------------|----------------------|
 | GET    | `/healthz`           | DB ping              |
 | POST   | `/v1/users`          | body: `{email, plan_type}`; 400 bad email, 409 duplicate |
-| POST   | `/v1/tasks`          | create task (limits) |
+| POST   | `/v1/tasks`          | create task (limits + listing_search entitlement) |
 | GET    | `/v1/proxies/active` | ACTIVE proxies only  |
 
 ## CI gates

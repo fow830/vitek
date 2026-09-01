@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -18,7 +17,7 @@ import (
 	"vitek/internal/tokens"
 )
 
-// Server wires HTTP routes for Phase B control plane.
+// Server wires HTTP routes for the control plane.
 type Server struct {
 	pool    *pgxpool.Pool
 	users   *service.Users
@@ -30,7 +29,7 @@ func NewServer(pool *pgxpool.Pool) *Server {
 	q := repository.New(pool)
 	return &Server{
 		pool:    pool,
-		users:   service.NewUsers(q),
+		users:   service.NewUsers(pool),
 		tasks:   service.NewTasks(pool),
 		proxies: service.NewProxies(q),
 	}
@@ -38,25 +37,25 @@ func NewServer(pool *pgxpool.Pool) *Server {
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", s.handleHealthz)
-	mux.HandleFunc("POST /v1/users", s.handleCreateUser)
-	mux.HandleFunc("POST /v1/tasks", s.handleCreateTask)
-	mux.HandleFunc("GET /v1/proxies/active", s.handleListActiveProxies)
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathHealthz), s.handleHealthz)
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1Users), s.handleCreateUser)
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1Tasks), s.handleCreateTask)
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1ProxiesActive), s.handleListActiveProxies)
 	return mux
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	if err := s.pool.Ping(r.Context()); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"status":  "unhealthy",
-			"product": tokens.ProductName,
-			"error":   "database unavailable",
+			tokens.JSONFieldStatus:  tokens.HealthStatusUnhealthy,
+			tokens.JSONFieldProduct: tokens.ProductName,
+			tokens.JSONFieldError:   tokens.ErrMsgDatabaseUnavailable,
 		})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
-		"status":  "ok",
-		"product": tokens.ProductName,
+		tokens.JSONFieldStatus:  tokens.HealthStatusOK,
+		tokens.JSONFieldProduct: tokens.ProductName,
 	})
 }
 
@@ -68,37 +67,37 @@ type createUserRequest struct {
 func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
 
 	req.Email = strings.TrimSpace(req.Email)
 	if req.Email == "" || !strings.Contains(req.Email, "@") {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid or empty email address"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidEmail})
 		return
 	}
 
 	switch req.PlanType {
 	case repository.PlanTypeFREE, repository.PlanTypePRO, repository.PlanTypeULTRA:
 	default:
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid plan_type"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidPlanType})
 		return
 	}
 
 	user, err := s.users.CreateUser(r.Context(), req.Email, req.PlanType)
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			writeJSON(w, http.StatusConflict, map[string]string{"error": "user with this email already exists"})
+		if errors.As(err, &pgErr) && pgErr.Code == tokens.PGCodeUniqueViolation {
+			writeJSON(w, http.StatusConflict, map[string]string{tokens.JSONFieldError: tokens.ErrMsgEmailConflict})
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgCreateUserFailed})
 		return
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":    uuidFromPG(user.ID),
-		"email": user.Email,
+		tokens.JSONFieldID:    uuidFromPG(user.ID),
+		tokens.JSONFieldEmail: user.Email,
 	})
 }
 
@@ -110,55 +109,59 @@ type createTaskRequest struct {
 func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	var req createTaskRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
 	userID, err := parseUUID(req.UserID)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid user_id"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidUserID})
 		return
 	}
 
 	task, err := s.tasks.CreateTask(r.Context(), userID, req.Query)
 	if err != nil {
 		if errors.Is(err, domain.ErrSubscriptionLimitExceeded) {
-			writeJSON(w, http.StatusConflict, map[string]string{"error": domain.ErrSubscriptionLimitExceeded.Error()})
+			writeJSON(w, http.StatusConflict, map[string]string{tokens.JSONFieldError: domain.ErrSubscriptionLimitExceeded.Error()})
 			return
 		}
 		if errors.Is(err, domain.ErrNoActiveSubscription) {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": domain.ErrNoActiveSubscription.Error()})
+			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: domain.ErrNoActiveSubscription.Error()})
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "create task failed"})
+		if errors.Is(err, domain.ErrServiceNotEntitled) {
+			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: domain.ErrServiceNotEntitled.Error()})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgCreateTaskFailed})
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":      uuidFromPG(task.ID),
-		"user_id": uuidFromPG(task.UserID),
-		"query":   task.Query,
-		"status":  string(task.Status),
+		tokens.JSONFieldID:     uuidFromPG(task.ID),
+		tokens.JSONFieldUserID: uuidFromPG(task.UserID),
+		tokens.JSONFieldQuery:  task.Query,
+		tokens.JSONFieldStatus: string(task.Status),
 	})
 }
 
 func (s *Server) handleListActiveProxies(w http.ResponseWriter, r *http.Request) {
 	list, err := s.proxies.ListActive(r.Context())
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "list proxies failed"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgListProxiesFailed})
 		return
 	}
 	out := make([]map[string]any, 0, len(list))
 	for _, p := range list {
 		out = append(out, map[string]any{
-			"id":       uuidFromPG(p.ID),
-			"endpoint": p.Endpoint,
-			"status":   string(p.Status),
+			tokens.JSONFieldID:       uuidFromPG(p.ID),
+			tokens.JSONFieldEndpoint: p.Endpoint,
+			tokens.JSONFieldStatus:   string(p.Status),
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"proxies": out})
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldProxies: out})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", tokens.MIMEApplicationJSON)
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
@@ -176,9 +179,4 @@ func uuidFromPG(id pgtype.UUID) string {
 		return ""
 	}
 	return uuid.UUID(id.Bytes).String()
-}
-
-// Ping is used by tests/helpers.
-func Ping(ctx context.Context, pool *pgxpool.Pool) error {
-	return pool.Ping(ctx)
 }

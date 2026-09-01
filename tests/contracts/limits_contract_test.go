@@ -18,9 +18,9 @@ import (
 // Context: SaaS abuse guard — free tier is single-task only.
 func TestContract_SubscriptionTaskLimits(t *testing.T) {
 	ctx := context.Background()
-	pool, q := queries(t)
+	pool, _ := queries(t)
 
-	users := service.NewUsers(q)
+	users := service.NewUsers(pool)
 	tasks := service.NewTasks(pool)
 
 	t.Run("FREE plan strictly enforces single task limit", func(t *testing.T) {
@@ -38,9 +38,9 @@ func TestContract_SubscriptionTaskLimits(t *testing.T) {
 // CONTRACT-LIMITS-002: Parallel creates cannot bypass FREE max_tasks via TOCTOU.
 func TestContract_SubscriptionTaskLimits_Concurrent(t *testing.T) {
 	ctx := context.Background()
-	pool, q := queries(t)
+	pool, _ := queries(t)
 
-	users := service.NewUsers(q)
+	users := service.NewUsers(pool)
 	tasks := service.NewTasks(pool)
 
 	user, err := users.CreateUser(ctx, "concurrent@vitek.io", repository.PlanTypeFREE)

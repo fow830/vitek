@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -36,7 +35,7 @@ func main() {
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           httpapi.NewServer(pool).Handler(),
-		ReadHeaderTimeout: 5 * time.Second,
+		ReadHeaderTimeout: tokens.HTTPReadHeaderTimeout,
 	}
 
 	go func() {
@@ -47,7 +46,7 @@ func main() {
 	}()
 
 	<-ctx.Done()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), tokens.HTTPShutdownTimeout)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
 }

@@ -25,9 +25,9 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 
 	pgContainer, err := postgres.Run(ctx,
 		tokens.ImagePostgres,
-		postgres.WithDatabase("vitek_test"),
-		postgres.WithUsername("vitek"),
-		postgres.WithPassword("vitek"),
+		postgres.WithDatabase(tokens.DefaultTestPostgresDB),
+		postgres.WithUsername(tokens.DefaultPostgresUser),
+		postgres.WithPassword(tokens.DefaultPostgresPassword),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).
@@ -40,7 +40,7 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 		require.NoError(t, pgContainer.Terminate(ctx))
 	})
 
-	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+	connStr, err := pgContainer.ConnectionString(ctx, "sslmode="+tokens.DefaultPostgresSSLMode)
 	require.NoError(t, err)
 
 	pool, err := pgxpool.New(ctx, connStr)

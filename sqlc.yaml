@@ -4,6 +4,7 @@ sql:
     queries: "db/queries"
     schema:
       - "db/migrations/000001_init.up.sql"
+      - "db/migrations/000002_platform.up.sql"
     gen:
       go:
         package: "repository"

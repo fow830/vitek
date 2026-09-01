@@ -11,6 +11,49 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AvitoAccountStatus string
+
+const (
+	AvitoAccountStatusACTIVE   AvitoAccountStatus = "ACTIVE"
+	AvitoAccountStatusDISABLED AvitoAccountStatus = "DISABLED"
+	AvitoAccountStatusERROR    AvitoAccountStatus = "ERROR"
+)
+
+func (e *AvitoAccountStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AvitoAccountStatus(s)
+	case string:
+		*e = AvitoAccountStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AvitoAccountStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAvitoAccountStatus struct {
+	AvitoAccountStatus AvitoAccountStatus `json:"avito_account_status"`
+	Valid              bool               `json:"valid"` // Valid is true if AvitoAccountStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAvitoAccountStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AvitoAccountStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AvitoAccountStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAvitoAccountStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AvitoAccountStatus), nil
+}
+
 type PlanType string
 
 const (
@@ -141,6 +184,57 @@ func (ns NullTaskStatus) Value() (driver.Value, error) {
 	return string(ns.TaskStatus), nil
 }
 
+type UserRole string
+
+const (
+	UserRoleUSER  UserRole = "USER"
+	UserRoleADMIN UserRole = "ADMIN"
+)
+
+func (e *UserRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserRole(s)
+	case string:
+		*e = UserRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserRole: %T", src)
+	}
+	return nil
+}
+
+type NullUserRole struct {
+	UserRole UserRole `json:"user_role"`
+	Valid    bool     `json:"valid"` // Valid is true if UserRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserRole), nil
+}
+
+type AvitoAccount struct {
+	ID          pgtype.UUID        `json:"id"`
+	Label       string             `json:"label"`
+	Status      AvitoAccountStatus `json:"status"`
+	ExternalRef string             `json:"external_ref"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Item struct {
 	ID        pgtype.UUID        `json:"id"`
 	AvitoID   string             `json:"avito_id"`
@@ -148,9 +242,26 @@ type Item struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type MagicLinkChallenge struct {
+	ID         pgtype.UUID        `json:"id"`
+	Email      string             `json:"email"`
+	TokenHash  string             `json:"token_hash"`
+	RoleHint   UserRole           `json:"role_hint"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	ConsumedAt pgtype.Timestamptz `json:"consumed_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
 type PlanLimit struct {
 	PlanType PlanType `json:"plan_type"`
 	MaxTasks int32    `json:"max_tasks"`
+}
+
+type ProductService struct {
+	Code      string             `json:"code"`
+	Title     string             `json:"title"`
+	Shipped   bool               `json:"shipped"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type Proxy struct {
@@ -158,6 +269,7 @@ type Proxy struct {
 	Endpoint  string             `json:"endpoint"`
 	Status    ProxyStatus        `json:"status"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Label     string             `json:"label"`
 }
 
 type Subscription struct {
@@ -180,4 +292,11 @@ type User struct {
 	ID        pgtype.UUID        `json:"id"`
 	Email     string             `json:"email"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Role      UserRole           `json:"role"`
+}
+
+type UserServiceEntitlement struct {
+	UserID      pgtype.UUID        `json:"user_id"`
+	ServiceCode string             `json:"service_code"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }

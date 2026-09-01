@@ -35,6 +35,19 @@ func TestContract_READMETitleMatchesProduct(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(root, tokens.PathREADME))
 	require.NoError(t, err)
 	require.Contains(t, string(raw), "# "+tokens.ProductName)
+	require.Contains(t, string(raw), tokens.ProductNameLocal)
+}
+
+func TestContract_TaskfilePinsSQLCVersion(t *testing.T) {
+	root := moduleRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, tokens.PathTaskfile))
+	require.NoError(t, err)
+	require.Contains(t, string(raw), "sqlc@"+tokens.SQLCVersion)
+}
+
+func TestContract_GoBuildImageMatchesToolchain(t *testing.T) {
+	require.Equal(t, "golang:1.26-alpine", tokens.ImageGoBuild())
+	require.Contains(t, tokens.RenderDockerfile(), "FROM "+tokens.ImageGoBuild()+" AS build")
 }
 
 func assertFileEqualsRender(t *testing.T, rel, want string) {

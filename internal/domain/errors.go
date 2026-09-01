@@ -1,9 +1,14 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+
+	"vitek/internal/tokens"
+)
 
 var (
-	ErrSubscriptionLimitExceeded = errors.New("subscription task limit exceeded")
-	ErrNoActiveSubscription      = errors.New("no active subscription")
-	ErrDuplicateAvitoID          = errors.New("duplicate avito_id")
+	ErrSubscriptionLimitExceeded = errors.New(tokens.ErrMsgSubscriptionLimit)
+	ErrNoActiveSubscription      = errors.New(tokens.ErrMsgNoActiveSubscription)
+	ErrDuplicateAvitoID          = errors.New(tokens.ErrMsgDuplicateAvitoID)
+	ErrServiceNotEntitled        = errors.New(tokens.ErrMsgServiceNotEntitled)
 )

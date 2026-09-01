@@ -33,11 +33,9 @@ func main() {
 	}
 	defer pool.Close()
 
-	q := repository.New(pool)
-	proxies := service.NewProxies(q)
-	items := service.NewItems(q)
+	proxies := service.NewProxies(repository.New(pool))
 
-	log.Printf("%s %s started env=%s tick=%s", tokens.ProductName, tokens.BinaryWorker, cfg.AppEnv, cfg.WorkerTick)
+	log.Printf("%s %s (%s) started env=%s tick=%s", tokens.ProductName, tokens.ProductNameLocal, tokens.BinaryWorker, cfg.AppEnv, cfg.WorkerTick)
 
 	ticker := time.NewTicker(cfg.WorkerTick)
 	defer ticker.Stop()
@@ -48,19 +46,16 @@ func main() {
 			log.Printf("%s %s shutting down", tokens.ProductName, tokens.BinaryWorker)
 			return
 		case <-ticker.C:
-			runTick(ctx, proxies, items)
+			runTick(ctx, proxies)
 		}
 	}
 }
 
-func runTick(ctx context.Context, proxies *service.Proxies, items *service.Items) {
+func runTick(ctx context.Context, proxies *service.Proxies) {
 	list, err := proxies.ListActive(ctx)
 	if err != nil {
 		log.Printf("proxies: %v", err)
 		return
 	}
-	log.Printf("tick: active_proxies=%d (parser adapter not wired yet)", len(list))
-
-	// Keep items service referenced so Phase B wiring stays complete; real ingest comes later.
-	_ = items
+	log.Printf("tick: active_proxies=%d", len(list))
 }
