@@ -12,3 +12,9 @@ const (
 	BinaryAPI    = "api"
 	BinaryWorker = "worker"
 )
+
+// Worker log formats.
+const (
+	LogWorkerProxiesErr = "proxies: %v"
+	LogWorkerTickActive = "tick: active_proxies=%d"
+)

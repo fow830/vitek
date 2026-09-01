@@ -18,8 +18,6 @@ docker build -t vitek-api:local --target api .
 docker build -t vitek-worker:local --target worker .
 ```
 
-Images and stages are defined by `internal/tokens` → `task tokens:gen` → `Dockerfile`.
-
 ## Run containers
 
 ```bash
@@ -27,17 +25,9 @@ docker run --rm -p 8080:8080 \
   -e APP_ENV=staging \
   -e DATABASE_URL="$DATABASE_URL" \
   vitek-api:local
-
-docker run --rm \
-  -e APP_ENV=staging \
-  -e DATABASE_URL="$DATABASE_URL" \
-  -e WORKER_TICK=5s \
-  vitek-worker:local
 ```
 
-## Environment (staging / production)
-
-Keys are defined in `internal/tokens` (`Env*`). Required in non-local:
+## Environment
 
 | Variable       | Required | Notes                     |
 |----------------|----------|---------------------------|
@@ -45,8 +35,6 @@ Keys are defined in `internal/tokens` (`Env*`). Required in non-local:
 | `DATABASE_URL` | yes      | PostgreSQL DSN            |
 | `HTTP_ADDR`    | no       | default from tokens       |
 | `WORKER_TICK`  | no       | default from tokens       |
-
-Secrets must not be committed.
 
 ## Migrations
 
@@ -56,21 +44,10 @@ migrate -path db/migrations -database "$DATABASE_URL" up
 
 ## HTTP surface
 
-Paths from `tokens.HTTPPathAllowlist` (contracted):
-
-| Method | Path                 | Notes                |
-|--------|----------------------|----------------------|
-| GET    | `/healthz`           | DB ping              |
-| POST   | `/v1/users`          | body: `{email, plan_type}`; 400 bad email/plan, 409 duplicate |
-| POST   | `/v1/tasks`          | limits + listing_search entitlement |
-| GET    | `/v1/proxies/active` | ACTIVE proxies only  |
+Paths from `tokens.HTTPPathAllowlist` (contracted): healthz, users, tasks, proxies/active, Magic Link request/consume, admin proxies/avito, `/admin` + `/admin/sse`.
 
 ## CI gates
 
 1. `task check:lrt`
-2. `task test:all` (race + coverage)
-3. `docker build` for targets `api` and `worker`
-
-## Release
-
-Annotated tags. Invariant commits include `LRT-VERIFY:` (see `.cursor/rules/lrt.mdc`).
+2. `task test:all`
+3. `docker build` for `api` and `worker`

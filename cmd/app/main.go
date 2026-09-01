@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"vitek/internal/config"
+	"vitek/internal/service"
 	"vitek/internal/tokens"
 	httpapi "vitek/internal/transport/httpapi"
 )
@@ -32,9 +33,14 @@ func main() {
 	}
 	defer pool.Close()
 
+	local := cfg.AppEnv == tokens.AppEnvLocal
 	srv := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewServer(pool).Handler(),
+		Addr: cfg.HTTPAddr,
+		Handler: httpapi.NewServer(pool,
+			httpapi.WithMagicLinkMailer(service.NewMemoryMagicLinkMailer()),
+			httpapi.WithExposeMagicLinkTokens(local),
+			httpapi.WithSecureCookies(!local),
+		).Handler(),
 		ReadHeaderTimeout: tokens.HTTPReadHeaderTimeout,
 	}
 

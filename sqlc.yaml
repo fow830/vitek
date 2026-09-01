@@ -5,6 +5,7 @@ sql:
     schema:
       - "db/migrations/000001_init.up.sql"
       - "db/migrations/000002_platform.up.sql"
+      - "db/migrations/000003_sessions.up.sql"
     gen:
       go:
         package: "repository"

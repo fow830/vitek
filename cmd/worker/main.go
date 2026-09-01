@@ -54,8 +54,8 @@ func main() {
 func runTick(ctx context.Context, proxies *service.Proxies) {
 	list, err := proxies.ListActive(ctx)
 	if err != nil {
-		log.Printf("proxies: %v", err)
+		log.Printf(tokens.LogWorkerProxiesErr, err)
 		return
 	}
-	log.Printf("tick: active_proxies=%d", len(list))
+	log.Printf(tokens.LogWorkerTickActive, len(list))
 }

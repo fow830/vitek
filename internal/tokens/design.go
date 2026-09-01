@@ -28,6 +28,7 @@ const (
 	FontsGoogleCSSURL     = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
 	FontsGooglePreconnect = "https://fonts.googleapis.com"
 	FontsGoogleStatic     = "https://fonts.gstatic.com"
+	DatastarCDNURL        = "https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.3/bundles/datastar.js"
 
 	RadiusSM = "6px"
 	RadiusMD = "12px"

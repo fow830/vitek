@@ -5,11 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/starfederation/datastar-go/datastar"
 
 	"vitek/internal/domain"
 	"vitek/internal/repository"
@@ -17,22 +19,49 @@ import (
 	"vitek/internal/tokens"
 )
 
-// Server wires HTTP routes for the control plane.
 type Server struct {
-	pool    *pgxpool.Pool
-	users   *service.Users
-	tasks   *service.Tasks
-	proxies *service.Proxies
+	pool              *pgxpool.Pool
+	users             *service.Users
+	tasks             *service.Tasks
+	proxies           *service.Proxies
+	avito             *service.AvitoAccounts
+	auth              *service.Auth
+	exposeMagicTokens bool
+	secureCookies     bool
 }
 
-func NewServer(pool *pgxpool.Pool) *Server {
-	q := repository.New(pool)
-	return &Server{
-		pool:    pool,
-		users:   service.NewUsers(pool),
-		tasks:   service.NewTasks(pool),
-		proxies: service.NewProxies(q),
+type Option func(*Server)
+
+func WithMagicLinkMailer(m service.MagicLinkMailer) Option {
+	return func(s *Server) {
+		s.auth = service.NewAuth(s.pool, m)
 	}
+}
+
+func WithExposeMagicLinkTokens(v bool) Option {
+	return func(s *Server) { s.exposeMagicTokens = v }
+}
+
+func WithSecureCookies(v bool) Option {
+	return func(s *Server) { s.secureCookies = v }
+}
+
+func NewServer(pool *pgxpool.Pool, opts ...Option) *Server {
+	q := repository.New(pool)
+	s := &Server{
+		pool:              pool,
+		users:             service.NewUsers(pool),
+		tasks:             service.NewTasks(pool),
+		proxies:           service.NewProxies(q),
+		avito:             service.NewAvitoAccounts(q),
+		auth:              service.NewAuth(pool, service.NewMemoryMagicLinkMailer()),
+		exposeMagicTokens: false,
+		secureCookies:     false,
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *Server) Handler() http.Handler {
@@ -41,7 +70,313 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1Users), s.handleCreateUser)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1Tasks), s.handleCreateTask)
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1ProxiesActive), s.handleListActiveProxies)
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLink), s.handleMagicLinkRequest)
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLinkConsume), s.handleMagicLinkConsume)
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthLogout), s.handleLogout)
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1AdminProxies), s.requireAdmin(s.handleAdminListProxies))
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AdminProxies), s.requireAdmin(s.handleAdminCreateProxy))
+	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1AdminProxies)), s.requireAdmin(s.handleAdminPatchProxy))
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1AdminAvitoAccounts), s.requireAdmin(s.handleAdminListAvito))
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AdminAvitoAccounts), s.requireAdmin(s.handleAdminCreateAvito))
+	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts)), s.requireAdmin(s.handleAdminPatchAvito))
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathAdmin), s.handleAdminPage)
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathAdminSSE), s.requireAdmin(s.handleAdminSSE))
 	return mux
+}
+
+func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := s.sessionUser(r)
+		if !ok {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+			return
+		}
+		if user.Role != repository.UserRoleADMIN {
+			writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: tokens.ErrMsgForbidden})
+			return
+		}
+		next(w, r)
+	}
+}
+
+func (s *Server) sessionUser(r *http.Request) (service.SessionUser, bool) {
+	c, err := r.Cookie(tokens.CookieSessionName)
+	if err != nil || c.Value == "" {
+		return service.SessionUser{}, false
+	}
+	user, err := s.auth.SessionFromRaw(r.Context(), c.Value)
+	if err != nil {
+		return service.SessionUser{}, false
+	}
+	return user, true
+}
+
+func (s *Server) handleMagicLinkRequest(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" || !strings.Contains(req.Email, "@") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidEmail})
+		return
+	}
+	raw, err := s.auth.RequestMagicLink(r.Context(), req.Email, 0)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgMagicLinkFailed})
+		return
+	}
+	out := map[string]string{tokens.JSONFieldStatus: tokens.HealthStatusOK}
+	if s.exposeMagicTokens {
+		out[tokens.JSONFieldToken] = raw
+	}
+	writeJSON(w, http.StatusAccepted, out)
+}
+
+func (s *Server) handleMagicLinkConsume(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	user, sessionRaw, err := s.auth.ConsumeMagicLink(r.Context(), strings.TrimSpace(req.Token))
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidMagicToken})
+		return
+	}
+	http.SetCookie(w, s.sessionCookie(sessionRaw, time.Now().UTC().Add(tokens.SessionTTL)))
+	writeJSON(w, http.StatusOK, map[string]any{
+		tokens.JSONFieldEmail: user.Email,
+		tokens.JSONFieldRole:  string(user.Role),
+		tokens.JSONFieldID:    uuidFromPG(user.UserID),
+	})
+}
+
+func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie(tokens.CookieSessionName); err == nil && c.Value != "" {
+		_ = s.auth.RevokeSession(r.Context(), c.Value)
+	}
+	clear := s.sessionCookie("", time.Unix(0, 0).UTC())
+	clear.MaxAge = -1
+	http.SetCookie(w, clear)
+	writeJSON(w, http.StatusOK, map[string]string{tokens.JSONFieldStatus: tokens.HealthStatusOK})
+}
+
+func (s *Server) sessionCookie(value string, expires time.Time) *http.Cookie {
+	return &http.Cookie{
+		Name:     tokens.CookieSessionName,
+		Value:    value,
+		Path:     tokens.CookiePath,
+		HttpOnly: true,
+		Secure:   s.secureCookies,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  expires,
+	}
+}
+
+func (s *Server) handleAdminListProxies(w http.ResponseWriter, r *http.Request) {
+	list, err := s.proxies.ListAll(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminProxiesFailed})
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, p := range list {
+		out = append(out, map[string]any{
+			tokens.JSONFieldID:       uuidFromPG(p.ID),
+			tokens.JSONFieldEndpoint: p.Endpoint,
+			tokens.JSONFieldStatus:   string(p.Status),
+			tokens.JSONFieldLabel:    p.Label,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldProxies: out})
+}
+
+func (s *Server) handleAdminCreateProxy(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Endpoint string                 `json:"endpoint"`
+		Status   repository.ProxyStatus `json:"status"`
+		Label    string                 `json:"label"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	if !validProxyStatus(req.Status) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidProxyStatus})
+		return
+	}
+	p, err := s.proxies.Create(r.Context(), req.Endpoint, req.Status, req.Label)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminProxiesFailed})
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{
+		tokens.JSONFieldID:       uuidFromPG(p.ID),
+		tokens.JSONFieldEndpoint: p.Endpoint,
+		tokens.JSONFieldStatus:   string(p.Status),
+		tokens.JSONFieldLabel:    p.Label,
+	})
+}
+
+func (s *Server) handleAdminPatchProxy(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	var req struct {
+		Endpoint string                 `json:"endpoint"`
+		Status   repository.ProxyStatus `json:"status"`
+		Label    string                 `json:"label"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	if !validProxyStatus(req.Status) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidProxyStatus})
+		return
+	}
+	p, err := s.proxies.Update(r.Context(), id, req.Endpoint, req.Status, req.Label)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminProxiesFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		tokens.JSONFieldID:       uuidFromPG(p.ID),
+		tokens.JSONFieldEndpoint: p.Endpoint,
+		tokens.JSONFieldStatus:   string(p.Status),
+		tokens.JSONFieldLabel:    p.Label,
+	})
+}
+
+func (s *Server) handleAdminListAvito(w http.ResponseWriter, r *http.Request) {
+	list, err := s.avito.List(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminAvitoFailed})
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, a := range list {
+		out = append(out, map[string]any{
+			tokens.JSONFieldID:          uuidFromPG(a.ID),
+			tokens.JSONFieldLabel:       a.Label,
+			tokens.JSONFieldStatus:      string(a.Status),
+			tokens.JSONFieldExternalRef: a.ExternalRef,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldAccounts: out})
+}
+
+func (s *Server) handleAdminCreateAvito(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Label       string                        `json:"label"`
+		Status      repository.AvitoAccountStatus `json:"status"`
+		ExternalRef string                        `json:"external_ref"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	if !validAvitoStatus(req.Status) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidAvitoStatus})
+		return
+	}
+	a, err := s.avito.Create(r.Context(), req.Label, req.Status, req.ExternalRef)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminAvitoFailed})
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{
+		tokens.JSONFieldID:          uuidFromPG(a.ID),
+		tokens.JSONFieldLabel:       a.Label,
+		tokens.JSONFieldStatus:      string(a.Status),
+		tokens.JSONFieldExternalRef: a.ExternalRef,
+	})
+}
+
+func (s *Server) handleAdminPatchAvito(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	var req struct {
+		Label       string                        `json:"label"`
+		Status      repository.AvitoAccountStatus `json:"status"`
+		ExternalRef string                        `json:"external_ref"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	if !validAvitoStatus(req.Status) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidAvitoStatus})
+		return
+	}
+	a, err := s.avito.Update(r.Context(), id, req.Label, req.Status, req.ExternalRef)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminAvitoFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		tokens.JSONFieldID:          uuidFromPG(a.ID),
+		tokens.JSONFieldLabel:       a.Label,
+		tokens.JSONFieldStatus:      string(a.Status),
+		tokens.JSONFieldExternalRef: a.ExternalRef,
+	})
+}
+
+func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
+	html := tokens.RenderAdminFaceHTML()
+	if user, ok := s.sessionUser(r); ok && user.Role == repository.UserRoleADMIN {
+		html = tokens.RenderAdminFaceHTMLLoggedIn(user.Email)
+	}
+	w.Header().Set(tokens.HeaderContentType, tokens.MIMETextHTML)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(html))
+}
+
+func (s *Server) handleAdminSSE(w http.ResponseWriter, r *http.Request) {
+	sse := datastar.NewSSE(w, r)
+	ctx := r.Context()
+	ticker := time.NewTicker(tokens.SSETickInterval)
+	defer ticker.Stop()
+
+	send := func() error {
+		avitoN, err := s.avito.Count(ctx)
+		if err != nil {
+			return err
+		}
+		active, err := s.proxies.ListActive(ctx)
+		if err != nil {
+			return err
+		}
+		return sse.PatchElements(tokens.AdminSSEStatsPatch(
+			int(avitoN),
+			len(active),
+			len(tokens.ShippedServiceCodes()),
+		))
+	}
+	if err := send(); err != nil {
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := send(); err != nil {
+				return
+			}
+		}
+	}
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
@@ -70,20 +405,17 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
 		return
 	}
-
 	req.Email = strings.TrimSpace(req.Email)
 	if req.Email == "" || !strings.Contains(req.Email, "@") {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidEmail})
 		return
 	}
-
 	switch req.PlanType {
 	case repository.PlanTypeFREE, repository.PlanTypePRO, repository.PlanTypeULTRA:
 	default:
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidPlanType})
 		return
 	}
-
 	user, err := s.users.CreateUser(r.Context(), req.Email, req.PlanType)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -94,7 +426,6 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgCreateUserFailed})
 		return
 	}
-
 	writeJSON(w, http.StatusCreated, map[string]any{
 		tokens.JSONFieldID:    uuidFromPG(user.ID),
 		tokens.JSONFieldEmail: user.Email,
@@ -117,7 +448,6 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidUserID})
 		return
 	}
-
 	task, err := s.tasks.CreateTask(r.Context(), userID, req.Query)
 	if err != nil {
 		if errors.Is(err, domain.ErrSubscriptionLimitExceeded) {
@@ -179,4 +509,22 @@ func uuidFromPG(id pgtype.UUID) string {
 		return ""
 	}
 	return uuid.UUID(id.Bytes).String()
+}
+
+func validProxyStatus(s repository.ProxyStatus) bool {
+	switch s {
+	case repository.ProxyStatusACTIVE, repository.ProxyStatusDISABLED, repository.ProxyStatusBANNED:
+		return true
+	default:
+		return false
+	}
+}
+
+func validAvitoStatus(s repository.AvitoAccountStatus) bool {
+	switch s {
+	case repository.AvitoAccountStatusACTIVE, repository.AvitoAccountStatusDISABLED, repository.AvitoAccountStatusERROR:
+		return true
+	default:
+		return false
+	}
 }

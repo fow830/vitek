@@ -127,15 +127,29 @@ func NewProxies(q *repository.Queries) *Proxies {
 	return &Proxies{q: q}
 }
 
-func (s *Proxies) Create(ctx context.Context, endpoint string, status repository.ProxyStatus) (repository.Proxy, error) {
+func (s *Proxies) Create(ctx context.Context, endpoint string, status repository.ProxyStatus, label string) (repository.Proxy, error) {
 	return s.q.CreateProxy(ctx, repository.CreateProxyParams{
 		Endpoint: endpoint,
 		Status:   status,
+		Label:    label,
 	})
 }
 
 func (s *Proxies) ListActive(ctx context.Context) ([]repository.Proxy, error) {
 	return s.q.ListActiveProxies(ctx)
+}
+
+func (s *Proxies) ListAll(ctx context.Context) ([]repository.Proxy, error) {
+	return s.q.ListAllProxies(ctx)
+}
+
+func (s *Proxies) Update(ctx context.Context, id pgtype.UUID, endpoint string, status repository.ProxyStatus, label string) (repository.Proxy, error) {
+	return s.q.UpdateProxy(ctx, repository.UpdateProxyParams{
+		ID:       id,
+		Endpoint: endpoint,
+		Status:   status,
+		Label:    label,
+	})
 }
 
 // Items deduplicates Avito listings by avito_id.

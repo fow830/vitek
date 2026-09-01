@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-star>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Manrope:wght@400;500;600;700&amp;family=Syne:wght@600;700;800&amp;display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../tokens.css" />
+  <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.3/bundles/datastar.js" data-star></script>
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -48,7 +49,6 @@
       background: var(--color-accent); color: var(--color-on-accent); font-weight: 700; cursor: pointer;
     }
     .btn:hover { filter: brightness(1.06); }
-    .btn-ghost { background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border); margin-top: var(--space-sm); }
     .hint { margin-top: var(--space-lg); font-size: .9rem; color: var(--color-text-muted); }
     .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
     @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .side { position: sticky; top: 0; z-index: 5; } }
@@ -103,9 +103,8 @@
             <input id="email" type="email" required placeholder="you@company.ru" autocomplete="email" />
           </div>
           <button class="btn" type="submit">Прислать ссылку</button>
-          <button class="btn btn-ghost" type="button" onclick="enterAdmin(event, true)">Открыть макет админки →</button>
         </form>
-        <p class="hint">Макет лица. Реальный Magic Link HTTP — по контракту позже.</p>
+        <p class="hint" id="auth-hint">Magic Link: письмо/локальный token → сессия → /admin.</p>
       </div>
     </div>
   </section>
@@ -119,10 +118,9 @@
           <a href="#services" data-view="services">Сервисы</a>
           <a href="#avito" data-view="avito">Аккаунты Авито</a>
           <a href="#proxies" data-view="proxies">Прокси</a>
-          <a href="#users" data-view="users">Пользователи</a>
         </nav>
         <div class="side-meta">
-          <span class="pulse"><i></i> MOCK clock</span>
+          <span class="pulse"><i></i> LIVE</span>
           <span>admin@vitek.io</span>
           <a href="#" onclick="return backAuth()">Выйти</a>
         </div>
@@ -134,12 +132,12 @@
             <h1>Обзор</h1>
             <p>Платформа сервисов. Shipped и reserved — из каталога токенов.</p>
           </div>
-          <div class="live-bar">MOCK clock <samp id="tick">--:--:--</samp></div>
+          <div class="live-bar">LIVE <samp id="tick">--:--:--</samp></div>
           </div>
           <div class="grid">
-            <div class="stat"><span>Аккаунты Авито</span><b>—</b></div>
-            <div class="stat"><span>Прокси (schema)</span><b>—</b></div>
-            <div class="stat"><span>Сервисы shipped</span><b>1</b></div>
+            <div class="stat"><span>Аккаунты Авито</span><b id="stat-avito">—</b></div>
+            <div class="stat"><span>Прокси ACTIVE</span><b id="stat-proxy">—</b></div>
+            <div class="stat"><span>Сервисы shipped</span><b id="stat-shipped">1</b></div>
           </div>
           <div class="panel">
             <div class="panel-head"><h2>Сервисы</h2><span class="chip">MAGIC_LINK</span></div>
@@ -172,57 +170,70 @@
         <div class="view" id="view-avito">
           <div class="top"><div>
             <h1>Аккаунты Авито</h1>
-            <p>Пул аккаунтов. Данные появятся после admin API.</p>
+            <p>Пул аккаунтов. CRUD через /v1/admin/avito-accounts.</p>
           </div></div>
-          <div class="panel empty">Пусто — ждём контрактный API.</div>
+          <div class="panel empty">Нет строк — создайте через admin API.</div>
         </div>
 
         <div class="view" id="view-proxies">
           <div class="top"><div>
             <h1>Прокси</h1>
-            <p>Управление прокси. Данные появятся после admin API.</p>
+            <p>Управление прокси. CRUD через /v1/admin/proxies.</p>
           </div></div>
-          <div class="panel empty">Пусто — ждём контрактный API.</div>
-        </div>
-
-        <div class="view" id="view-users">
-          <div class="top"><div>
-            <h1>Пользователи</h1>
-            <p>USER / ADMIN. Magic Link only. Данные появятся после admin API.</p>
-          </div></div>
-          <div class="panel empty">Пусто — ждём контрактный API.</div>
+          <div class="panel empty">Нет строк — создайте через admin API.</div>
         </div>
 
       </main>
     </div>
   </section>
   <script>
-    const auth = document.getElementById('screen-auth');
-    const admin = document.getElementById('screen-admin');
     const tick = document.getElementById('tick');
-    function enterAdmin(e, skip) {
+    const hint = document.getElementById('auth-hint');
+    const pathRequest = '/v1/auth/magic-link';
+    const pathConsume = '/v1/auth/magic-link/consume';
+    const pathLogout = '/v1/auth/logout';
+    const pathAdmin = '/admin';
+    async function enterAdmin(e) {
       if (e) e.preventDefault();
-      if (!skip) {
-        const email = document.getElementById('email').value.trim();
-        if (!email.includes('@')) return false;
+      const email = document.getElementById('email').value.trim();
+      if (!email.includes('@')) return false;
+      const res = await fetch(pathRequest, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email })
+      });
+      if (!res.ok) { hint.textContent = 'Ошибка запроса Magic Link'; return false; }
+      const data = await res.json();
+      if (data.token) {
+        const creq = await fetch(pathConsume, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: data.token }),
+          credentials: 'same-origin'
+        });
+        if (!creq.ok) { hint.textContent = 'Ошибка consume'; return false; }
+        window.location.href = pathAdmin;
+        return false;
       }
-      auth.classList.remove('is-active');
-      admin.classList.add('is-active');
+      hint.textContent = 'Ссылка создана. Локально token вернётся в ответе API.';
       return false;
     }
-    function backAuth() {
-      admin.classList.remove('is-active');
-      auth.classList.add('is-active');
+    async function backAuth() {
+      try {
+        await fetch(pathLogout, { method: 'POST', credentials: 'same-origin' });
+      } catch (_) {}
+      window.location.href = pathAdmin;
       return false;
     }
-    document.getElementById('nav').addEventListener('click', (e) => {
+    const nav = document.getElementById('nav');
+    if (nav) nav.addEventListener('click', (e) => {
       const a = e.target.closest('a[data-view]');
       if (!a) return;
       e.preventDefault();
       document.querySelectorAll('#nav a').forEach(x => x.classList.toggle('is-active', x === a));
       document.querySelectorAll('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + a.dataset.view));
     });
-    setInterval(() => {
+    if (tick) setInterval(() => {
       tick.textContent = new Date().toLocaleTimeString('ru-RU', { hour12: false });
     }, 1000);
   </script>

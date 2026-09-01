@@ -20,12 +20,19 @@ import (
 
 // CONTRACT-HTTP-SURFACE-001: healthz / tasks / proxies HTTP behavior + path allowlist.
 func TestContract_HTTPSurface(t *testing.T) {
-	require.Equal(t, []string{
+	require.Equal(t, tokens.HTTPPathAllowlist, []string{
 		tokens.PathHealthz,
 		tokens.PathV1Users,
 		tokens.PathV1Tasks,
 		tokens.PathV1ProxiesActive,
-	}, tokens.HTTPPathAllowlist)
+		tokens.PathV1AuthMagicLink,
+		tokens.PathV1AuthMagicLinkConsume,
+		tokens.PathV1AuthLogout,
+		tokens.PathV1AdminProxies,
+		tokens.PathV1AdminAvitoAccounts,
+		tokens.PathAdmin,
+		tokens.PathAdminSSE,
+	})
 
 	pool, q := queries(t)
 	handler := httpapi.NewServer(pool).Handler()
@@ -46,7 +53,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 	t.Run("invalid plan_type 400", func(t *testing.T) {
 		payload, err := json.Marshal(map[string]any{
 			tokens.JSONFieldEmail:    "plan@vitek.io",
-			tokens.JSONFieldPlanType: "NOPE",
+			tokens.JSONFieldPlanType: tokens.FixtureInvalidEnum,
 		})
 		require.NoError(t, err)
 		req := httptest.NewRequest(http.MethodPost, tokens.PathV1Users, bytes.NewReader(payload))
@@ -98,9 +105,9 @@ func TestContract_HTTPSurface(t *testing.T) {
 
 	t.Run("proxies active only via HTTP", func(t *testing.T) {
 		proxies := service.NewProxies(q)
-		_, err := proxies.Create(ctx, "http://active.http.example:8080", repository.ProxyStatusACTIVE)
+		_, err := proxies.Create(ctx, "http://active.http.example:8080", repository.ProxyStatusACTIVE, "")
 		require.NoError(t, err)
-		_, err = proxies.Create(ctx, "http://banned.http.example:8080", repository.ProxyStatusBANNED)
+		_, err = proxies.Create(ctx, "http://banned.http.example:8080", repository.ProxyStatusBANNED, "")
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, tokens.PathV1ProxiesActive, nil)

@@ -14,23 +14,24 @@ const (
 	SQLEnginePostgres = "postgresql"
 	SQLPackagePgx     = "pgx/v5"
 
-	PathMigrations        = "db/migrations"
-	PathMigrationInit     = "db/migrations/000001_init.up.sql"
-	PathMigrationPlatform = "db/migrations/000002_platform.up.sql"
-	PathQueries           = "db/queries"
-	PathRepository        = "internal/repository"
-	PathSQLC              = "sqlc.yaml"
-	PathCompose           = "docker-compose.yml"
-	PathEnvExample        = ".env.example"
-	PathDesignCSS         = "web/tokens.css"
-	PathAdminFace         = "web/admin/face.html"
+	PathMigrations          = "db/migrations"
+	PathMigrationInit       = "db/migrations/000001_init.up.sql"
+	PathMigrationPlatform   = "db/migrations/000002_platform.up.sql"
+	PathMigrationSessions   = "db/migrations/000003_sessions.up.sql"
+	PathQueries             = "db/queries"
+	PathRepository          = "internal/repository"
+	PathSQLC                = "sqlc.yaml"
+	PathCompose             = "docker-compose.yml"
+	PathEnvExample          = ".env.example"
+	PathDesignCSS           = "web/tokens.css"
+	PathAdminFace           = "web/admin/face.html"
 	PathAdminFaceTokensHref = "../tokens.css"
-	PathGoMod             = "go.mod"
-	PathREADME            = "README.md"
-	PathDockerfile        = "Dockerfile"
-	PathDEPLOY            = "DEPLOY.md"
-	PathTaskfile          = "Taskfile.yml"
-	PathLRTRule           = ".cursor/rules/lrt.mdc"
+	PathGoMod               = "go.mod"
+	PathREADME              = "README.md"
+	PathDockerfile          = "Dockerfile"
+	PathDEPLOY              = "DEPLOY.md"
+	PathTaskfile            = "Taskfile.yml"
+	PathLRTRule             = ".cursor/rules/lrt.mdc"
 )
 
 // ImageGoBuild returns the golang build image derived from GoToolchain (major.minor).
@@ -53,6 +54,7 @@ func RenderSQLCYAML() string {
 		"    schema:\n" +
 		"      - \"" + PathMigrationInit + "\"\n" +
 		"      - \"" + PathMigrationPlatform + "\"\n" +
+		"      - \"" + PathMigrationSessions + "\"\n" +
 		"    gen:\n" +
 		"      go:\n" +
 		"        package: \"" + PackageRepository + "\"\n" +

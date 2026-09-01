@@ -26,8 +26,9 @@ func TestContract_AdminFaceEmbedsTokenIdentity(t *testing.T) {
 	require.Contains(t, body, tokens.FixtureAdminEmail())
 	require.Contains(t, body, html.EscapeString(tokens.FontsGoogleCSSURL))
 	require.Contains(t, body, tokens.PathAdminFaceTokensHref)
-	require.Contains(t, body, tokens.AdminMockClockLabel)
-	require.NotContains(t, strings.ToLower(body), "datastar")
+	require.Contains(t, body, tokens.AdminCopyLiveClock)
+	require.Contains(t, strings.ToLower(body), tokens.AttrDataStar)
+	require.Contains(t, body, tokens.DatastarCDNURL)
 	require.NotContains(t, body, "LIVE SSE")
 
 	for _, s := range tokens.ProductServiceCatalog {
@@ -37,7 +38,10 @@ func TestContract_AdminFaceEmbedsTokenIdentity(t *testing.T) {
 	for _, n := range tokens.AdminNav {
 		require.Contains(t, body, n.Label)
 		require.Contains(t, body, `data-view="`+n.ID+`"`)
+		require.Contains(t, body, tokens.AdminDOMViewPrefix+n.ID)
 	}
+	require.Contains(t, body, tokens.PathV1AuthLogout)
+	require.Contains(t, body, tokens.AdminClassIsActive)
 }
 
 // CONTRACT-ADMIN-FACE-003: design CSS carries admin chrome color tokens.

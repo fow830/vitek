@@ -1,7 +1,6 @@
 package tokens
 
-// Auth: both end-users and admins sign in via Magic Link only (no passwords).
-// Schema skeleton only until HTTP/UI is built — see magic_link_challenges.
+// Auth: Magic Link only (DB + HTTP). Roles USER/ADMIN via sqlc enums.
 const AuthMethodMagicLink = "MAGIC_LINK"
 
 // AuthMethodsAllowlist is the only permitted auth method (contract-enforced).
@@ -62,15 +61,15 @@ const (
 	PlanMaxTasksULTRA int32 = 100
 )
 
-// AdminManagedTables: schema-ready resources for the future admin web UI
-// (Magic Link auth, Avito accounts, proxies, entitlements). No HTTP admin yet.
-var AdminManagedTables = []string{
+// SchemaPlatformTables: DB tables that form the platform surface (HTTP may lag).
+var SchemaPlatformTables = []string{
 	"product_services",
 	"avito_accounts",
 	"proxies",
 	"users",
 	"user_service_entitlements",
 	"magic_link_challenges",
+	"sessions",
 }
 
 // TableUsersPasswordColumn must never exist (Magic Link only).
@@ -85,10 +84,17 @@ var ForbiddenPackagePathFragments = []string{
 	"feed_matcher",
 }
 
-// HTTPPathAllowlist is the only HTTP API surface until contracts expand it.
+// HTTPPathAllowlist is the contracted HTTP surface.
 var HTTPPathAllowlist = []string{
 	PathHealthz,
 	PathV1Users,
 	PathV1Tasks,
 	PathV1ProxiesActive,
+	PathV1AuthMagicLink,
+	PathV1AuthMagicLinkConsume,
+	PathV1AuthLogout,
+	PathV1AdminProxies,
+	PathV1AdminAvitoAccounts,
+	PathAdmin,
+	PathAdminSSE,
 }

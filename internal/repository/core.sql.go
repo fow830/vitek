@@ -26,18 +26,19 @@ func (q *Queries) CountUserTasks(ctx context.Context, userID pgtype.UUID) (int64
 }
 
 const createProxy = `-- name: CreateProxy :one
-INSERT INTO proxies (endpoint, status)
-VALUES ($1, $2)
+INSERT INTO proxies (endpoint, status, label)
+VALUES ($1, $2, $3)
 RETURNING id, endpoint, status, created_at, label
 `
 
 type CreateProxyParams struct {
 	Endpoint string      `json:"endpoint"`
 	Status   ProxyStatus `json:"status"`
+	Label    string      `json:"label"`
 }
 
 func (q *Queries) CreateProxy(ctx context.Context, arg CreateProxyParams) (Proxy, error) {
-	row := q.db.QueryRow(ctx, createProxy, arg.Endpoint, arg.Status)
+	row := q.db.QueryRow(ctx, createProxy, arg.Endpoint, arg.Status, arg.Label)
 	var i Proxy
 	err := row.Scan(
 		&i.ID,
@@ -111,6 +112,25 @@ func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
 		&i.Email,
 		&i.CreatedAt,
 		&i.Role,
+	)
+	return i, err
+}
+
+const getActiveSubscription = `-- name: GetActiveSubscription :one
+SELECT id, user_id, plan_type, active, created_at
+FROM subscriptions
+WHERE user_id = $1 AND active = true
+`
+
+func (q *Queries) GetActiveSubscription(ctx context.Context, userID pgtype.UUID) (Subscription, error) {
+	row := q.db.QueryRow(ctx, getActiveSubscription, userID)
+	var i Subscription
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.PlanType,
+		&i.Active,
+		&i.CreatedAt,
 	)
 	return i, err
 }

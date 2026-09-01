@@ -34,7 +34,7 @@ func TestContract_AuthIsMagicLinkOnly(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, passwordCol, "users must not have a password column")
 
-	expires := pgtype.Timestamptz{Time: time.Now().UTC().Add(15 * time.Minute), Valid: true}
+	expires := pgtype.Timestamptz{Time: time.Now().UTC().Add(tokens.MagicLinkTTL), Valid: true}
 	_, err = q.CreateMagicLinkChallenge(ctx, repository.CreateMagicLinkChallengeParams{
 		Email:     "admin@vitek.io",
 		TokenHash: "hash-admin-1",
@@ -198,7 +198,7 @@ func TestContract_AdminManagedSchemaSurface(t *testing.T) {
 	ctx := context.Background()
 	pool, _ := queries(t)
 
-	for _, table := range tokens.AdminManagedTables {
+	for _, table := range tokens.SchemaPlatformTables {
 		var exists bool
 		err := pool.QueryRow(ctx,
 			`SELECT EXISTS (

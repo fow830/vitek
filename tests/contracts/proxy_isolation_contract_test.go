@@ -16,11 +16,11 @@ func TestContract_ProxyIsolationActiveOnly(t *testing.T) {
 	_, q := queries(t)
 	proxies := service.NewProxies(q)
 
-	_, err := proxies.Create(ctx, "http://active.example:8080", repository.ProxyStatusACTIVE)
+	_, err := proxies.Create(ctx, "http://active.example:8080", repository.ProxyStatusACTIVE, "")
 	require.NoError(t, err)
-	_, err = proxies.Create(ctx, "http://banned.example:8080", repository.ProxyStatusBANNED)
+	_, err = proxies.Create(ctx, "http://banned.example:8080", repository.ProxyStatusBANNED, "")
 	require.NoError(t, err)
-	_, err = proxies.Create(ctx, "http://disabled.example:8080", repository.ProxyStatusDISABLED)
+	_, err = proxies.Create(ctx, "http://disabled.example:8080", repository.ProxyStatusDISABLED, "")
 	require.NoError(t, err)
 
 	list, err := proxies.ListActive(ctx)
