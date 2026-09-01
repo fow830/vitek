@@ -22,6 +22,7 @@ const (
 	PathV1AdminAvitoAccounts   = "/v1/admin/avito-accounts"
 	PathAdmin                  = "/admin"
 	PathAdminSSE               = "/admin/sse"
+	PathTokensCSS              = "/tokens.css"
 	PathParamID                = "id"
 	PathSuffixID               = "/{id}"
 )
@@ -30,6 +31,7 @@ const (
 const (
 	MIMEApplicationJSON = "application/json"
 	MIMETextHTML        = "text/html; charset=utf-8"
+	MIMETextCSS         = "text/css; charset=utf-8"
 	MIMETextEventStream = "text/event-stream"
 
 	JSONFieldStatus      = "status"

@@ -81,6 +81,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts)), s.requireAdmin(s.handleAdminPatchAvito))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathAdmin), s.handleAdminPage)
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathAdminSSE), s.requireAdmin(s.handleAdminSSE))
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathTokensCSS), s.handleDesignCSS)
 	return mux
 }
 
@@ -331,6 +332,12 @@ func (s *Server) handleAdminPatchAvito(w http.ResponseWriter, r *http.Request) {
 		tokens.JSONFieldStatus:      string(a.Status),
 		tokens.JSONFieldExternalRef: a.ExternalRef,
 	})
+}
+
+func (s *Server) handleDesignCSS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set(tokens.HeaderContentType, tokens.MIMETextCSS)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(tokens.RenderDesignCSS()))
 }
 
 func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {

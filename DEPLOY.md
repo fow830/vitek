@@ -44,7 +44,7 @@ migrate -path db/migrations -database "$DATABASE_URL" up
 
 ## HTTP surface
 
-Paths from `tokens.HTTPPathAllowlist` (contracted): healthz, users, tasks, proxies/active, Magic Link request/consume, admin proxies/avito, `/admin` + `/admin/sse`.
+Paths from `tokens.HTTPPathAllowlist` (contracted): healthz, users, tasks, proxies/active, Magic Link request/consume, admin proxies/avito, `/admin` + `/admin/sse`, `/tokens.css`.
 
 ## CI gates
 

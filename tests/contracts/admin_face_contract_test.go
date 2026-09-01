@@ -25,7 +25,7 @@ func TestContract_AdminFaceEmbedsTokenIdentity(t *testing.T) {
 	require.Contains(t, body, tokens.AuthMethodMagicLink)
 	require.Contains(t, body, tokens.FixtureAdminEmail())
 	require.Contains(t, body, html.EscapeString(tokens.FontsGoogleCSSURL))
-	require.Contains(t, body, tokens.PathAdminFaceTokensHref)
+	require.Contains(t, body, tokens.PathTokensCSS)
 	require.Contains(t, body, tokens.AdminCopyLiveClock)
 	require.Contains(t, strings.ToLower(body), tokens.AttrDataStar)
 	require.Contains(t, body, tokens.DatastarCDNURL)

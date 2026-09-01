@@ -128,7 +128,7 @@ func RenderAdminFaceHTML() string {
 	fmt.Fprintf(&b, "  <link rel=\"preconnect\" href=\"%s\" />\n", esc(FontsGooglePreconnect))
 	fmt.Fprintf(&b, "  <link rel=\"preconnect\" href=\"%s\" crossorigin />\n", esc(FontsGoogleStatic))
 	fmt.Fprintf(&b, "  <link href=\"%s\" rel=\"stylesheet\" />\n", esc(FontsGoogleCSSURL))
-	fmt.Fprintf(&b, "  <link rel=\"stylesheet\" href=\"%s\" />\n", esc(PathAdminFaceTokensHref))
+	fmt.Fprintf(&b, "  <link rel=\"stylesheet\" href=\"%s\" />\n", esc(PathTokensCSS))
 	fmt.Fprintf(&b, "  <script type=\"module\" src=\"%s\" data-star></script>\n", esc(DatastarCDNURL))
 	b.WriteString(adminFaceStyleBlock())
 	b.WriteString("</head>\n<body>\n")

@@ -32,6 +32,7 @@ func TestContract_HTTPSurface(t *testing.T) {
 		tokens.PathV1AdminAvitoAccounts,
 		tokens.PathAdmin,
 		tokens.PathAdminSSE,
+		tokens.PathTokensCSS,
 	})
 
 	pool, q := queries(t)

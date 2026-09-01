@@ -97,4 +97,5 @@ var HTTPPathAllowlist = []string{
 	PathV1AdminAvitoAccounts,
 	PathAdmin,
 	PathAdminSSE,
+	PathTokensCSS,
 }
