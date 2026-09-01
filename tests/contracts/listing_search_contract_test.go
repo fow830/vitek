@@ -139,3 +139,10 @@ func TestContract_ListingSearch_TokensAligned(t *testing.T) {
 		tokens.ListingStubAvitoIDPrefix+"-"+tokens.FixtureListingID1+"-1",
 	)
 }
+
+// CONTRACT-LISTING-006: mobile listing URLs accepted; catalog URLs rejected.
+func TestContract_ListingSearch_MobileListingURL(t *testing.T) {
+	require.True(t, tokens.ValidListingURL(tokens.FixtureMobileListingURL))
+	require.Equal(t, tokens.FixtureListingID1, tokens.ListingIDFromURL(tokens.FixtureMobileListingURL))
+	require.False(t, tokens.ValidListingURL(tokens.FixtureCategoryListingURL))
+}

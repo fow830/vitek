@@ -10,6 +10,7 @@ import (
 const (
 	AvitoListingHostApex    = "avito.ru"
 	AvitoListingHostPrimary = "www.avito.ru"
+	AvitoListingHostMobile  = "m.avito.ru"
 	AvitoURLSchemeHTTP      = "http"
 	AvitoURLSchemeHTTPS     = "https"
 
@@ -17,6 +18,11 @@ const (
 	FixtureListingSlug2 = "moskva/telefony/samsung_s24_9876543210"
 	FixtureListingID1   = "1234567890"
 	FixtureListingID2   = "9876543210"
+
+	FixtureMobileListingSlug = "sankt-petersburg/telefony/iphone_15_1234567890"
+	FixtureCategoryListingSlug = "sankt-petersburg/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wa3OqzmwwQ2I_l"
+
+	ListingIDMinDigits = 5
 
 	FixtureInvalidListingHost = "example.com"
 	FixtureInvalidListingPath = "not-avito"
@@ -48,6 +54,7 @@ var TaskStatusTerminal = []string{TaskStatusCompleted, TaskStatusFailed}
 var AvitoListingHosts = []string{
 	AvitoListingHostApex,
 	AvitoListingHostPrimary,
+	AvitoListingHostMobile,
 }
 
 var avitoURLSchemes = []string{AvitoURLSchemeHTTP, AvitoURLSchemeHTTPS}
@@ -57,6 +64,12 @@ var FixtureListingURL = AvitoListingURL(AvitoListingHostPrimary, FixtureListingS
 
 // FixtureListingURL2 is a second valid listing URL (multi-task tests).
 var FixtureListingURL2 = AvitoListingURL(AvitoListingHostPrimary, FixtureListingSlug2)
+
+// FixtureMobileListingURL is a contracted valid mobile Avito listing URL.
+var FixtureMobileListingURL = AvitoListingURL(AvitoListingHostMobile, FixtureMobileListingSlug)
+
+// FixtureCategoryListingURL is an Avito catalog URL (not a single listing).
+var FixtureCategoryListingURL = AvitoListingURL(AvitoListingHostMobile, FixtureCategoryListingSlug)
 
 // FixtureInvalidListingURL must be rejected by ValidListingURL.
 var FixtureInvalidListingURL = AvitoListingURL(FixtureInvalidListingHost, FixtureInvalidListingPath)
@@ -99,10 +112,26 @@ func ValidListingURL(raw string) bool {
 	}
 	for _, h := range AvitoListingHosts {
 		if host == h {
-			return strings.Trim(u.Path, "/") != ""
+			if strings.Trim(u.Path, "/") == "" {
+				return false
+			}
+			return ValidListingID(ListingIDFromURL(raw))
 		}
 	}
 	return false
+}
+
+// ValidListingID reports whether id looks like an Avito numeric item id.
+func ValidListingID(id string) bool {
+	if len(id) < ListingIDMinDigits {
+		return false
+	}
+	for _, c := range id {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // ListingIDFromURL extracts a stable listing id suffix from an Avito URL (stub + future parser).
