@@ -244,3 +244,66 @@ func TestContract_ListingSearch_AvitoProcessorFilterURL(t *testing.T) {
 	require.Len(t, items, 2)
 	require.Equal(t, tokens.FixtureAvitoItemID1, items[0].AvitoID)
 }
+
+// CONTRACT-LISTING-012: filter re-run returns only avito_ids not seen in prior completed tasks.
+func TestContract_ListingSearch_FilterURLNewOnly(t *testing.T) {
+	ctx := context.Background()
+	pool, q := queries(t)
+	mock := startAvitoMock(t)
+	t.Cleanup(mock.Close)
+
+	client := service.NewAvitoClient(service.WithAvitoHTTPBase(mock.URL))
+	worker := service.NewListingSearchWorker(pool, service.NewAvitoListingProcessor(pool, client))
+
+	users := service.NewUsers(pool)
+	user, err := users.CreateUser(ctx, tokens.ProductEmail("listing-newonly"), repository.PlanTypeFREE)
+	require.NoError(t, err)
+
+	proxies := service.NewProxies(pool)
+	_, err = proxies.Create(ctx, mock.URL, repository.ProxyStatusACTIVE, "mock-proxy")
+	require.NoError(t, err)
+
+	_, err = service.NewAvitoAccounts(pool).CreateWithSecret(ctx, "acc-newonly", repository.AvitoAccountStatusACTIVE, "login@test", "secret")
+	require.NoError(t, err)
+
+	filterURL := tokens.FixtureFilterListingURL
+	require.True(t, tokens.IsListingFilterURL(filterURL))
+
+	task1, err := service.NewTasks(pool).CreateTask(ctx, user.ID, filterURL)
+	require.NoError(t, err)
+	ok, err := worker.ProcessOne(ctx)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	items1, err := q.ListTaskItems(ctx, task1.ID)
+	require.NoError(t, err)
+	require.Len(t, items1, 2)
+
+	task2, err := service.NewTasks(pool).CreateTask(ctx, user.ID, filterURL)
+	require.NoError(t, err)
+	ok, err = worker.ProcessOne(ctx)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	got2, err := q.GetTask(ctx, task2.ID)
+	require.NoError(t, err)
+	require.Equal(t, repository.TaskStatusCOMPLETED, got2.Status)
+
+	items2, err := q.ListTaskItems(ctx, task2.ID)
+	require.NoError(t, err)
+	require.Empty(t, items2)
+
+	mobileURL := tokens.FixtureMobileFilterListingURL
+	require.True(t, tokens.IsListingFilterURL(mobileURL))
+	task3, err := service.NewTasks(pool).CreateTask(ctx, user.ID, mobileURL)
+	require.NoError(t, err)
+	require.Equal(t, filterURL, task3.Query)
+
+	ok, err = worker.ProcessOne(ctx)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	items3, err := q.ListTaskItems(ctx, task3.ID)
+	require.NoError(t, err)
+	require.Empty(t, items3)
+}

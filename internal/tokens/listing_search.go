@@ -77,6 +77,10 @@ var FixtureMobileListingURL = AvitoListingURL(AvitoListingHostMobile, FixtureMob
 var FixtureFilterListingURL = AvitoListingURL(AvitoListingHostPrimary, FixtureFilterListingSlug) +
 	"?presentationType=serp&f=" + url.QueryEscape(FixtureFilterQueryF)
 
+// FixtureMobileFilterListingURL is the same filter on m.avito.ru (normalized to www on task create).
+var FixtureMobileFilterListingURL = AvitoListingURL(AvitoListingHostMobile, FixtureFilterListingSlug) +
+	"?presentationType=serp&f=" + url.QueryEscape(FixtureFilterQueryF)
+
 // FixtureInvalidListingURL must be rejected by ValidListingURL.
 var FixtureInvalidListingURL = AvitoListingURL(FixtureInvalidListingHost, FixtureInvalidListingPath)
 

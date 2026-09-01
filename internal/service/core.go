@@ -70,7 +70,7 @@ func NewTasks(pool *pgxpool.Pool) *Tasks {
 }
 
 func (s *Tasks) CreateTask(ctx context.Context, userID pgtype.UUID, query string) (repository.Task, error) {
-	query = strings.TrimSpace(query)
+	query = tokens.NormalizeListingSearchURL(strings.TrimSpace(query))
 	if !tokens.ValidListingURL(query) {
 		return repository.Task{}, domain.ErrInvalidListingURL
 	}
@@ -222,16 +222,8 @@ func (s *Items) Record(ctx context.Context, avitoID, title string) (repository.I
 
 // UpsertTx inserts an item or returns the existing row on avito_id conflict (same transaction).
 func (s *Items) UpsertTx(ctx context.Context, q *repository.Queries, avitoID, title string) (repository.Item, error) {
-	item, err := q.InsertItem(ctx, repository.InsertItemParams{
+	return q.UpsertItem(ctx, repository.UpsertItemParams{
 		AvitoID: avitoID,
 		Title:   title,
 	})
-	if err == nil {
-		return item, nil
-	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == tokens.PGCodeUniqueViolation {
-		return q.GetItemByAvitoID(ctx, avitoID)
-	}
-	return repository.Item{}, err
 }

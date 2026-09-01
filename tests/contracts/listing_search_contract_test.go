@@ -154,3 +154,38 @@ func TestContract_ListingSearch_FilterStreamURL(t *testing.T) {
 	require.Equal(t, tokens.FixtureAvitoLocationID, loc)
 	require.Equal(t, tokens.FixtureAvitoCategoryID, cat)
 }
+
+// CONTRACT-LISTING-013: new-only dedup is scoped to user+query; other users see full stream.
+func TestContract_ListingSearch_NewOnlyPerUser(t *testing.T) {
+	ctx := context.Background()
+	pool, q := queries(t)
+	worker := service.NewListingSearchWorker(pool, service.NewStubListingProcessor())
+
+	users := service.NewUsers(pool)
+	tasks := service.NewTasks(pool)
+
+	user1, err := users.CreateUser(ctx, tokens.ProductEmail("newonly-u1"), repository.PlanTypeFREE)
+	require.NoError(t, err)
+	user2, err := users.CreateUser(ctx, tokens.ProductEmail("newonly-u2"), repository.PlanTypeFREE)
+	require.NoError(t, err)
+
+	task1, err := tasks.CreateTask(ctx, user1.ID, tokens.FixtureListingURL)
+	require.NoError(t, err)
+	ok, err := worker.ProcessOne(ctx)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	items1, err := q.ListTaskItems(ctx, task1.ID)
+	require.NoError(t, err)
+	require.Len(t, items1, tokens.ListingSearchStubResultCount)
+
+	task2, err := tasks.CreateTask(ctx, user2.ID, tokens.FixtureListingURL)
+	require.NoError(t, err)
+	ok, err = worker.ProcessOne(ctx)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	items2, err := q.ListTaskItems(ctx, task2.ID)
+	require.NoError(t, err)
+	require.Len(t, items2, tokens.ListingSearchStubResultCount)
+}

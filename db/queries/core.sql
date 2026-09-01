@@ -53,6 +53,12 @@ INSERT INTO items (avito_id, title)
 VALUES ($1, $2)
 RETURNING id, avito_id, title, created_at;
 
+-- name: UpsertItem :one
+INSERT INTO items (avito_id, title)
+VALUES ($1, $2)
+ON CONFLICT (avito_id) DO UPDATE SET title = EXCLUDED.title
+RETURNING id, avito_id, title, created_at;
+
 -- name: GetItemByAvitoID :one
 SELECT id, avito_id, title, created_at
 FROM items

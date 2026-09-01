@@ -245,3 +245,27 @@ func (q *Queries) ListActiveProxies(ctx context.Context) ([]Proxy, error) {
 	}
 	return items, nil
 }
+
+const upsertItem = `-- name: UpsertItem :one
+INSERT INTO items (avito_id, title)
+VALUES ($1, $2)
+ON CONFLICT (avito_id) DO UPDATE SET title = EXCLUDED.title
+RETURNING id, avito_id, title, created_at
+`
+
+type UpsertItemParams struct {
+	AvitoID string `json:"avito_id"`
+	Title   string `json:"title"`
+}
+
+func (q *Queries) UpsertItem(ctx context.Context, arg UpsertItemParams) (Item, error) {
+	row := q.db.QueryRow(ctx, upsertItem, arg.AvitoID, arg.Title)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.AvitoID,
+		&i.Title,
+		&i.CreatedAt,
+	)
+	return i, err
+}

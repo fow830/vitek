@@ -55,7 +55,27 @@ func (w *ListingSearchWorker) ProcessOne(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
-	for rank, hit := range similar {
+	seen, err := qtx.ListPriorAvitoIDsForUserQuery(ctx, repository.ListPriorAvitoIDsForUserQueryParams{
+		UserID: task.UserID,
+		Query:  task.Query,
+		ID:     task.ID,
+	})
+	if err != nil {
+		return false, err
+	}
+	seenSet := make(map[string]struct{}, len(seen))
+	for _, avitoID := range seen {
+		seenSet[avitoID] = struct{}{}
+	}
+	filtered := make([]SimilarListing, 0, len(similar))
+	for _, hit := range similar {
+		if _, ok := seenSet[hit.AvitoID]; ok {
+			continue
+		}
+		filtered = append(filtered, hit)
+	}
+
+	for rank, hit := range filtered {
 		item, recErr := w.items.UpsertTx(ctx, qtx, hit.AvitoID, hit.Title)
 		if recErr != nil {
 			return false, recErr
