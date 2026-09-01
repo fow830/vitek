@@ -56,3 +56,18 @@ SET label = $2,
     updated_at = now()
 WHERE id = $1
 RETURNING id, label, status, external_ref, created_at, updated_at;
+
+-- name: UpsertAvitoAccountSecret :exec
+INSERT INTO avito_account_secrets (account_id, password)
+VALUES ($1, $2)
+ON CONFLICT (account_id) DO UPDATE
+SET password = EXCLUDED.password,
+    updated_at = now();
+
+-- name: PickActiveAvitoAccount :one
+SELECT a.id, a.label, a.external_ref, s.password
+FROM avito_accounts a
+JOIN avito_account_secrets s ON s.account_id = a.id
+WHERE a.status = 'ACTIVE'
+ORDER BY a.created_at ASC
+LIMIT 1;

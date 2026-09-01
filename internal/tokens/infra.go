@@ -9,6 +9,8 @@ const (
 	ContainerPostgresPort = "5432"
 
 	DefaultWorkerTick = "5s"
+
+	DefaultListingSearchProcessor = ListingSearchProcessorStub
 )
 
 // ImagePostgres is the compose/testcontainers Postgres image.

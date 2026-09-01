@@ -7,6 +7,7 @@ sql:
       - "db/migrations/000002_platform.up.sql"
       - "db/migrations/000003_sessions.up.sql"
       - "db/migrations/000004_listing_search.up.sql"
+      - "db/migrations/000005_avito_secrets.up.sql"
     gen:
       go:
         package: "repository"

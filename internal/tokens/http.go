@@ -61,6 +61,7 @@ const (
 	JSONFieldPlanType    = "plan_type"
 	JSONFieldToken       = "token"
 	JSONFieldMagicLinkURL = "magic_link_url"
+	JSONFieldPassword     = "password"
 	JSONFieldRole        = "role"
 	JSONFieldLabel       = "label"
 	JSONFieldAccounts    = "accounts"
@@ -75,6 +76,9 @@ const (
 	HeaderContentType = "Content-Type"
 	HeaderSetCookie   = "Set-Cookie"
 	HeaderCookie      = "Cookie"
+	HeaderUserAgent   = "User-Agent"
+	HeaderAccept      = "Accept"
+	HeaderAcceptLanguage = "Accept-Language"
 
 	CookieSessionName  = "vitek_session"
 	CookiePath         = "/"
@@ -137,6 +141,7 @@ const (
 	ErrMsgTaskNotFound         = "task not found"
 	ErrMsgListTasksFailed      = "list tasks failed"
 	ErrMsgGetTaskFailed        = "get task failed"
+	ErrMsgInvalidPassword      = "invalid password"
 )
 
 // HTTPPathTaskResults returns GET /v1/tasks/{id}/results pattern.

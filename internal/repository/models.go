@@ -236,6 +236,12 @@ type AvitoAccount struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
+type AvitoAccountSecret struct {
+	AccountID pgtype.UUID        `json:"account_id"`
+	Password  string             `json:"password"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Item struct {
 	ID        pgtype.UUID        `json:"id"`
 	AvitoID   string             `json:"avito_id"`

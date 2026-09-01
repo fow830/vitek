@@ -33,7 +33,11 @@ func main() {
 	defer pool.Close()
 
 	proxies := service.NewProxies(pool)
-	listing := service.NewListingSearchWorker(pool, service.NewStubListingProcessor())
+	processor, err := service.NewListingProcessor(pool, cfg.ListingSearchProcessor, cfg.AvitoHTTPBase)
+	if err != nil {
+		log.Fatalf("listing processor: %v", err)
+	}
+	listing := service.NewListingSearchWorker(pool, processor)
 
 	log.Printf("%s %s (%s) started env=%s tick=%s", tokens.ProductName, tokens.ProductNameLocal, tokens.BinaryWorker, cfg.AppEnv, cfg.WorkerTick)
 

@@ -331,6 +331,7 @@ func (s *Server) handleAdminCreateAvito(w http.ResponseWriter, r *http.Request) 
 		Label       string                     `json:"label"`
 		Status      service.AvitoAccountStatus `json:"status"`
 		ExternalRef string                     `json:"external_ref"`
+		Password    string                     `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
@@ -340,7 +341,11 @@ func (s *Server) handleAdminCreateAvito(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidAvitoStatus})
 		return
 	}
-	a, err := s.avito.Create(r.Context(), req.Label, req.Status, req.ExternalRef)
+	if strings.TrimSpace(req.Password) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidPassword})
+		return
+	}
+	a, err := s.avito.CreateWithSecret(r.Context(), req.Label, req.Status, req.ExternalRef, strings.TrimSpace(req.Password))
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminAvitoFailed})
 		return
@@ -363,6 +368,7 @@ func (s *Server) handleAdminPatchAvito(w http.ResponseWriter, r *http.Request) {
 		Label       string                     `json:"label"`
 		Status      service.AvitoAccountStatus `json:"status"`
 		ExternalRef string                     `json:"external_ref"`
+		Password    string                     `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
@@ -376,6 +382,12 @@ func (s *Server) handleAdminPatchAvito(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminAvitoFailed})
 		return
+	}
+	if pwd := strings.TrimSpace(req.Password); pwd != "" {
+		if err := s.avito.UpsertSecret(r.Context(), id, pwd); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminAvitoFailed})
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		tokens.JSONFieldID:          service.UUIDString(a.ID),

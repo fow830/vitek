@@ -15,6 +15,8 @@ var EnvExampleKeys = []string{
 	EnvPostgresDB,
 	EnvPostgresPort,
 	EnvWorkerTick,
+	EnvListingSearchProcessor,
+	EnvAvitoHTTPBase,
 }
 
 // EnvExampleValues maps each EnvExampleKeys entry to its local default.
@@ -27,7 +29,9 @@ func EnvExampleValues() map[string]string {
 		EnvPostgresPassword: DefaultPostgresPassword,
 		EnvPostgresDB:       DefaultPostgresDB,
 		EnvPostgresPort:     DefaultPostgresPort,
-		EnvWorkerTick:       DefaultWorkerTick,
+		EnvWorkerTick:             DefaultWorkerTick,
+		EnvListingSearchProcessor: DefaultListingSearchProcessor,
+		EnvAvitoHTTPBase:          AvitoHTTPSBase,
 	}
 }
 

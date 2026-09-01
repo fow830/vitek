@@ -129,6 +129,7 @@ func TestContract_AdminAvitoAccountsCRUD(t *testing.T) {
 		tokens.JSONFieldLabel:       "pool-1",
 		tokens.JSONFieldStatus:      string(repository.AvitoAccountStatusACTIVE),
 		tokens.JSONFieldExternalRef: "ref-1",
+		tokens.JSONFieldPassword:    "secret-1",
 	})
 	require.NoError(t, err)
 	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1AdminAvitoAccounts, bytes.NewReader(payload)))
@@ -165,6 +166,7 @@ func TestContract_AdminAvitoAccountsCRUD(t *testing.T) {
 	require.NoError(t, json.NewDecoder(rec.Body).Decode(&patched))
 	require.Equal(t, string(repository.AvitoAccountStatusDISABLED), patched[tokens.JSONFieldStatus])
 	require.Equal(t, "pool-1b", patched[tokens.JSONFieldLabel])
+	require.NotContains(t, patched, tokens.JSONFieldPassword)
 
 	bad, err := json.Marshal(map[string]any{
 		tokens.JSONFieldLabel:       "x",

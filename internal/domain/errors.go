@@ -14,4 +14,7 @@ var (
 	ErrInvalidListingURL         = errors.New(tokens.ErrMsgInvalidListingURL)
 	ErrTaskNotFound              = errors.New(tokens.ErrMsgTaskNotFound)
 	ErrForbidden                 = errors.New(tokens.ErrMsgForbidden)
+	ErrListingSearchNoProxy      = errors.New(tokens.ErrMsgListingSearchNoProxy)
+	ErrListingSearchNoAccount    = errors.New(tokens.ErrMsgListingSearchNoAccount)
+	ErrListingSearchAvitoFetch   = errors.New(tokens.ErrMsgListingSearchAvitoFetch)
 )

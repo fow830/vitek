@@ -10,7 +10,9 @@ const (
 	EnvPostgresPassword = "POSTGRES_PASSWORD"
 	EnvPostgresDB       = "POSTGRES_DB"
 	EnvPostgresPort     = "POSTGRES_PORT"
-	EnvWorkerTick       = "WORKER_TICK"
+	EnvWorkerTick              = "WORKER_TICK"
+	EnvListingSearchProcessor  = "LISTING_SEARCH_PROCESSOR"
+	EnvAvitoHTTPBase           = "AVITO_HTTP_BASE"
 )
 
 // AppEnv allowed values.
