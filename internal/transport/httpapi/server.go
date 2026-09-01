@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -59,29 +61,41 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 }
 
 type createUserRequest struct {
-	Email string `json:"email"`
-	Plan  string `json:"plan"`
+	Email    string              `json:"email"`
+	PlanType repository.PlanType `json:"plan_type"`
 }
 
 func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
-		return
-	}
-	plan := repository.PlanType(req.Plan)
-	switch plan {
-	case repository.PlanTypeFREE, repository.PlanTypePRO, repository.PlanTypeULTRA:
-	default:
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid plan"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
 
-	user, err := s.users.CreateUser(r.Context(), req.Email, plan)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "create user failed"})
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" || !strings.Contains(req.Email, "@") {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid or empty email address"})
 		return
 	}
+
+	switch req.PlanType {
+	case repository.PlanTypeFREE, repository.PlanTypePRO, repository.PlanTypeULTRA:
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid plan_type"})
+		return
+	}
+
+	user, err := s.users.CreateUser(r.Context(), req.Email, req.PlanType)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "user with this email already exists"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
+		return
+	}
+
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"id":    uuidFromPG(user.ID),
 		"email": user.Email,

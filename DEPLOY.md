@@ -63,7 +63,7 @@ migrate -path db/migrations -database "$DATABASE_URL" up
 | Method | Path                 | Notes                |
 |--------|----------------------|----------------------|
 | GET    | `/healthz`           | DB ping              |
-| POST   | `/v1/users`          | create user + plan   |
+| POST   | `/v1/users`          | body: `{email, plan_type}`; 400 bad email, 409 duplicate |
 | POST   | `/v1/tasks`          | create task (limits) |
 | GET    | `/v1/proxies/active` | ACTIVE proxies only  |
 
