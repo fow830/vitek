@@ -20,7 +20,7 @@ task dev
 task test:contracts
 ```
 
-Env / CSS / compose / sqlc / Dockerfile: `task tokens:gen` (SoT = `internal/tokens`).
+Env / CSS / compose / sqlc / Dockerfile / admin face: `task tokens:gen` (SoT = `internal/tokens`).
 
 ## Tasks
 

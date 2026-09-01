@@ -15,11 +15,12 @@ func main() {
 	}
 
 	writes := map[string]string{
-		tokens.PathEnvExample:  tokens.RenderEnvExample(),
-		tokens.PathDesignCSS:   tokens.RenderDesignCSS(),
-		tokens.PathCompose:     tokens.RenderComposeYAML(),
-		tokens.PathSQLC:        tokens.RenderSQLCYAML(),
-		tokens.PathDockerfile:  tokens.RenderDockerfile(),
+		tokens.PathEnvExample: tokens.RenderEnvExample(),
+		tokens.PathDesignCSS:  tokens.RenderDesignCSS(),
+		tokens.PathCompose:    tokens.RenderComposeYAML(),
+		tokens.PathSQLC:       tokens.RenderSQLCYAML(),
+		tokens.PathDockerfile: tokens.RenderDockerfile(),
+		tokens.PathAdminFace:  tokens.RenderAdminFaceHTML(),
 	}
 
 	for rel, body := range writes {
@@ -31,7 +32,7 @@ func main() {
 			fatal(err)
 		}
 	}
-	fmt.Println("tokens: regenerated .env.example, web/tokens.css, docker-compose.yml, sqlc.yaml, Dockerfile")
+	fmt.Println("tokens: regenerated .env.example, web/tokens.css, docker-compose.yml, sqlc.yaml, Dockerfile, web/admin/face.html")
 }
 
 func findModuleRoot() (string, error) {

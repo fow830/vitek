@@ -15,6 +15,9 @@ const (
 	CSSColorAccent    = "--color-accent"
 	CSSColorDanger    = "--color-danger"
 	CSSColorSuccess   = "--color-success"
+	CSSColorOnAccent  = "--color-on-accent"
+	CSSColorCanvasHi  = "--color-canvas-hi"
+	CSSColorCanvasLo  = "--color-canvas-lo"
 
 	CSSSpaceXS = "--space-xs"
 	CSSSpaceSM = "--space-sm"
@@ -22,8 +25,9 @@ const (
 	CSSSpaceLG = "--space-lg"
 	CSSSpaceXL = "--space-xl"
 
-	CSSFontSans = "--font-sans"
-	CSSFontMono = "--font-mono"
+	CSSFontSans    = "--font-sans"
+	CSSFontMono    = "--font-mono"
+	CSSFontDisplay = "--font-display"
 
 	CSSRadiusSM = "--radius-sm"
 	CSSRadiusMD = "--radius-md"
@@ -40,6 +44,9 @@ func DesignPairs() [][2]string {
 		{CSSColorAccent, ColorAccent},
 		{CSSColorDanger, ColorDanger},
 		{CSSColorSuccess, ColorSuccess},
+		{CSSColorOnAccent, ColorOnAccent},
+		{CSSColorCanvasHi, ColorCanvasHi},
+		{CSSColorCanvasLo, ColorCanvasLo},
 		{CSSSpaceXS, SpaceXS},
 		{CSSSpaceSM, SpaceSM},
 		{CSSSpaceMD, SpaceMD},
@@ -47,6 +54,7 @@ func DesignPairs() [][2]string {
 		{CSSSpaceXL, SpaceXL},
 		{CSSFontSans, FontSans},
 		{CSSFontMono, FontMono},
+		{CSSFontDisplay, FontDisplay},
 		{CSSRadiusSM, RadiusSM},
 		{CSSRadiusMD, RadiusMD},
 	}

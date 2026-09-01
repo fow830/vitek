@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Витёк — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=Manrope:wght@400;500;600;700&amp;family=Syne:wght@600;700;800&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; min-height: 100%;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, color-mix(in srgb, var(--color-success) 10%, transparent), transparent 55%),
+        linear-gradient(180deg, var(--color-canvas-hi) 0%, var(--color-canvas) 45%, var(--color-canvas-lo) 100%);
+      color: var(--color-text); font-family: var(--font-sans);
+    }
+    button, input { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+    .screen { display: none; min-height: 100vh; }
+    .screen.is-active { display: block; }
+    .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--space-lg); position: relative; overflow: hidden; }
+    .auth::before {
+      content: ""; position: absolute; inset: auto -20% -30% -20%; height: 55%;
+      background:
+        linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent),
+        repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-border) 55%, transparent) 0 1px, transparent 1px 48px);
+      transform: perspective(500px) rotateX(58deg); pointer-events: none; opacity: .55;
+    }
+    .auth-card { width: min(440px, 100%); position: relative; z-index: 1; }
+    .brand { font-family: var(--font-display); font-weight: 800; font-size: clamp(3rem, 8vw, 4.5rem); letter-spacing: -.04em; line-height: .95; margin: 0 0 var(--space-md); }
+    .brand span { color: var(--color-accent); }
+    .lede { margin: 0 0 var(--space-xl); color: var(--color-text-muted); font-size: 1.05rem; line-height: 1.5; max-width: 34ch; }
+    .field { display: grid; gap: var(--space-sm); margin-bottom: var(--space-md); }
+    .field label { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); }
+    .field input {
+      width: 100%; padding: 14px 16px; border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);       background: color-mix(in srgb, var(--color-surface) 88%, var(--color-canvas));
+      color: var(--color-text); outline: none;
+    }
+    .field input:focus { border-color: color-mix(in srgb, var(--color-accent) 70%, var(--color-border)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 22%, transparent); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm);
+      width: 100%; padding: 14px 18px; border: 0; border-radius: var(--radius-md);
+      background: var(--color-accent); color: var(--color-on-accent); font-weight: 700; cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.06); }
+    .btn-ghost { background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border); margin-top: var(--space-sm); }
+    .hint { margin-top: var(--space-lg); font-size: .9rem; color: var(--color-text-muted); }
+    .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+    @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .side { position: sticky; top: 0; z-index: 5; } }
+    .side { padding: var(--space-lg); border-right: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 70%, transparent); backdrop-filter: blur(10px); }
+    .side-brand { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; letter-spacing: -.03em; margin-bottom: var(--space-xl); }
+    .side-brand em { font-style: normal; color: var(--color-accent); }
+    .nav { display: grid; gap: 4px; }
+    .nav a { padding: 10px 12px; border-radius: var(--radius-sm); color: var(--color-text-muted); font-weight: 500; }
+    .nav a.is-active, .nav a:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); color: var(--color-text); }
+    .side-meta { margin-top: var(--space-xl); padding-top: var(--space-lg); border-top: 1px solid var(--color-border); font-size: .85rem; color: var(--color-text-muted); display: grid; gap: 6px; }
+    .pulse { display: inline-flex; align-items: center; gap: 8px; color: var(--color-success); font-family: var(--font-mono); font-size: .78rem; }
+    .pulse i { width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); animation: ping 1.6s infinite; }
+    @keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 55%, transparent); } 70% { box-shadow: 0 0 0 10px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+    .main { padding: var(--space-xl) var(--space-lg); }
+    .top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-xl); }
+    .top h1 { margin: 0; font-family: var(--font-display); font-size: clamp(1.8rem, 3vw, 2.4rem); letter-spacing: -.03em; }
+    .top p { margin: 6px 0 0; color: var(--color-text-muted); max-width: 48ch; }
+    .chip { font-family: var(--font-mono); font-size: .75rem; padding: 6px 10px; border-radius: var(--radius-md); border: 1px solid var(--color-border); color: var(--color-text-muted); background: color-mix(in srgb, var(--color-surface) 80%, transparent); }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl); }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .stat { padding: var(--space-lg); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: linear-gradient(160deg, color-mix(in srgb, var(--color-surface) 92%, var(--color-text)), var(--color-surface)); }
+    .stat b { display: block; font-family: var(--font-display); font-size: 2rem; letter-spacing: -.03em; margin-top: var(--space-sm); }
+    .stat span { color: var(--color-text-muted); font-size: .9rem; }
+    .panel { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-surface) 88%, var(--color-canvas)); overflow: hidden; }
+    .panel.empty { padding: var(--space-xl); color: var(--color-text-muted); }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); padding: var(--space-md) var(--space-lg); border-bottom: 1px solid var(--color-border); }
+    .panel-head h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent); font-size: .92rem; }
+    th { color: var(--color-text-muted); font-weight: 500; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .status { font-family: var(--font-mono); font-size: .78rem; padding: 4px 8px; border-radius: var(--radius-sm); }
+    .status-ok { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 14%, transparent); }
+    .status-off { color: var(--color-text-muted); background: color-mix(in srgb, var(--color-border) 35%, transparent); }
+    .mono { font-family: var(--font-mono); font-size: .85rem; color: var(--color-text-muted); }
+    .view { display: none; }
+    .view.is-active { display: block; animation: in .35s ease; }
+    @keyframes in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .live-bar { display: flex; align-items: center; gap: var(--space-sm); color: var(--color-text-muted); font-size: .85rem; }
+    .live-bar samp { font-family: var(--font-mono); color: var(--color-accent); }
+  </style>
+</head>
+<body>
+  <section id="screen-auth" class="screen is-active">
+    <div class="auth">
+      <div class="auth-card">
+        <p class="brand">Вит<span>ёк</span></p>
+        <p class="lede">Админка платформы. Вход только по Magic Link — без паролей.</p>
+        <form id="magic-form" onsubmit="return enterAdmin(event)">
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" required placeholder="you@company.ru" autocomplete="email" />
+          </div>
+          <button class="btn" type="submit">Прислать ссылку</button>
+          <button class="btn btn-ghost" type="button" onclick="enterAdmin(event, true)">Открыть макет админки →</button>
+        </form>
+        <p class="hint">Макет лица. Реальный Magic Link HTTP — по контракту позже.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-admin" class="screen">
+    <div class="shell">
+      <aside class="side">
+        <div class="side-brand">Вит<em>ёк</em></div>
+        <nav class="nav" id="nav">
+          <a href="#overview" class="is-active" data-view="overview">Обзор</a>
+          <a href="#services" data-view="services">Сервисы</a>
+          <a href="#avito" data-view="avito">Аккаунты Авито</a>
+          <a href="#proxies" data-view="proxies">Прокси</a>
+          <a href="#users" data-view="users">Пользователи</a>
+        </nav>
+        <div class="side-meta">
+          <span class="pulse"><i></i> MOCK clock</span>
+          <span>admin@vitek.io</span>
+          <a href="#" onclick="return backAuth()">Выйти</a>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="view is-active" id="view-overview">
+          <div class="top"><div>
+            <h1>Обзор</h1>
+            <p>Платформа сервисов. Shipped и reserved — из каталога токенов.</p>
+          </div>
+          <div class="live-bar">MOCK clock <samp id="tick">--:--:--</samp></div>
+          </div>
+          <div class="grid">
+            <div class="stat"><span>Аккаунты Авито</span><b>—</b></div>
+            <div class="stat"><span>Прокси (schema)</span><b>—</b></div>
+            <div class="stat"><span>Сервисы shipped</span><b>1</b></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Сервисы</h2><span class="chip">MAGIC_LINK</span></div>
+            <table>
+              <thead><tr><th>Code</th><th>Title</th><th>Shipped</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">listing_search</td><td>Similar listings search</td><td><span class="status status-ok">true</span></td></tr>
+                <tr><td class="mono">listing_warmup</td><td>Listing warmup (clicks)</td><td><span class="status status-off">false</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="view" id="view-services">
+          <div class="top"><div>
+            <h1>Сервисы</h1>
+            <p>Каталог product_services (SoT = tokens + БД).</p>
+          </div></div>
+          <div class="panel">
+            <table>
+              <thead><tr><th>Code</th><th>Title</th><th>Shipped</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">listing_search</td><td>Similar listings search</td><td><span class="status status-ok">true</span></td></tr>
+                <tr><td class="mono">listing_warmup</td><td>Listing warmup (clicks)</td><td><span class="status status-off">false</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="view" id="view-avito">
+          <div class="top"><div>
+            <h1>Аккаунты Авито</h1>
+            <p>Пул аккаунтов. Данные появятся после admin API.</p>
+          </div></div>
+          <div class="panel empty">Пусто — ждём контрактный API.</div>
+        </div>
+
+        <div class="view" id="view-proxies">
+          <div class="top"><div>
+            <h1>Прокси</h1>
+            <p>Управление прокси. Данные появятся после admin API.</p>
+          </div></div>
+          <div class="panel empty">Пусто — ждём контрактный API.</div>
+        </div>
+
+        <div class="view" id="view-users">
+          <div class="top"><div>
+            <h1>Пользователи</h1>
+            <p>USER / ADMIN. Magic Link only. Данные появятся после admin API.</p>
+          </div></div>
+          <div class="panel empty">Пусто — ждём контрактный API.</div>
+        </div>
+
+      </main>
+    </div>
+  </section>
+  <script>
+    const auth = document.getElementById('screen-auth');
+    const admin = document.getElementById('screen-admin');
+    const tick = document.getElementById('tick');
+    function enterAdmin(e, skip) {
+      if (e) e.preventDefault();
+      if (!skip) {
+        const email = document.getElementById('email').value.trim();
+        if (!email.includes('@')) return false;
+      }
+      auth.classList.remove('is-active');
+      admin.classList.add('is-active');
+      return false;
+    }
+    function backAuth() {
+      admin.classList.remove('is-active');
+      auth.classList.add('is-active');
+      return false;
+    }
+    document.getElementById('nav').addEventListener('click', (e) => {
+      const a = e.target.closest('a[data-view]');
+      if (!a) return;
+      e.preventDefault();
+      document.querySelectorAll('#nav a').forEach(x => x.classList.toggle('is-active', x === a));
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + a.dataset.view));
+    });
+    setInterval(() => {
+      tick.textContent = new Date().toLocaleTimeString('ru-RU', { hour12: false });
+    }, 1000);
+  </script>
+</body>
+</html>
