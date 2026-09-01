@@ -56,51 +56,88 @@ func (w *ListingSearchWorker) ProcessOne(ctx context.Context) (bool, error) {
 		return true, nil
 	}
 
-	dedupKey := tokens.CanonicalListingSearchQuery(task.Query)
-	rows, err := qtx.ListPriorAvitoIDsForUserCompletedTasks(ctx, repository.ListPriorAvitoIDsForUserCompletedTasksParams{
-		UserID: task.UserID,
-		ID:     task.ID,
-	})
-	if err != nil {
+	if tokens.IsListingFilterURL(task.Query) {
+		if err := w.completeFilterTask(ctx, qtx, task, similar); err != nil {
+			return false, err
+		}
+	} else if err := w.completeItemTask(ctx, qtx, task, similar); err != nil {
 		return false, err
 	}
-	seenSet := make(map[string]struct{})
-	for _, row := range rows {
-		if tokens.CanonicalListingSearchQuery(row.Query) != dedupKey {
-			continue
-		}
-		seenSet[row.AvitoID] = struct{}{}
+
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
 	}
-	filtered := make([]SimilarListing, 0, len(similar))
-	for _, hit := range similar {
-		if _, ok := seenSet[hit.AvitoID]; ok {
-			continue
-		}
-		filtered = append(filtered, hit)
+	return true, nil
+}
+
+func (w *ListingSearchWorker) completeFilterTask(ctx context.Context, qtx *repository.Queries, task repository.Task, similar []SimilarListing) error {
+	filterKey := tokens.CanonicalListingSearchQuery(task.Query)
+	seen, err := qtx.ListFilterSeenAvitoIDs(ctx, repository.ListFilterSeenAvitoIDsParams{
+		UserID:    task.UserID,
+		FilterKey: filterKey,
+	})
+	if err != nil {
+		return err
+	}
+	seenSet := make(map[string]struct{}, len(seen))
+	for _, avitoID := range seen {
+		seenSet[avitoID] = struct{}{}
 	}
 
-	for rank, hit := range filtered {
+	baseline := len(seenSet) == 0
+	rank := 0
+	for _, hit := range similar {
 		item, recErr := w.items.UpsertTx(ctx, qtx, hit.AvitoID, hit.Title)
 		if recErr != nil {
-			return false, recErr
+			return recErr
+		}
+		if err := qtx.InsertFilterSeen(ctx, repository.InsertFilterSeenParams{
+			UserID:    task.UserID,
+			FilterKey: filterKey,
+			AvitoID:   hit.AvitoID,
+		}); err != nil {
+			return err
+		}
+		if baseline {
+			continue
+		}
+		if _, ok := seenSet[hit.AvitoID]; ok {
+			continue
 		}
 		if err := qtx.InsertTaskItem(ctx, repository.InsertTaskItemParams{
 			TaskID: task.ID,
 			ItemID: item.ID,
 			Rank:   int32(rank),
 		}); err != nil {
-			return false, err
+			return err
 		}
+		rank++
 	}
 
-	if _, err := qtx.UpdateTaskStatus(ctx, repository.UpdateTaskStatusParams{
+	_, err = qtx.UpdateTaskStatus(ctx, repository.UpdateTaskStatusParams{
 		ID:     task.ID,
 		Status: repository.TaskStatusCOMPLETED,
-	}); err != nil {
-		return false, err
+	})
+	return err
+}
+
+func (w *ListingSearchWorker) completeItemTask(ctx context.Context, qtx *repository.Queries, task repository.Task, similar []SimilarListing) error {
+	for rank, hit := range similar {
+		item, recErr := w.items.UpsertTx(ctx, qtx, hit.AvitoID, hit.Title)
+		if recErr != nil {
+			return recErr
+		}
+		if err := qtx.InsertTaskItem(ctx, repository.InsertTaskItemParams{
+			TaskID: task.ID,
+			ItemID: item.ID,
+			Rank:   int32(rank),
+		}); err != nil {
+			return err
+		}
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return false, err
-	}
-	return true, nil
+	_, err := qtx.UpdateTaskStatus(ctx, repository.UpdateTaskStatusParams{
+		ID:     task.ID,
+		Status: repository.TaskStatusCOMPLETED,
+	})
+	return err
 }

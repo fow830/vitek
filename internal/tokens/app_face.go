@@ -57,7 +57,7 @@ const (
 	AppCopyOverviewTitle    = "Обзор"
 	AppCopyOverviewLede     = "Платформа сервисов. Shipped и reserved — из каталога токенов."
 	AppCopySearchTitle      = "Поиск похожих"
-	AppCopySearchLede       = "Вставьте ссылку на фильтр Avito — worker вернёт только новые объявления по этому фильтру."
+	AppCopySearchLede       = "Вставьте ссылку на фильтр Avito. Первый запуск сохраняет базу — дальше только новые объявления."
 	AppCopySearchURLLabel   = "Ссылка на фильтр"
 	AppCopySearchSubmit     = "Искать"
 	AppCopySearchStatusIdle = "Создайте задачу или выберите из списка."

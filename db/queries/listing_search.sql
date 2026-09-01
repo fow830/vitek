@@ -70,3 +70,14 @@ JOIN items i ON i.id = ti.item_id
 WHERE t.user_id = $1
   AND t.status = 'COMPLETED'
   AND t.id != $2;
+
+-- name: ListFilterSeenAvitoIDs :many
+SELECT avito_id
+FROM listing_filter_seen
+WHERE user_id = $1
+  AND filter_key = $2;
+
+-- name: InsertFilterSeen :exec
+INSERT INTO listing_filter_seen (user_id, filter_key, avito_id)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING;

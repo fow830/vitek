@@ -72,6 +72,23 @@ func (q *Queries) GetTask(ctx context.Context, id pgtype.UUID) (Task, error) {
 	return i, err
 }
 
+const insertFilterSeen = `-- name: InsertFilterSeen :exec
+INSERT INTO listing_filter_seen (user_id, filter_key, avito_id)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING
+`
+
+type InsertFilterSeenParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	FilterKey string      `json:"filter_key"`
+	AvitoID   string      `json:"avito_id"`
+}
+
+func (q *Queries) InsertFilterSeen(ctx context.Context, arg InsertFilterSeenParams) error {
+	_, err := q.db.Exec(ctx, insertFilterSeen, arg.UserID, arg.FilterKey, arg.AvitoID)
+	return err
+}
+
 const insertTaskItem = `-- name: InsertTaskItem :exec
 INSERT INTO task_items (task_id, item_id, rank)
 VALUES ($1, $2, $3)
@@ -86,6 +103,38 @@ type InsertTaskItemParams struct {
 func (q *Queries) InsertTaskItem(ctx context.Context, arg InsertTaskItemParams) error {
 	_, err := q.db.Exec(ctx, insertTaskItem, arg.TaskID, arg.ItemID, arg.Rank)
 	return err
+}
+
+const listFilterSeenAvitoIDs = `-- name: ListFilterSeenAvitoIDs :many
+SELECT avito_id
+FROM listing_filter_seen
+WHERE user_id = $1
+  AND filter_key = $2
+`
+
+type ListFilterSeenAvitoIDsParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	FilterKey string      `json:"filter_key"`
+}
+
+func (q *Queries) ListFilterSeenAvitoIDs(ctx context.Context, arg ListFilterSeenAvitoIDsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listFilterSeenAvitoIDs, arg.UserID, arg.FilterKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var avito_id string
+		if err := rows.Scan(&avito_id); err != nil {
+			return nil, err
+		}
+		items = append(items, avito_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPriorAvitoIDsForUserCompletedTasks = `-- name: ListPriorAvitoIDsForUserCompletedTasks :many

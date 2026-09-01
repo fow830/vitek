@@ -87,6 +87,7 @@ var FixtureInvalidListingURL = AvitoListingURL(FixtureInvalidListingHost, Fixtur
 // SchemaListingSearchTables are DB tables introduced for listing_search.
 var SchemaListingSearchTables = []string{
 	"task_items",
+	"listing_filter_seen",
 }
 
 // SchemaListingSearchTaskStatuses are task_status enum values added for listing_search.

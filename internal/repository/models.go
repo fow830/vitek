@@ -249,6 +249,13 @@ type Item struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type ListingFilterSeen struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	FilterKey string             `json:"filter_key"`
+	AvitoID   string             `json:"avito_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type MagicLinkChallenge struct {
 	ID         pgtype.UUID        `json:"id"`
 	Email      string             `json:"email"`

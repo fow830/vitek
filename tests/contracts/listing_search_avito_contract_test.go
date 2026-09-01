@@ -241,11 +241,15 @@ func TestContract_ListingSearch_AvitoProcessorFilterURL(t *testing.T) {
 
 	items, err := q.ListTaskItems(ctx, task.ID)
 	require.NoError(t, err)
-	require.Len(t, items, 2)
-	require.Equal(t, tokens.FixtureAvitoItemID1, items[0].AvitoID)
+	require.Empty(t, items)
+
+	var seenCount int
+	err = pool.QueryRow(ctx, `SELECT count(*) FROM listing_filter_seen WHERE user_id = $1`, user.ID).Scan(&seenCount)
+	require.NoError(t, err)
+	require.Equal(t, 2, seenCount)
 }
 
-// CONTRACT-LISTING-012: filter re-run returns only avito_ids not seen in prior completed tasks.
+// CONTRACT-LISTING-012: first filter run seeds baseline (0 results); re-run skips seen.
 func TestContract_ListingSearch_FilterURLNewOnly(t *testing.T) {
 	ctx := context.Background()
 	pool, q := queries(t)
@@ -279,7 +283,12 @@ func TestContract_ListingSearch_FilterURLNewOnly(t *testing.T) {
 
 	items1, err := q.ListTaskItems(ctx, task1.ID)
 	require.NoError(t, err)
-	require.Len(t, items1, 2)
+	require.Empty(t, items1)
+
+	var baselineCount int
+	err = pool.QueryRow(ctx, `SELECT count(*) FROM listing_filter_seen WHERE user_id = $1 AND filter_key = $2`, user.ID, canonicalFilter).Scan(&baselineCount)
+	require.NoError(t, err)
+	require.Equal(t, 2, baselineCount)
 
 	task2, err := service.NewTasks(pool).CreateTask(ctx, user.ID, filterURL)
 	require.NoError(t, err)
