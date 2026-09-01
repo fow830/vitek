@@ -87,3 +87,57 @@ func TestContract_ListingSearch_FilterWatchHTTP(t *testing.T) {
 	require.Equal(t, tokens.ListingSearchKindWatch, out[tokens.JSONFieldKind])
 	require.Equal(t, tokens.ListingWatchStatusActive, out[tokens.JSONFieldStatus])
 }
+
+// CONTRACT-LISTING-018: watch keeps fetch URL with f=; restart resets baseline.
+func TestContract_ListingSearch_FilterWatchFetchURLAndBaselineReset(t *testing.T) {
+	ctx := context.Background()
+	pool, q := queries(t)
+	mock := startAvitoMock(t)
+	t.Cleanup(mock.Close)
+
+	client := service.NewAvitoClient(service.WithAvitoHTTPBase(mock.URL))
+	worker := service.NewListingSearchWorker(pool, service.NewAvitoListingProcessor(pool, client))
+	watches := service.NewFilterWatches(pool)
+
+	users := service.NewUsers(pool)
+	user, err := users.CreateUser(ctx, tokens.ProductEmail("listing-watch-reset"), repository.PlanTypeFREE)
+	require.NoError(t, err)
+
+	proxies := service.NewProxies(pool)
+	_, err = proxies.Create(ctx, mock.URL, repository.ProxyStatusACTIVE, "mock-proxy")
+	require.NoError(t, err)
+
+	_, err = service.NewAvitoAccounts(pool).CreateWithSecret(ctx, "acc-watch-reset", repository.AvitoAccountStatusACTIVE, "login@test", "secret")
+	require.NoError(t, err)
+
+	filterURL := tokens.FixtureFilterListingURL
+	canonical := tokens.CanonicalListingSearchQuery(filterURL)
+
+	watch, err := watches.Start(ctx, user.ID, filterURL)
+	require.NoError(t, err)
+	require.Equal(t, canonical, watch.FilterKey)
+	require.Contains(t, watch.Query, tokens.AvitoQueryFilterF+"=")
+
+	// Simulate stale seen from an old task run.
+	require.NoError(t, q.InsertFilterSeen(ctx, repository.InsertFilterSeenParams{
+		UserID:    user.ID,
+		FilterKey: canonical,
+		AvitoID:   "stale-id",
+	}))
+
+	watch, err = watches.Start(ctx, user.ID, filterURL)
+	require.NoError(t, err)
+
+	n, err := worker.ProcessWatchPolls(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+
+	hits, err := q.ListWatchHits(ctx, watch.ID)
+	require.NoError(t, err)
+	require.Empty(t, hits)
+
+	var seenCount int
+	err = pool.QueryRow(ctx, `SELECT count(*) FROM listing_filter_seen WHERE user_id = $1 AND filter_key = $2`, user.ID, canonical).Scan(&seenCount)
+	require.NoError(t, err)
+	require.Equal(t, 2, seenCount)
+}

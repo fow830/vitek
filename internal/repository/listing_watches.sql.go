@@ -174,6 +174,32 @@ func (q *Queries) TouchFilterWatchPolled(ctx context.Context, id pgtype.UUID) er
 	return err
 }
 
+const deleteFilterSeenForUserFilter = `-- name: DeleteFilterSeenForUserFilter :exec
+DELETE FROM listing_filter_seen
+WHERE user_id = $1
+  AND filter_key = $2
+`
+
+type DeleteFilterSeenForUserFilterParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	FilterKey string      `json:"filter_key"`
+}
+
+func (q *Queries) DeleteFilterSeenForUserFilter(ctx context.Context, arg DeleteFilterSeenForUserFilterParams) error {
+	_, err := q.db.Exec(ctx, deleteFilterSeenForUserFilter, arg.UserID, arg.FilterKey)
+	return err
+}
+
+const clearWatchHits = `-- name: ClearWatchHits :exec
+DELETE FROM listing_watch_hits
+WHERE watch_id = $1
+`
+
+func (q *Queries) ClearWatchHits(ctx context.Context, watchID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearWatchHits, watchID)
+	return err
+}
+
 const upsertFilterWatch = `-- name: UpsertFilterWatch :one
 INSERT INTO listing_filter_watches (user_id, filter_key, query, status)
 VALUES ($1, $2, $3, 'ACTIVE')

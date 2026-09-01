@@ -51,3 +51,12 @@ FROM listing_watch_hits wh
 JOIN items i ON i.id = wh.item_id
 WHERE wh.watch_id = $1
 ORDER BY wh.found_at DESC;
+
+-- name: DeleteFilterSeenForUserFilter :exec
+DELETE FROM listing_filter_seen
+WHERE user_id = $1
+  AND filter_key = $2;
+
+-- name: ClearWatchHits :exec
+DELETE FROM listing_watch_hits
+WHERE watch_id = $1;

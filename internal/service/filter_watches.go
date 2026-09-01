@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -22,10 +23,12 @@ func NewFilterWatches(pool *pgxpool.Pool) *FilterWatches {
 }
 
 func (s *FilterWatches) Start(ctx context.Context, userID pgtype.UUID, query string) (repository.ListingFilterWatch, error) {
-	query = tokens.CanonicalListingSearchQuery(query)
-	if !tokens.IsListingFilterURL(query) {
+	raw := strings.TrimSpace(query)
+	if !tokens.IsListingFilterURL(raw) {
 		return repository.ListingFilterWatch{}, domain.ErrInvalidListingURL
 	}
+	fetchQuery := tokens.NormalizeListingSearchURL(raw)
+	filterKey := tokens.CanonicalListingSearchQuery(raw)
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -57,10 +60,20 @@ func (s *FilterWatches) Start(ctx context.Context, userID pgtype.UUID, query str
 
 	watch, err := qtx.UpsertFilterWatch(ctx, repository.UpsertFilterWatchParams{
 		UserID:    userID,
-		FilterKey: query,
-		Query:     query,
+		FilterKey: filterKey,
+		Query:     fetchQuery,
 	})
 	if err != nil {
+		return repository.ListingFilterWatch{}, err
+	}
+
+	if err := qtx.DeleteFilterSeenForUserFilter(ctx, repository.DeleteFilterSeenForUserFilterParams{
+		UserID:    userID,
+		FilterKey: filterKey,
+	}); err != nil {
+		return repository.ListingFilterWatch{}, err
+	}
+	if err := qtx.ClearWatchHits(ctx, watch.ID); err != nil {
 		return repository.ListingFilterWatch{}, err
 	}
 
