@@ -2,6 +2,7 @@ package tokens
 
 import (
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -32,14 +33,21 @@ const (
 
 	ListingSearchProcessorStub  = "stub"
 	ListingSearchProcessorAvito = "avito"
+	ListingSearchProcessorRod   = "rod"
 
 	FixtureAvitoItemID1    = "7654321098"
 	FixtureAvitoItemID2    = "7654321099"
 	FixtureAvitoItemTitle1 = "iPhone 15 Pro 256GB"
+	FixtureAvitoItemTitle2 = "Filter hit 2"
 	FixtureAvitoCategoryID = "84"
 	FixtureAvitoLocationID = "636736"
 	FixtureAvitoFilterPageHTML = `<!doctype html><html><body>` +
 		`"locationId":` + FixtureAvitoLocationID + `,"categoryId":` + FixtureAvitoCategoryID +
+		`</body></html>`
+	FixtureAvitoFilterSERPHTML = `<!doctype html><html><body>` +
+		`"locationId":` + FixtureAvitoLocationID + `,"categoryId":` + FixtureAvitoCategoryID +
+		`<div data-item-id="` + FixtureAvitoItemID1 + `" data-marker="item"><h3 data-marker="item-title">` + FixtureAvitoItemTitle1 + `</h3></div>` +
+		`<div data-item-id="` + FixtureAvitoItemID2 + `" data-marker="item"><h3 data-marker="item-title">` + FixtureAvitoItemTitle2 + `</h3></div>` +
 		`</body></html>`
 
 	ErrMsgListingSearchNoProxy            = "no active proxy for listing search"
@@ -47,6 +55,13 @@ const (
 	ErrMsgListingSearchAvitoFetch         = "avito fetch failed"
 	ErrMsgInvalidListingSearchProcessor   = "invalid listing search processor"
 )
+
+// ListingSearchProcessors are allowed LISTING_SEARCH_PROCESSOR values.
+var ListingSearchProcessors = []string{
+	ListingSearchProcessorStub,
+	ListingSearchProcessorAvito,
+	ListingSearchProcessorRod,
+}
 
 // SchemaAvitoSecretsTables are DB tables for Avito credentials.
 var SchemaAvitoSecretsTables = []string{
@@ -83,4 +98,37 @@ func AvitoItemSearchURL(base, categoryID, locationID string, limit int) string {
 	v.Set(AvitoQueryLocationID, locationID)
 	v.Set(AvitoQueryLimit, strconv.Itoa(limit))
 	return strings.TrimSuffix(base, "/") + AvitoWebPathItemSearch + "?" + v.Encode()
+}
+
+// AvitoSERPItem is a listing card parsed from filter SERP HTML (Rod path).
+type AvitoSERPItem struct {
+	AvitoID string
+	Title   string
+}
+
+var (
+	avitoSERPItemBlockPattern = regexp.MustCompile(`(?is)data-item-id="(\d+)"[^>]*>.*?data-marker="item-title"[^>]*>([^<]+)<`)
+)
+
+// ParseAvitoSERPItems extracts listing cards from Avito filter SERP HTML.
+func ParseAvitoSERPItems(html string) ([]AvitoSERPItem, error) {
+	matches := avitoSERPItemBlockPattern.FindAllStringSubmatch(html, -1)
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	out := make([]AvitoSERPItem, 0, len(matches))
+	seen := map[string]struct{}{}
+	for _, m := range matches {
+		id := strings.TrimSpace(m[1])
+		title := strings.TrimSpace(m[2])
+		if id == "" || title == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, AvitoSERPItem{AvitoID: id, Title: title})
+	}
+	return out, nil
 }

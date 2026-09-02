@@ -37,7 +37,7 @@ func Load() (Config, error) {
 	}
 
 	switch cfg.ListingSearchProcessor {
-	case tokens.ListingSearchProcessorStub, tokens.ListingSearchProcessorAvito:
+	case tokens.ListingSearchProcessorStub, tokens.ListingSearchProcessorAvito, tokens.ListingSearchProcessorRod:
 	default:
 		return Config{}, fmt.Errorf("%s: unsupported value %q", tokens.EnvListingSearchProcessor, cfg.ListingSearchProcessor)
 	}

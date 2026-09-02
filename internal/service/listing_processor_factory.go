@@ -19,6 +19,8 @@ func NewListingProcessor(pool *pgxpool.Pool, kind, avitoBase string) (ListingPro
 			base = tokens.AvitoHTTPSBase
 		}
 		return NewAvitoListingProcessor(pool, NewAvitoClient(WithAvitoHTTPBase(base))), nil
+	case tokens.ListingSearchProcessorRod:
+		return NewRodAvitoListingProcessor(pool, NewRodPageFetcher("")), nil
 	default:
 		return nil, fmt.Errorf("%s: %q", tokens.ErrMsgInvalidListingSearchProcessor, kind)
 	}
