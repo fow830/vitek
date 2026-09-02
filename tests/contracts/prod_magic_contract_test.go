@@ -54,21 +54,27 @@ func TestContract_ProxyHealthProbe(t *testing.T) {
 	require.Equal(t, int32(tokens.ProxyDeadAfterFails), got.FailStreak)
 }
 
-// CONTRACT-PROXY-013: production boot rejects empty pool / docker-bridge-only pool.
+// CONTRACT-PROXY-013: production boot rejects empty pool; docker-bridge-only is soft-warn.
 func TestContract_ProxyPoolBootGuard(t *testing.T) {
 	ctx := context.Background()
 	pool, _ := queries(t)
 	proxies := service.NewProxies(pool)
 
-	require.Error(t, service.AssertProxyPoolReady(ctx, proxies, tokens.AppEnvProduction))
+	warns, err := service.ProxyPoolBootIssues(ctx, proxies, tokens.AppEnvProduction)
+	require.Error(t, err)
+	require.Empty(t, warns)
 
-	_, err := proxies.Create(ctx, "socks5://172.19.0.1:11080", repository.ProxyStatusACTIVE, "bridge")
+	_, err = proxies.Create(ctx, "socks5://172.19.0.1:11080", repository.ProxyStatusACTIVE, "bridge")
 	require.NoError(t, err)
-	require.Error(t, service.AssertProxyPoolReady(ctx, proxies, tokens.AppEnvProduction))
+	warns, err = service.ProxyPoolBootIssues(ctx, proxies, tokens.AppEnvProduction)
+	require.NoError(t, err)
+	require.Equal(t, []string{tokens.ErrMsgProxyPoolDockerBridgeOnly}, warns)
 
 	_, err = proxies.Create(ctx, "socks5://10.8.0.2:1080", repository.ProxyStatusACTIVE, "ok")
 	require.NoError(t, err)
-	require.NoError(t, service.AssertProxyPoolReady(ctx, proxies, tokens.AppEnvProduction))
+	warns, err = service.ProxyPoolBootIssues(ctx, proxies, tokens.AppEnvProduction)
+	require.NoError(t, err)
+	require.Empty(t, warns)
 	require.True(t, tokens.IsDockerBridgeProxyEndpoint("socks5://172.19.0.1:11080"))
 	require.False(t, tokens.IsDockerBridgeProxyEndpoint("socks5://10.8.0.2:1080"))
 	require.Equal(t, tokens.DockerBridgeCIDR, "172.16.0.0/12")

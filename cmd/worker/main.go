@@ -34,8 +34,12 @@ func main() {
 
 	proxies := service.NewProxies(pool)
 	bindings := service.NewBindings(pool)
-	if err := service.AssertProxyPoolReady(ctx, proxies, cfg.AppEnv); err != nil {
+	if warns, err := service.ProxyPoolBootIssues(ctx, proxies, cfg.AppEnv); err != nil {
 		log.Fatalf("proxy pool: %v", err)
+	} else {
+		for _, w := range warns {
+			log.Printf("proxy pool: %s", w)
+		}
 	}
 	processor, err := service.NewListingProcessor(pool, cfg.ListingSearchProcessor, cfg.AvitoHTTPBase, cfg.RodUserDataDir)
 	if err != nil {

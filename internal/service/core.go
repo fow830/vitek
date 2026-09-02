@@ -233,17 +233,24 @@ func ProbeActive(ctx context.Context, proxies *Proxies, bindings *Bindings, prob
 	return ok, fail, nil
 }
 
-// AssertProxyPoolReady enforces fetchable proxy pool rules for production boots.
+// AssertProxyPoolReady enforces minimum fetchable proxies for production boots.
+// Docker-bridge-only pools are allowed but returned as a soft warning for ops logs.
 func AssertProxyPoolReady(ctx context.Context, proxies *Proxies, appEnv string) error {
+	_, err := ProxyPoolBootIssues(ctx, proxies, appEnv)
+	return err
+}
+
+// ProxyPoolBootIssues returns a hard error (empty pool) and optional soft warnings.
+func ProxyPoolBootIssues(ctx context.Context, proxies *Proxies, appEnv string) (warns []string, err error) {
 	if appEnv != tokens.AppEnvProduction {
-		return nil
+		return nil, nil
 	}
 	list, err := proxies.ListActive(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(list) < tokens.ProxyPoolMinActive {
-		return fmt.Errorf("%s", tokens.ErrMsgProxyPoolTooSmall)
+		return nil, fmt.Errorf("%s", tokens.ErrMsgProxyPoolTooSmall)
 	}
 	nonBridge := 0
 	for _, p := range list {
@@ -252,9 +259,9 @@ func AssertProxyPoolReady(ctx context.Context, proxies *Proxies, appEnv string) 
 		}
 	}
 	if nonBridge == 0 {
-		return fmt.Errorf("%s", tokens.ErrMsgProxyPoolDockerBridgeOnly)
+		warns = append(warns, tokens.ErrMsgProxyPoolDockerBridgeOnly)
 	}
-	return nil
+	return warns, nil
 }
 
 func (s *Proxies) Update(ctx context.Context, id pgtype.UUID, endpoint string, status repository.ProxyStatus, label string) (repository.Proxy, error) {
