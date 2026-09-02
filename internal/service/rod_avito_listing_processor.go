@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -143,8 +144,18 @@ func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, userDataD
 	if dir == "" {
 		dir = f.userDataDir
 	}
-	l := launcher.New().Headless(f.headless)
+	l := launcher.New().Headless(f.headless).NoSandbox(true)
+	bin := strings.TrimSpace(os.Getenv(tokens.EnvRodBrowser))
+	if bin == "" {
+		bin = tokens.DefaultRodChromeBin
+	}
+	if bin != "" {
+		l = l.Bin(bin)
+	}
 	if dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return "", fmt.Errorf("%s: %w", tokens.ErrMsgRodLaunch, err)
+		}
 		l = l.UserDataDir(dir)
 	}
 	if strings.TrimSpace(proxyEndpoint) != "" {

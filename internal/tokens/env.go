@@ -14,6 +14,7 @@ const (
 	EnvListingSearchProcessor  = "LISTING_SEARCH_PROCESSOR"
 	EnvAvitoHTTPBase           = "AVITO_HTTP_BASE"
 	EnvRodUserDataDir          = "ROD_USER_DATA_DIR"
+	EnvRodBrowser              = "ROD_BROWSER"
 )
 
 // AppEnv allowed values.

@@ -62,6 +62,7 @@ const (
 	LogWorkerProxyProbe       = "proxy_probe: ok=%d fail=%d"
 	RodInterRequestDelay      = 200 * time.Millisecond
 	DefaultRodUserDataDir     = "/var/lib/vitek/rod"
+	DefaultRodChromeBin       = "/headless-shell/headless-shell"
 )
 
 var SchemaProxyHealthStatuses = []string{
