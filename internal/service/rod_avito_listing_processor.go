@@ -79,7 +79,7 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 		pageURL := tokens.ListingSearchSERPPageURL(baseURL, page)
 		html, err := p.fetch.FetchHTML(ctx, binding.ProxyEndpoint, binding.UserDataDir, pageURL)
 		if err != nil {
-			return nil, domain.ErrListingSearchAvitoFetch
+			return nil, fmt.Errorf("%w: %v", domain.ErrListingSearchAvitoFetch, err)
 		}
 		if tokens.IsAvitoChallengeHTML(html) {
 			_, _ = p.bindings.MarkSessionChallenge(ctx, binding.ID, tokens.ErrMsgSessionChallenge)
@@ -144,7 +144,11 @@ func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, userDataD
 	if dir == "" {
 		dir = f.userDataDir
 	}
-	l := launcher.New().Headless(f.headless).NoSandbox(true)
+	l := launcher.New().Headless(f.headless).NoSandbox(true).
+		Set("disable-dev-shm-usage").
+		Set("disable-gpu").
+		Set("no-zygote").
+		Set("single-process")
 	bin := strings.TrimSpace(os.Getenv(tokens.EnvRodBrowser))
 	if bin == "" {
 		bin = tokens.DefaultRodChromeBin

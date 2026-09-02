@@ -192,15 +192,15 @@ func TestContract_ListingSearch_AvitoSecretsSchema(t *testing.T) {
 func TestContract_ListingSearch_ProcessorFactory(t *testing.T) {
 	pool, _ := queries(t)
 
-	stub, err := service.NewListingProcessor(pool, tokens.ListingSearchProcessorStub, "", "")
+	stub, err := service.NewListingProcessor(pool, tokens.ListingSearchProcessorStub, "", "", "")
 	require.NoError(t, err)
 	require.IsType(t, &service.StubListingProcessor{}, stub)
 
-	avito, err := service.NewListingProcessor(pool, tokens.ListingSearchProcessorAvito, tokens.AvitoHTTPSBase, "")
+	avito, err := service.NewListingProcessor(pool, tokens.ListingSearchProcessorAvito, tokens.AvitoHTTPSBase, "", "")
 	require.NoError(t, err)
 	require.IsType(t, &service.AvitoListingProcessor{}, avito)
 
-	_, err = service.NewListingProcessor(pool, tokens.FixtureInvalidEnum, "", "")
+	_, err = service.NewListingProcessor(pool, tokens.FixtureInvalidEnum, "", "", "")
 	require.Error(t, err)
 }
 

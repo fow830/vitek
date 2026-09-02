@@ -15,6 +15,7 @@ const (
 	EnvAvitoHTTPBase           = "AVITO_HTTP_BASE"
 	EnvRodUserDataDir          = "ROD_USER_DATA_DIR"
 	EnvRodBrowser              = "ROD_BROWSER"
+	EnvRodFetchMode            = "ROD_FETCH_MODE"
 )
 
 // AppEnv allowed values.

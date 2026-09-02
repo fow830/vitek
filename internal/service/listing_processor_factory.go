@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -9,7 +10,7 @@ import (
 )
 
 // NewListingProcessor builds the configured listing_search processor.
-func NewListingProcessor(pool *pgxpool.Pool, kind, avitoBase, rodUserDataDir string) (ListingProcessor, error) {
+func NewListingProcessor(pool *pgxpool.Pool, kind, avitoBase, rodUserDataDir, rodFetchMode string) (ListingProcessor, error) {
 	switch kind {
 	case tokens.ListingSearchProcessorStub, "":
 		return NewStubListingProcessor(), nil
@@ -20,8 +21,27 @@ func NewListingProcessor(pool *pgxpool.Pool, kind, avitoBase, rodUserDataDir str
 		}
 		return NewAvitoListingProcessor(pool, NewAvitoClient(WithAvitoHTTPBase(base))), nil
 	case tokens.ListingSearchProcessorRod:
-		return NewRodAvitoListingProcessor(pool, NewRodPageFetcher(rodUserDataDir, avitoBase)), nil
+		fetch, err := newRodFetcher(avitoBase, rodUserDataDir, rodFetchMode)
+		if err != nil {
+			return nil, err
+		}
+		return NewRodAvitoListingProcessor(pool, fetch), nil
 	default:
 		return nil, fmt.Errorf("%s: %q", tokens.ErrMsgInvalidListingSearchProcessor, kind)
+	}
+}
+
+func newRodFetcher(avitoBase, rodUserDataDir, rodFetchMode string) (AvitoPageFetcher, error) {
+	mode := strings.TrimSpace(rodFetchMode)
+	if mode == "" {
+		mode = tokens.DefaultRodFetchMode
+	}
+	switch mode {
+	case tokens.RodFetchModeHTTP:
+		return NewHTTPPageFetcher(avitoBase), nil
+	case tokens.RodFetchModeChrome:
+		return NewRodPageFetcher(rodUserDataDir, avitoBase), nil
+	default:
+		return nil, fmt.Errorf("%s: %q", tokens.EnvRodFetchMode, mode)
 	}
 }

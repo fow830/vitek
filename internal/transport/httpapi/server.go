@@ -64,7 +64,7 @@ func NewServer(pool *pgxpool.Pool, opts ...Option) *Server {
 		bindings:          service.NewBindings(pool),
 		notifications:     service.NewNotifications(pool, nil),
 		auth:              service.NewAuth(pool, service.NewMemoryMagicLinkMailer()),
-		pageFetch:         service.NewRodPageFetcher("", tokens.AvitoHTTPSBase),
+		pageFetch:         service.NewHTTPPageFetcher(tokens.AvitoHTTPSBase),
 		exposeMagicTokens: false,
 		secureCookies:     false,
 	}

@@ -19,6 +19,7 @@ var EnvExampleKeys = []string{
 	EnvAvitoHTTPBase,
 	EnvRodUserDataDir,
 	EnvRodBrowser,
+	EnvRodFetchMode,
 }
 
 // EnvExampleValues maps each EnvExampleKeys entry to its local default.
@@ -36,6 +37,7 @@ func EnvExampleValues() map[string]string {
 		EnvAvitoHTTPBase:          AvitoHTTPSBase,
 		EnvRodUserDataDir:         DefaultRodUserDataDir,
 		EnvRodBrowser:             DefaultRodChromeBin,
+		EnvRodFetchMode:           DefaultRodFetchMode,
 	}
 }
 

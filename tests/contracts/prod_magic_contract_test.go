@@ -237,6 +237,7 @@ func TestContract_RodProdRequiresUserDataDir(t *testing.T) {
 	require.Equal(t, tokens.FixtureBindingUserDataDir, cfg.RodUserDataDir)
 	require.Equal(t, tokens.DefaultRodUserDataDir, "/var/lib/vitek/rod")
 	require.Equal(t, tokens.ImageWorkerRuntime, "chromedp/headless-shell:latest")
+	require.Equal(t, tokens.DefaultRodFetchMode, tokens.RodFetchModeHTTP)
 }
 
 type contractPageFetcher struct {

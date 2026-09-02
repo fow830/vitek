@@ -22,7 +22,7 @@ import (
 func TestContract_ListingSearch_RodProcessorFactory(t *testing.T) {
 	pool, _ := queries(t)
 
-	rodProc, err := service.NewListingProcessor(pool, tokens.ListingSearchProcessorRod, tokens.AvitoHTTPSBase, "")
+	rodProc, err := service.NewListingProcessor(pool, tokens.ListingSearchProcessorRod, tokens.AvitoHTTPSBase, "", tokens.RodFetchModeHTTP)
 	require.NoError(t, err)
 	require.IsType(t, &service.RodAvitoListingProcessor{}, rodProc)
 
@@ -32,6 +32,22 @@ func TestContract_ListingSearch_RodProcessorFactory(t *testing.T) {
 		tokens.ListingSearchProcessorRod,
 	}, tokens.ListingSearchProcessors)
 }
+
+// CONTRACT-LISTING-040: rod default fetch mode is HTTP SERP via proxy (Chrome optional).
+func TestContract_RodHTTPFetchModeFactory(t *testing.T) {
+	pool, _ := queries(t)
+	proc, err := service.NewListingProcessor(pool, tokens.ListingSearchProcessorRod, tokens.FixtureAvitoHTTPBaseMock, tokens.FixtureBindingUserDataDir, tokens.RodFetchModeHTTP)
+	require.NoError(t, err)
+	require.IsType(t, &service.RodAvitoListingProcessor{}, proc)
+
+	chrome, err := service.NewListingProcessor(pool, tokens.ListingSearchProcessorRod, tokens.AvitoHTTPSBase, tokens.FixtureBindingUserDataDir, tokens.RodFetchModeChrome)
+	require.NoError(t, err)
+	require.IsType(t, &service.RodAvitoListingProcessor{}, chrome)
+
+	_, err = service.NewListingProcessor(pool, tokens.ListingSearchProcessorRod, "", "", "nope")
+	require.Error(t, err)
+}
+
 
 type fakeRodPageFetcher struct {
 	html string
@@ -192,6 +208,9 @@ func TestContract_ListingSearch_RodAvitoTokens(t *testing.T) {
 	require.Equal(t, int(tokens.ListingSearchWatchPollInterval/time.Millisecond), tokens.ListingSearchWatchPollIntervalMs)
 	require.Equal(t, tokens.ListingSearchTaskListLimit, tokens.ListingSearchWatchDueLimit)
 	require.Equal(t, tokens.EnvRodUserDataDir, "ROD_USER_DATA_DIR")
+	require.Equal(t, tokens.EnvRodFetchMode, "ROD_FETCH_MODE")
+	require.Equal(t, tokens.DefaultRodFetchMode, tokens.RodFetchModeHTTP)
+	require.Equal(t, tokens.RodFetchModeChrome, "chrome")
 	require.Contains(t, tokens.FixtureAvitoFilterSERPHTML, tokens.AvitoSERPAttrItemID+`="`+tokens.FixtureAvitoItemID1+`"`)
 	require.Contains(t, tokens.FixtureAvitoFilterSERPHTML, `data-marker="`+tokens.AvitoSERPMarkerItemTitle+`"`)
 

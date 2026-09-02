@@ -41,7 +41,7 @@ func main() {
 			log.Printf("proxy pool: %s", w)
 		}
 	}
-	processor, err := service.NewListingProcessor(pool, cfg.ListingSearchProcessor, cfg.AvitoHTTPBase, cfg.RodUserDataDir)
+	processor, err := service.NewListingProcessor(pool, cfg.ListingSearchProcessor, cfg.AvitoHTTPBase, cfg.RodUserDataDir, cfg.RodFetchMode)
 	if err != nil {
 		log.Fatalf("listing processor: %v", err)
 	}

@@ -18,6 +18,7 @@ type Config struct {
 	ListingSearchProcessor string
 	AvitoHTTPBase          string
 	RodUserDataDir         string
+	RodFetchMode           string
 }
 
 // Load reads process environment. Missing optional keys fall back to tokens.Default*.
@@ -36,12 +37,18 @@ func Load() (Config, error) {
 		ListingSearchProcessor: get(tokens.EnvListingSearchProcessor, tokens.DefaultListingSearchProcessor),
 		AvitoHTTPBase:          get(tokens.EnvAvitoHTTPBase, tokens.AvitoHTTPSBase),
 		RodUserDataDir:         get(tokens.EnvRodUserDataDir, ""),
+		RodFetchMode:           get(tokens.EnvRodFetchMode, tokens.DefaultRodFetchMode),
 	}
 
 	switch cfg.ListingSearchProcessor {
 	case tokens.ListingSearchProcessorStub, tokens.ListingSearchProcessorAvito, tokens.ListingSearchProcessorRod:
 	default:
 		return Config{}, fmt.Errorf("%s: unsupported value %q", tokens.EnvListingSearchProcessor, cfg.ListingSearchProcessor)
+	}
+	switch cfg.RodFetchMode {
+	case tokens.RodFetchModeHTTP, tokens.RodFetchModeChrome:
+	default:
+		return Config{}, fmt.Errorf("%s: unsupported value %q", tokens.EnvRodFetchMode, cfg.RodFetchMode)
 	}
 
 	switch cfg.AppEnv {

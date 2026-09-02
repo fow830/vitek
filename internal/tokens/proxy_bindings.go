@@ -61,8 +61,12 @@ const (
 	FixtureEmptySERPHTML      = "<html></html>"
 	LogWorkerProxyProbe       = "proxy_probe: ok=%d fail=%d"
 	RodInterRequestDelay      = 200 * time.Millisecond
-	DefaultRodUserDataDir     = "/var/lib/vitek/rod"
-	DefaultRodChromeBin       = "/headless-shell/headless-shell"
+	DefaultRodUserDataDir = "/var/lib/vitek/rod"
+	DefaultRodChromeBin   = "/headless-shell/headless-shell"
+
+	RodFetchModeHTTP   = "http"
+	RodFetchModeChrome = "chrome"
+	DefaultRodFetchMode = RodFetchModeHTTP
 )
 
 var SchemaProxyHealthStatuses = []string{
