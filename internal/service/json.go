@@ -34,12 +34,18 @@ func TaskResultJSON(it ListTaskItemsRow) map[string]any {
 }
 
 func WatchJSON(watch repository.ListingFilterWatch) map[string]any {
+	meta := tokens.ParseListingFilterMeta(watch.Query)
 	return map[string]any{
-		tokens.JSONFieldID:     UUIDString(watch.ID),
-		tokens.JSONFieldUserID: UUIDString(watch.UserID),
-		tokens.JSONFieldQuery:  watch.Query,
-		tokens.JSONFieldStatus: string(watch.Status),
-		tokens.JSONFieldKind:   tokens.ListingSearchKindWatch,
+		tokens.JSONFieldID:         UUIDString(watch.ID),
+		tokens.JSONFieldUserID:     UUIDString(watch.UserID),
+		tokens.JSONFieldQuery:      watch.Query,
+		tokens.JSONFieldStatus:     string(watch.Status),
+		tokens.JSONFieldKind:       tokens.ListingSearchKindWatch,
+		tokens.JSONFieldRegion:     meta.Region,
+		tokens.JSONFieldCategories: meta.Categories,
+		tokens.JSONFieldLabel:      meta.Label,
+		tokens.JSONFieldParams:     meta.Params,
+		tokens.JSONFieldExtras:     meta.Extras,
 	}
 }
 

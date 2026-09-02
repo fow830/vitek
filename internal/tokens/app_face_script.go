@@ -64,11 +64,66 @@ func appFaceScriptBlock() string {
 func appFaceSearchScriptBlock() string {
 	return `  <script>
     const pathMeTasks = '` + PathV1MeTasks + `';
+    const pathMeWatches = '` + PathV1MeWatches + `';
     const pathTaskResults = (id) => '` + PathV1Tasks + `/' + id + '` + PathV1TaskResultsSuffix + `';
     const pathWatchResults = (id) => '` + PathV1MeWatches + `/' + id + '` + PathV1WatchResultsSuffix + `';
     let watchPollTimer = null;
+    let activeWatchID = null;
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
     function renderResults(box, rows) {
       box.innerHTML = '<table><thead><tr><th>` + AppCopyColCode + `</th><th>` + AppCopyColTitle + `</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+    function formatWatchMeta(w) {
+      const cats = (w.` + JSONFieldCategories + ` || []).join(' / ');
+      const parts = [];
+      if (w.` + JSONFieldRegion + `) parts.push(w.` + JSONFieldRegion + `);
+      if (cats) parts.push(cats);
+      if (w.` + JSONFieldLabel + `) parts.push(w.` + JSONFieldLabel + `);
+      const lines = [parts.join(' · ') || '` + AppCopySearchWatchesTitle + `'];
+      const params = w.` + JSONFieldParams + ` || {};
+      Object.keys(params).sort().forEach(k => {
+        let v = String(params[k]);
+        if (k === '` + AvitoQueryFilterF + `' && v.length > 48) v = v.slice(0, 48) + '…';
+        lines.push(k + '=' + v);
+      });
+      const extras = w.` + JSONFieldExtras + ` || {};
+      Object.keys(extras).sort().forEach(k => lines.push(k + '=' + extras[k]));
+      lines.push('status=' + (w.` + JSONFieldStatus + ` || ''));
+      return lines.map(esc).join('<br>');
+    }
+    function selectWatch(watchID) {
+      activeWatchID = watchID;
+      document.querySelectorAll('#` + AppDOMSearchWatches + ` .watch').forEach(el => {
+        el.classList.toggle('` + AppClassIsActive + `', el.dataset.id === watchID);
+      });
+      const status = document.getElementById('` + AppDOMSearchStatus + `');
+      if (watchPollTimer) { clearInterval(watchPollTimer); watchPollTimer = null; }
+      loadWatchResults(watchID, status);
+      watchPollTimer = setInterval(() => loadWatchResults(watchID, status), ` + strconv.Itoa(ListingSearchWatchPollIntervalMs) + `);
+    }
+    async function loadWatches(selectID) {
+      const box = document.getElementById('` + AppDOMSearchWatches + `');
+      if (!box) return;
+      const res = await fetch(pathMeWatches, { credentials: 'same-origin' });
+      if (!res.ok) { box.innerHTML = '<p class="hint">` + AppCopySearchFailed + `</p>'; return; }
+      const data = await res.json();
+      const watches = data.` + JSONFieldWatches + ` || [];
+      if (!watches.length) {
+        box.innerHTML = '<p class="hint">` + AppCopySearchWatchesEmpty + `</p>';
+        return;
+      }
+      box.innerHTML = '<div class="panel-head" style="padding:0 0 8px;border:0"><h2>` + AppCopySearchWatchesTitle + `</h2></div>' +
+        watches.map(w => {
+          const id = w.` + JSONFieldID + `;
+          const active = id === (selectID || activeWatchID) ? ' ` + AppClassIsActive + `' : '';
+          return '<div class="watch' + active + '" data-id="' + esc(id) + '" onclick="selectWatch(\'' + esc(id) + '\')">' +
+            '<p class="watch-title">' + esc(w.` + JSONFieldLabel + ` || w.` + JSONFieldRegion + ` || id) + '</p>' +
+            '<p class="watch-meta">' + formatWatchMeta(w) + '</p></div>';
+        }).join('');
+      if (selectID) selectWatch(selectID);
+      else if (!activeWatchID && watches[0]) selectWatch(watches[0].` + JSONFieldID + `);
     }
     async function loadWatchResults(watchID, status) {
       const box = document.getElementById('` + AppDOMSearchResults + `');
@@ -98,8 +153,7 @@ func appFaceSearchScriptBlock() string {
       if (!res.ok) { status.textContent = '` + AppCopySearchFailed + `'; return false; }
       const task = await res.json();
       if (task.` + JSONFieldKind + ` === '` + ListingSearchKindWatch + `') {
-        await loadWatchResults(task.` + JSONFieldID + `, status);
-        watchPollTimer = setInterval(() => loadWatchResults(task.` + JSONFieldID + `, status), ` + strconv.Itoa(ListingSearchWatchPollIntervalMs) + `);
+        await loadWatches(task.` + JSONFieldID + `);
         return false;
       }
       status.textContent = task.` + JSONFieldStatus + `;
@@ -126,6 +180,7 @@ func appFaceSearchScriptBlock() string {
       ).join('');
       renderResults(box, rows);
     }
+    if (document.getElementById('` + AppDOMSearchWatches + `')) loadWatches();
   </script>
 `
 }

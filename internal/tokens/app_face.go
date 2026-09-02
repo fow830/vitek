@@ -38,6 +38,7 @@ const (
 	AppDOMSearchURL     = "search-url"
 	AppDOMSearchResults = "search-results"
 	AppDOMSearchStatus  = "search-status"
+	AppDOMSearchWatches = "search-watches"
 	AppClassIsActive  = "is-active"
 	AppClassStatusOk  = "status-ok"
 	AppClassStatusOff = "status-off"
@@ -63,6 +64,9 @@ const (
 	AppCopySearchSubmit     = "Искать"
 	AppCopySearchStatusIdle = "Создайте задачу или выберите из списка."
 	AppCopySearchFailed     = "Ошибка поиска"
+	AppCopySearchWatchesTitle = "Активные мониторинги"
+	AppCopySearchWatchesEmpty = "Нет активных мониторингов."
+	AppCopySearchWatchOpen  = "Открыть"
 	AppCopyServicesTitle    = "Сервисы"
 	AppCopyServicesLede     = "Каталог product_services (SoT = tokens + БД)."
 	AppCopyAvitoTitle       = "Аккаунты Авито"
@@ -214,6 +218,7 @@ func RenderAppFaceHTML() string {
 	b.WriteString("                </div>\n")
 	fmt.Fprintf(&b, "                <button class=\"btn\" type=\"submit\">%s</button>\n", esc(AppCopySearchSubmit))
 	b.WriteString("              </form>\n")
+	fmt.Fprintf(&b, "              <div class=\"watches\" id=\"%s\"></div>\n", AppDOMSearchWatches)
 	fmt.Fprintf(&b, "              <p class=\"hint\" id=\"%s\">%s</p>\n", AppDOMSearchStatus, esc(AppCopySearchStatusIdle))
 	fmt.Fprintf(&b, "              <div id=\"%s\"></div>\n", AppDOMSearchResults)
 	b.WriteString("            </div>\n          </div>\n        </div>\n\n")
@@ -415,6 +420,18 @@ func appFaceStyleBlock() string {
     select { width: 100%; padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 88%, var(--color-canvas)); color: var(--color-text); }
     .row-actions { white-space: nowrap; }
     .hint { margin-top: var(--space-lg); font-size: .9rem; color: var(--color-text-muted); }
+    .watches { display: grid; gap: var(--space-md); margin-top: var(--space-lg); }
+    .watch {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      background: color-mix(in srgb, var(--color-surface) 94%, var(--color-canvas));
+      cursor: pointer;
+    }
+    .watch.is-active { border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border)); }
+    .watch-title { margin: 0 0 var(--space-sm); font-size: .95rem; font-weight: 600; }
+    .watch-meta { margin: 0; font-size: .82rem; color: var(--color-text-muted); line-height: 1.45; word-break: break-word; }
+    .watch-meta code { font-family: var(--font-mono); font-size: .78rem; }
     .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
     @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .side { position: sticky; top: 0; z-index: 5; } }
     .side { padding: var(--space-lg); border-right: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 70%, transparent); backdrop-filter: blur(10px); }

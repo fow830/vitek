@@ -32,6 +32,42 @@ func (q *Queries) GetFilterWatch(ctx context.Context, id pgtype.UUID) (ListingFi
 	return i, err
 }
 
+const listFilterWatchesByUser = `-- name: ListFilterWatchesByUser :many
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at
+FROM listing_filter_watches
+WHERE user_id = $1
+  AND status = 'ACTIVE'
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListFilterWatchesByUser(ctx context.Context, userID pgtype.UUID) ([]ListingFilterWatch, error) {
+	rows, err := q.db.Query(ctx, listFilterWatchesByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListingFilterWatch{}
+	for rows.Next() {
+		var i ListingFilterWatch
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FilterKey,
+			&i.Query,
+			&i.Status,
+			&i.LastPolledAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFilterWatchForUser = `-- name: GetFilterWatchForUser :one
 SELECT id, user_id, filter_key, query, status, last_polled_at, created_at
 FROM listing_filter_watches

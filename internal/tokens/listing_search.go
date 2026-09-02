@@ -1,6 +1,8 @@
 package tokens
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -258,6 +260,98 @@ var ListingSearchDedupVolatileQueryKeys = []string{
 
 // ListingSearchPathFilterTokenPrefix marks Avito filter blob suffix in SERP path slugs.
 const ListingSearchPathFilterTokenPrefix = "ASgB"
+
+// ListingFilterMeta is display metadata extracted from a filter URL (no network).
+type ListingFilterMeta struct {
+	Region     string
+	Categories []string
+	Label      string
+	Params     map[string]string
+	Extras     map[string]any
+}
+
+// ParseListingFilterMeta extracts region / categories / label / params / embedded extras from a filter URL.
+func ParseListingFilterMeta(raw string) ListingFilterMeta {
+	meta := ListingFilterMeta{
+		Categories: []string{},
+		Params:     map[string]string{},
+		Extras:     map[string]any{},
+	}
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(NormalizeListingSearchURL(raw))
+	if err != nil {
+		return meta
+	}
+	segs := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(segs) == 1 && segs[0] == "" {
+		segs = nil
+	}
+	if len(segs) > 0 {
+		meta.Region = segs[0]
+	}
+	if len(segs) > 1 {
+		last := segs[len(segs)-1]
+		cats := segs[1 : len(segs)-1]
+		if idx := strings.Index(last, "-"+ListingSearchPathFilterTokenPrefix); idx >= 0 {
+			meta.Label = last[:idx]
+		} else if !strings.HasPrefix(last, ListingSearchPathFilterTokenPrefix) {
+			meta.Label = last
+		}
+		meta.Categories = append(meta.Categories, cats...)
+	}
+	volatile := map[string]struct{}{}
+	for _, k := range ListingSearchDedupVolatileQueryKeys {
+		volatile[k] = struct{}{}
+	}
+	for k, vals := range u.Query() {
+		if _, skip := volatile[k]; skip {
+			continue
+		}
+		if k == AvitoQueryFilterF {
+			continue
+		}
+		if len(vals) == 0 || strings.TrimSpace(vals[0]) == "" {
+			continue
+		}
+		meta.Params[k] = vals[0]
+	}
+	if f := ListingSearchFilterFFromURL(raw); f != "" {
+		meta.Params[AvitoQueryFilterF] = f
+		for k, v := range listingFilterExtrasFromF(f) {
+			meta.Extras[k] = v
+		}
+	}
+	return meta
+}
+
+func listingFilterExtrasFromF(f string) map[string]any {
+	out := map[string]any{}
+	norm := strings.ReplaceAll(f, "~", "/")
+	for i := 0; i < len(norm); i++ {
+		rest := norm[i:]
+		pad := rest + strings.Repeat("=", (4-len(rest)%4)%4)
+		raw, err := base64.URLEncoding.DecodeString(pad)
+		if err != nil {
+			raw, err = base64.StdEncoding.DecodeString(pad)
+			if err != nil {
+				continue
+			}
+		}
+		start := strings.Index(string(raw), "{")
+		end := strings.LastIndex(string(raw), "}")
+		if start < 0 || end <= start {
+			continue
+		}
+		var obj map[string]any
+		if err := json.Unmarshal([]byte(string(raw)[start:end+1]), &obj); err != nil {
+			continue
+		}
+		for k, v := range obj {
+			out[k] = v
+		}
+	}
+	return out
+}
 
 // CanonicalListingSearchQuery returns a stable task/dedup key (host + path; filter query stripped).
 func CanonicalListingSearchQuery(raw string) string {

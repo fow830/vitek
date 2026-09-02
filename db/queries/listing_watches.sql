@@ -7,6 +7,13 @@ SET query = EXCLUDED.query,
     last_polled_at = NULL
 RETURNING id, user_id, filter_key, query, status, last_polled_at, created_at;
 
+-- name: ListFilterWatchesByUser :many
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at
+FROM listing_filter_watches
+WHERE user_id = $1
+  AND status = 'ACTIVE'
+ORDER BY created_at DESC;
+
 -- name: GetFilterWatch :one
 SELECT id, user_id, filter_key, query, status, last_polled_at, created_at
 FROM listing_filter_watches

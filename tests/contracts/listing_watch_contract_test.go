@@ -88,6 +88,55 @@ func TestContract_ListingSearch_FilterWatchHTTP(t *testing.T) {
 	require.Equal(t, tokens.ListingWatchStatusActive, out[tokens.JSONFieldStatus])
 }
 
+// CONTRACT-LISTING-019: GET /v1/me/watches lists active watches with filter meta from URL.
+func TestContract_ListingSearch_ListWatchesWithFilterMeta(t *testing.T) {
+	ctx := context.Background()
+	pool, _ := queries(t)
+	mailer := service.NewMemoryMagicLinkMailer()
+	handler := httpapi.NewServer(pool, httpapi.WithMagicLinkMailer(mailer)).Handler()
+
+	email := tokens.ProductEmail("listing-watch-list")
+	_, err := service.NewUsers(pool).CreateUser(ctx, email, repository.PlanTypeFREE)
+	require.NoError(t, err)
+	cookie := loginCookie(t, handler, mailer, email)
+
+	body, err := json.Marshal(map[string]any{tokens.JSONFieldQuery: tokens.FixtureFilterListingURL})
+	require.NoError(t, err)
+	req := withAppHost(httptest.NewRequest(http.MethodPost, tokens.PathV1MeTasks, bytes.NewReader(body)))
+	req.Header.Set(tokens.HeaderContentType, tokens.MIMEApplicationJSON)
+	req.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code)
+
+	listReq := withAppHost(httptest.NewRequest(http.MethodGet, tokens.PathV1MeWatches, nil))
+	listReq.Header.Set(tokens.HeaderCookie, tokens.CookieSessionName+"="+cookie)
+	listRec := httptest.NewRecorder()
+	handler.ServeHTTP(listRec, listReq)
+	require.Equal(t, http.StatusOK, listRec.Code)
+
+	var out map[string]any
+	require.NoError(t, json.NewDecoder(listRec.Body).Decode(&out))
+	watches, ok := out[tokens.JSONFieldWatches].([]any)
+	require.True(t, ok)
+	require.Len(t, watches, 1)
+	w := watches[0].(map[string]any)
+	require.Equal(t, tokens.ListingSearchKindWatch, w[tokens.JSONFieldKind])
+	require.Equal(t, tokens.ListingWatchStatusActive, w[tokens.JSONFieldStatus])
+	require.Equal(t, "sankt-peterburg", w[tokens.JSONFieldRegion])
+	require.Equal(t, "apple", w[tokens.JSONFieldLabel])
+	cats, ok := w[tokens.JSONFieldCategories].([]any)
+	require.True(t, ok)
+	require.Equal(t, []any{"telefony", "mobilnye_telefony"}, cats)
+	params, ok := w[tokens.JSONFieldParams].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, tokens.AvitoPresentationTypeSerp, params[tokens.AvitoQueryPresentationType])
+	extras, ok := w[tokens.JSONFieldExtras].(map[string]any)
+	require.True(t, ok)
+	require.EqualValues(t, 0, extras["from"])
+	require.EqualValues(t, 70000, extras["to"])
+}
+
 // CONTRACT-LISTING-018: watch keeps fetch URL with f=; restart resets baseline.
 func TestContract_ListingSearch_FilterWatchFetchURLAndBaselineReset(t *testing.T) {
 	ctx := context.Background()

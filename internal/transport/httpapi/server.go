@@ -73,6 +73,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPGet(tokens.HTTPPathTaskResults()), s.requireUser(s.handleGetTaskResults))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1MeTasks), s.requireUser(s.handleListMyTasks))
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1MeTasks), s.requireUser(s.handleCreateMyTask))
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1MeWatches), s.requireUser(s.handleListMyWatches))
 	mux.HandleFunc(tokens.HTTPGet(tokens.HTTPPathMeWatchResults()), s.requireUser(s.handleGetMyWatchResults))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1ProxiesActive), s.handleListActiveProxies)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLink), s.handleMagicLinkRequest)
@@ -766,6 +767,24 @@ func (s *Server) handleGetMyWatchResults(w http.ResponseWriter, r *http.Request)
 		out = append(out, service.WatchHitJSON(it))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldResults: out})
+}
+
+func (s *Server) handleListMyWatches(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	list, err := s.filterWatches.ListForUser(r.Context(), user.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgListWatchesFailed})
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, watch := range list {
+		out = append(out, service.WatchJSON(watch))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldWatches: out})
 }
 
 func (s *Server) handleListActiveProxies(w http.ResponseWriter, r *http.Request) {
