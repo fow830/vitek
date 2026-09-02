@@ -21,6 +21,7 @@ func RenderDockerfile() string {
 		"ENTRYPOINT [\"/" + BinaryAPI + "\"]\n" +
 		"\n" +
 		"FROM " + ImageWorkerRuntime + " AS worker\n" +
+		"COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt\n" +
 		"COPY --from=build /out/" + BinaryWorker + " /" + BinaryWorker + "\n" +
 		"ENTRYPOINT [\"/" + BinaryWorker + "\"]\n"
 }

@@ -16,5 +16,6 @@ EXPOSE 8080
 ENTRYPOINT ["/api"]
 
 FROM chromedp/headless-shell:latest AS worker
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/worker /worker
 ENTRYPOINT ["/worker"]
