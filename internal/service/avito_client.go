@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"vitek/internal/domain"
 	"vitek/internal/tokens"
@@ -16,9 +15,8 @@ import (
 
 // AvitoClient fetches listing_search data from Avito web JSON endpoints.
 type AvitoClient struct {
-	base    string
-	client  *http.Client
-	now     func() time.Time
+	base   string
+	client *http.Client
 }
 
 type AvitoClientOption func(*AvitoClient)
@@ -29,21 +27,12 @@ func WithAvitoHTTPBase(base string) AvitoClientOption {
 	}
 }
 
-func WithAvitoHTTPClient(hc *http.Client) AvitoClientOption {
-	return func(c *AvitoClient) {
-		if hc != nil {
-			c.client = hc
-		}
-	}
-}
-
 func NewAvitoClient(opts ...AvitoClientOption) *AvitoClient {
 	c := &AvitoClient{
 		base: tokens.AvitoHTTPSBase,
 		client: &http.Client{
 			Timeout: tokens.AvitoHTTPClientTimeout,
 		},
-		now: time.Now,
 	}
 	for _, opt := range opts {
 		opt(c)

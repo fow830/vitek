@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 
 	"vitek/internal/domain"
@@ -205,4 +207,28 @@ func TestContract_ListingSearch_RodAvitoTokens(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(body), tokens.ListingSearchWatchDueSQLInterval)
 	require.Contains(t, string(body), "LIMIT "+strconv.FormatInt(int64(tokens.ListingSearchWatchDueLimit), 10))
+	require.Contains(t, string(body), "'"+tokens.ListingWatchStatusActive+"'")
+	require.Equal(t, tokens.ErrMsgRodLaunch, "rod launch failed")
+	require.Equal(t, tokens.ErrMsgRodConnect, "rod connect failed")
+	require.Equal(t, tokens.FixtureAvitoHTTPBaseMock, "http://127.0.0.1:9")
+
+	rewritten := tokens.ListingSearchRewriteHTTPBase(tokens.FixtureFilterListingURL, tokens.FixtureAvitoHTTPBaseMock)
+	require.True(t, strings.HasPrefix(rewritten, tokens.FixtureAvitoHTTPBaseMock+"/"))
+	require.Equal(t, tokens.NormalizeListingSearchURL(tokens.FixtureFilterListingURL),
+		tokens.ListingSearchRewriteHTTPBase(tokens.NormalizeListingSearchURL(tokens.FixtureFilterListingURL), tokens.AvitoHTTPSBase))
+	require.Equal(t, tokens.NormalizeListingSearchURL(tokens.FixtureFilterListingURL),
+		tokens.ListingSearchRewriteHTTPBase(tokens.NormalizeListingSearchURL(tokens.FixtureFilterListingURL), ""))
+}
+
+// CONTRACT-LISTING-028: task JSON carries kind=task (symmetric with watch kind).
+func TestContract_ListingSearch_TaskJSONKind(t *testing.T) {
+	task := service.Task{
+		ID:     pgtype.UUID{Bytes: [16]byte{1}, Valid: true},
+		UserID: pgtype.UUID{Bytes: [16]byte{2}, Valid: true},
+		Query:  tokens.FixtureListingURL,
+		Status: repository.TaskStatusPENDING,
+	}
+	out := service.TaskJSON(task)
+	require.Equal(t, tokens.ListingSearchKindTask, out[tokens.JSONFieldKind])
+	require.Equal(t, tokens.FixtureListingURL, out[tokens.JSONFieldQuery])
 }

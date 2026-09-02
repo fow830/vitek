@@ -49,15 +49,12 @@ func (s *FilterWatches) Start(ctx context.Context, userID pgtype.UUID, query str
 		return repository.ListingFilterWatch{}, domain.ErrServiceNotEntitled
 	}
 
-	sub, err := qtx.GetActiveSubscriptionForUpdate(ctx, userID)
-	if err != nil {
+	if _, err := qtx.GetActiveSubscriptionForUpdate(ctx, userID); err != nil {
 		if err == pgx.ErrNoRows {
 			return repository.ListingFilterWatch{}, domain.ErrNoActiveSubscription
 		}
 		return repository.ListingFilterWatch{}, err
 	}
-	_ = sub
-
 	watch, err := qtx.UpsertFilterWatch(ctx, repository.UpsertFilterWatchParams{
 		UserID:    userID,
 		FilterKey: filterKey,

@@ -21,6 +21,7 @@ func TaskJSON(task Task) map[string]any {
 		tokens.JSONFieldUserID: UUIDString(task.UserID),
 		tokens.JSONFieldQuery:  task.Query,
 		tokens.JSONFieldStatus: string(task.Status),
+		tokens.JSONFieldKind:   tokens.ListingSearchKindTask,
 	}
 }
 

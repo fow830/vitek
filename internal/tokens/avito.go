@@ -37,8 +37,6 @@ const (
 	AvitoSERPMarkerItemTitle  = "item-title"
 	AvitoSERPMarkerItem       = "item"
 
-	AvitoAccountLoginField = JSONFieldExternalRef
-
 	ListingSearchProcessorStub  = "stub"
 	ListingSearchProcessorAvito = "avito"
 	ListingSearchProcessorRod   = "rod"
@@ -52,7 +50,8 @@ const (
 	FixtureAvitoItemTitle2 = "Filter hit 2"
 	FixtureAvitoCategoryID = "84"
 	FixtureAvitoLocationID = "636736"
-	FixtureRodProxyEndpoint = "socks5://127.0.0.1:9"
+	FixtureRodProxyEndpoint  = "socks5://127.0.0.1:9"
+	FixtureAvitoHTTPBaseMock = "http://127.0.0.1:9"
 	FixtureAvitoFilterPageHTML = `<!doctype html><html><body>` +
 		`"locationId":` + FixtureAvitoLocationID + `,"categoryId":` + FixtureAvitoCategoryID +
 		`</body></html>`
@@ -66,6 +65,8 @@ const (
 	ErrMsgListingSearchNoAccount          = "no active avito account for listing search"
 	ErrMsgListingSearchAvitoFetch         = "avito fetch failed"
 	ErrMsgListingSearchRodFilterOnly      = "rod processor supports filter urls only"
+	ErrMsgRodLaunch                       = "rod launch failed"
+	ErrMsgRodConnect                      = "rod connect failed"
 	ErrMsgInvalidListingSearchProcessor   = "invalid listing search processor"
 )
 
@@ -142,4 +143,23 @@ func ParseAvitoSERPItems(html string) ([]AvitoSERPItem, error) {
 		out = append(out, AvitoSERPItem{AvitoID: id, Title: title})
 	}
 	return out, nil
+}
+
+// ListingSearchRewriteHTTPBase rewrites an Avito page URL onto httpBase host (Rod/mock).
+func ListingSearchRewriteHTTPBase(pageURL, httpBase string) string {
+	base := strings.TrimSuffix(strings.TrimSpace(httpBase), "/")
+	if base == "" || base == AvitoHTTPSBase {
+		return pageURL
+	}
+	u, err := url.Parse(pageURL)
+	if err != nil {
+		return pageURL
+	}
+	b, err := url.Parse(base)
+	if err != nil || b.Host == "" {
+		return pageURL
+	}
+	u.Scheme = b.Scheme
+	u.Host = b.Host
+	return u.String()
 }

@@ -31,7 +31,7 @@ type RodAvitoListingProcessor struct {
 
 func NewRodAvitoListingProcessor(pool *pgxpool.Pool, fetch AvitoPageFetcher) *RodAvitoListingProcessor {
 	if fetch == nil {
-		fetch = NewRodPageFetcher("")
+		fetch = NewRodPageFetcher("", "")
 	}
 	return &RodAvitoListingProcessor{
 		proxies: NewProxies(pool),
@@ -78,22 +78,25 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 	return out, nil
 }
 
-// RodPageFetcher opens pages with go-rod Chrome (optional user-data-dir for profiles).
+// RodPageFetcher opens pages with go-rod Chrome (optional user-data-dir + HTTP base rewrite).
 type RodPageFetcher struct {
 	userDataDir string
+	httpBase    string
 	timeout     time.Duration
 	headless    bool
 }
 
-func NewRodPageFetcher(userDataDir string) *RodPageFetcher {
+func NewRodPageFetcher(userDataDir, httpBase string) *RodPageFetcher {
 	return &RodPageFetcher{
 		userDataDir: strings.TrimSpace(userDataDir),
+		httpBase:    strings.TrimSpace(httpBase),
 		timeout:     tokens.RodPageFetchTimeout,
 		headless:    tokens.RodHeadlessDefault,
 	}
 }
 
 func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, pageURL string) (string, error) {
+	pageURL = tokens.ListingSearchRewriteHTTPBase(pageURL, f.httpBase)
 	l := launcher.New().Headless(f.headless)
 	if f.userDataDir != "" {
 		l = l.UserDataDir(f.userDataDir)
@@ -107,11 +110,11 @@ func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, pageURL s
 	}
 	controlURL, err := l.Launch()
 	if err != nil {
-		return "", fmt.Errorf("rod launch: %w", err)
+		return "", fmt.Errorf("%s: %w", tokens.ErrMsgRodLaunch, err)
 	}
 	browser := rod.New().ControlURL(controlURL).Context(ctx)
 	if err := browser.Connect(); err != nil {
-		return "", fmt.Errorf("rod connect: %w", err)
+		return "", fmt.Errorf("%s: %w", tokens.ErrMsgRodConnect, err)
 	}
 	defer func() { _ = browser.Close() }()
 
