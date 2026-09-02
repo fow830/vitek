@@ -1,6 +1,8 @@
 package service
 
 import (
+	"encoding/json"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -36,18 +38,35 @@ func TaskResultJSON(it ListTaskItemsRow) map[string]any {
 
 func WatchJSON(watch repository.ListingFilterWatch) map[string]any {
 	meta := tokens.ParseListingFilterMeta(watch.Query)
-	return map[string]any{
-		tokens.JSONFieldID:         UUIDString(watch.ID),
-		tokens.JSONFieldUserID:     UUIDString(watch.UserID),
-		tokens.JSONFieldQuery:      watch.Query,
-		tokens.JSONFieldStatus:     string(watch.Status),
-		tokens.JSONFieldKind:       tokens.ListingSearchKindWatch,
-		tokens.JSONFieldRegion:     meta.Region,
-		tokens.JSONFieldCategories: meta.Categories,
-		tokens.JSONFieldLabel:      meta.Label,
-		tokens.JSONFieldParams:     meta.Params,
-		tokens.JSONFieldExtras:     meta.Extras,
+	out := map[string]any{
+		tokens.JSONFieldID:                  UUIDString(watch.ID),
+		tokens.JSONFieldUserID:              UUIDString(watch.UserID),
+		tokens.JSONFieldQuery:               watch.Query,
+		tokens.JSONFieldStatus:              string(watch.Status),
+		tokens.JSONFieldKind:                tokens.ListingSearchKindWatch,
+		tokens.JSONFieldRegion:              meta.Region,
+		tokens.JSONFieldCategories:          meta.Categories,
+		tokens.JSONFieldLabel:               meta.Label,
+		tokens.JSONFieldParams:              meta.Params,
+		tokens.JSONFieldExtras:              meta.Extras,
+		tokens.JSONFieldConsecutiveFailures: watch.ConsecutiveFailures,
+		tokens.JSONFieldMetaStatus:          string(watch.MetaStatus),
 	}
+	if watch.LastError != nil {
+		out[tokens.JSONFieldLastError] = *watch.LastError
+	} else {
+		out[tokens.JSONFieldLastError] = ""
+	}
+	if watch.LastErrorAt.Valid {
+		out[tokens.JSONFieldLastErrorAt] = watch.LastErrorAt.Time
+	}
+	if watch.LastSuccessAt.Valid {
+		out[tokens.JSONFieldLastSuccessAt] = watch.LastSuccessAt.Time
+	}
+	if len(watch.MetaJson) > 0 {
+		out[tokens.JSONFieldMeta] = json.RawMessage(watch.MetaJson)
+	}
+	return out
 }
 
 func WatchHitJSON(it repository.ListWatchHitsRow) map[string]any {

@@ -25,6 +25,7 @@ const (
 
 	FixtureMobileListingSlug = "sankt-peterburg/telefony/iphone_15_1234567890"
 	FixtureFilterListingSlug = "sankt-peterburg/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wa3OqzmwwQ2I_Dc"
+	FixtureFilterListingSlug2 = "moskva/telefony/mobilnye_telefony/samsung-ASgBAgICAkS0wa3OqzmwwQ2I_Dc"
 	FixtureFilterQueryF      = "ASgBAQECAkS0wA3OqzmwwQ2I_DcDQLLADUSSn~0R1qHtEcqxjBXMsYwV5uANNPbBXPjBXPrBXOjrDjT6_dsC_P3bAv792wIBRcaaDBV7ImZyb20iOjAsInRvIjo3MDAwMH0"
 
 	ListingSearchQueryKindItem   = "item"
@@ -55,6 +56,8 @@ const (
 	ListingWatchStatusActive   = "ACTIVE"
 	ListingWatchStatusPaused   = "PAUSED"
 	ListingWatchStatusDisabled = "DISABLED"
+
+	WatchAutoPauseAfterFails = 3
 )
 
 // TaskStatus* mirror PostgreSQL task_status enum (SoT for JSON + generated JS).
@@ -89,6 +92,10 @@ var FixtureMobileListingURL = AvitoListingURL(AvitoListingHostMobile, FixtureMob
 
 // FixtureFilterListingURL is a contracted Avito filter/stream URL (SERP).
 var FixtureFilterListingURL = AvitoListingURL(AvitoListingHostPrimary, FixtureFilterListingSlug) +
+	"?presentationType=serp&f=" + url.QueryEscape(FixtureFilterQueryF)
+
+// FixtureFilterListingURL2 is a second filter URL (quota / multi-watch tests).
+var FixtureFilterListingURL2 = AvitoListingURL(AvitoListingHostPrimary, FixtureFilterListingSlug2) +
 	"?presentationType=serp&f=" + url.QueryEscape(FixtureFilterQueryF)
 
 // FixtureMobileFilterListingURL is the same filter on m.avito.ru (normalized to www on task create).
@@ -441,4 +448,23 @@ func StubSimilarAvitoID(listingID string, rank int) string {
 // StubSimilarTitle builds a contracted stub result title.
 func StubSimilarTitle(listingID string, rank int) string {
 	return "Similar listing " + strconv.Itoa(rank) + " for " + listingID
+}
+
+// ListingTitleAllowedForFilter drops obvious foreign brand titles for apple-labelled filters.
+func ListingTitleAllowedForFilter(query, title string) bool {
+	meta := ParseListingFilterMeta(query)
+	label := strings.ToLower(strings.TrimSpace(meta.Label))
+	if label != ListingFilterAppleLabel && !strings.Contains(label, ListingFilterAppleLabel) {
+		return true
+	}
+	low := strings.ToLower(title)
+	for _, deny := range ListingFilterAppleDenySubstrings {
+		if strings.Contains(low, deny) {
+			return false
+		}
+	}
+	if title == FixtureNonAppleTitle {
+		return false
+	}
+	return true
 }

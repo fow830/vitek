@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
@@ -17,6 +18,7 @@ type ListingSearchWorker struct {
 	pool      *pgxpool.Pool
 	items     *Items
 	processor ListingProcessor
+	notify    *Notifications
 }
 
 func NewListingSearchWorker(pool *pgxpool.Pool, processor ListingProcessor) *ListingSearchWorker {
@@ -24,7 +26,16 @@ func NewListingSearchWorker(pool *pgxpool.Pool, processor ListingProcessor) *Lis
 		pool:      pool,
 		items:     NewItems(pool),
 		processor: processor,
+		notify:    NewNotifications(pool, nil),
 	}
+}
+
+func NewListingSearchWorkerWithNotify(pool *pgxpool.Pool, processor ListingProcessor, notify *Notifications) *ListingSearchWorker {
+	w := NewListingSearchWorker(pool, processor)
+	if notify != nil {
+		w.notify = notify
+	}
+	return w
 }
 
 func (w *ListingSearchWorker) ProcessOne(ctx context.Context) (bool, error) {
@@ -72,45 +83,83 @@ func (w *ListingSearchWorker) ProcessOne(ctx context.Context) (bool, error) {
 }
 
 func (w *ListingSearchWorker) ProcessWatchPolls(ctx context.Context) (int, error) {
-	tx, err := w.pool.Begin(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	qtx := repository.New(tx)
-	watches, err := qtx.ListDueFilterWatches(ctx)
+	watches, err := repository.New(w.pool).ListDueFilterWatches(ctx)
 	if err != nil {
 		return 0, err
 	}
 
 	n := 0
 	for _, watch := range watches {
-		if err := w.pollWatch(ctx, qtx, watch); err != nil {
+		if err := w.pollWatch(ctx, watch); err != nil {
 			return n, err
 		}
 		n++
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return 0, err
-	}
 	return n, nil
 }
 
-func (w *ListingSearchWorker) pollWatch(ctx context.Context, qtx *repository.Queries, watch repository.ListingFilterWatch) error {
-	similar, err := w.processor.FindSimilar(ctx, watch.Query)
+func (w *ListingSearchWorker) pollWatch(ctx context.Context, watch repository.ListingFilterWatch) error {
+	similar, findErr := w.processor.FindSimilar(ctx, watch.Query)
+
+	tx, err := w.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	if err := w.applyFilterHits(ctx, qtx, watch.UserID, watch.FilterKey, similar, func(item repository.Item) error {
-		return qtx.InsertWatchHit(ctx, repository.InsertWatchHitParams{
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := repository.New(tx)
+
+	if findErr != nil {
+		msg := findErr.Error()
+		if _, err := qtx.RecordFilterWatchPollFailure(ctx, repository.RecordFilterWatchPollFailureParams{
+			ID:          watch.ID,
+			LastError:   &msg,
+			MaxFailures: int32(tokens.WatchAutoPauseAfterFails),
+		}); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+
+	filtered := make([]SimilarListing, 0, len(similar))
+	for _, hit := range similar {
+		if tokens.ListingTitleAllowedForFilter(watch.Query, hit.Title) {
+			filtered = append(filtered, hit)
+		}
+	}
+	if len(filtered) > tokens.ListingSearchSERPMaxItems {
+		filtered = filtered[:tokens.ListingSearchSERPMaxItems]
+	}
+
+	if err := w.applyFilterHits(ctx, qtx, watch.UserID, watch.FilterKey, filtered, func(item repository.Item) error {
+		if err := qtx.InsertWatchHit(ctx, repository.InsertWatchHitParams{
 			WatchID: watch.ID,
 			ItemID:  item.ID,
-		})
+		}); err != nil {
+			return err
+		}
+		return w.notify.EnqueueWatchHit(ctx, qtx, watch.UserID, watch.ID, item.ID)
 	}); err != nil {
 		return err
 	}
-	return qtx.TouchFilterWatchPolled(ctx, watch.ID)
+	if err := qtx.TouchFilterWatchPolled(ctx, watch.ID); err != nil {
+		return err
+	}
+	meta := tokens.ParseListingFilterMeta(watch.Query)
+	if mp, ok := w.processor.(FilterMetaProvider); ok {
+		meta = mp.LastFilterMeta()
+	}
+	metaBytes, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	if err := qtx.UpdateFilterWatchMeta(ctx, repository.UpdateFilterWatchMetaParams{
+		ID:         watch.ID,
+		MetaStatus: repository.ListingWatchMetaStatusREADY,
+		MetaJson:   metaBytes,
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (w *ListingSearchWorker) applyFilterHits(

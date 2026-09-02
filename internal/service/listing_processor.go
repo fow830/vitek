@@ -17,6 +17,11 @@ type ListingProcessor interface {
 	FindSimilar(ctx context.Context, listingURL string) ([]SimilarListing, error)
 }
 
+// FilterMetaProvider exposes SERP-derived filter meta after FindSimilar (Rod).
+type FilterMetaProvider interface {
+	LastFilterMeta() tokens.ListingFilterMeta
+}
+
 // StubListingProcessor is the Day-1 stub (no Avito network).
 type StubListingProcessor struct{}
 

@@ -232,14 +232,20 @@ func TestContract_PlanLimitsMatchTokens(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
 
-	want := map[repository.PlanType]int32{
+	wantTasks := map[repository.PlanType]int32{
 		repository.PlanTypeFREE:  tokens.PlanMaxTasksFREE,
 		repository.PlanTypePRO:   tokens.PlanMaxTasksPRO,
 		repository.PlanTypeULTRA: tokens.PlanMaxTasksULTRA,
 	}
+	wantWatches := map[repository.PlanType]int32{
+		repository.PlanTypeFREE:  tokens.PlanMaxWatchesFREE,
+		repository.PlanTypePRO:   tokens.PlanMaxWatchesPRO,
+		repository.PlanTypeULTRA: tokens.PlanMaxWatchesULTRA,
+	}
 	for _, r := range rows {
-		max, ok := want[r.PlanType]
+		max, ok := wantTasks[r.PlanType]
 		require.Truef(t, ok, "unexpected plan %s", r.PlanType)
 		require.Equal(t, max, r.MaxTasks)
+		require.Equal(t, wantWatches[r.PlanType], r.MaxWatches)
 	}
 }

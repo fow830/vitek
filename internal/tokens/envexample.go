@@ -33,7 +33,7 @@ func EnvExampleValues() map[string]string {
 		EnvWorkerTick:             DefaultWorkerTick,
 		EnvListingSearchProcessor: DefaultListingSearchProcessor,
 		EnvAvitoHTTPBase:          AvitoHTTPSBase,
-		EnvRodUserDataDir:         "",
+		EnvRodUserDataDir:         DefaultRodUserDataDir,
 	}
 }
 

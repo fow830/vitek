@@ -57,8 +57,9 @@ const (
 // Worker log formats.
 const (
 	LogWorkerProxiesErr = "proxies: %v"
-	LogWorkerTickActive = "tick: active_proxies=%d"
 	LogWorkerListingSearchErr = "listing_search: %v"
 	LogWorkerWatchPollErr     = "listing_watch: %v"
 	LogWorkerWatchPollDone    = "listing_watch: polled=%d"
+	LogWorkerNotifyErr        = "notify_outbox: %v"
+	LogWorkerNotifyDone       = "notify_outbox: sent=%d"
 )

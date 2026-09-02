@@ -10,6 +10,10 @@ sql:
       - "db/migrations/000005_avito_secrets.up.sql"
       - "db/migrations/000006_listing_filter_seen.up.sql"
       - "db/migrations/000007_listing_filter_watches.up.sql"
+      - "db/migrations/000008_watch_lifecycle_health.up.sql"
+      - "db/migrations/000009_proxy_bindings.up.sql"
+      - "db/migrations/000010_watch_meta.up.sql"
+      - "db/migrations/000011_notifications.up.sql"
     gen:
       go:
         package: "repository"

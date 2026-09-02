@@ -31,7 +31,7 @@ WHERE token_hash = $1
   AND revoked_at IS NULL;
 
 -- name: ListAllProxies :many
-SELECT id, endpoint, status, created_at, label
+SELECT id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health
 FROM proxies
 ORDER BY created_at ASC;
 
@@ -41,7 +41,7 @@ SET endpoint = $2,
     status = $3,
     label = $4
 WHERE id = $1
-RETURNING id, endpoint, status, created_at, label;
+RETURNING id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health;
 
 -- name: DeleteProxy :one
 DELETE FROM proxies

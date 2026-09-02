@@ -67,6 +67,12 @@ const (
 	AppCopySearchWatchesTitle = "Активные мониторинги"
 	AppCopySearchWatchesEmpty = "Нет активных мониторингов."
 	AppCopySearchWatchOpen  = "Открыть"
+	AppCopySearchWatchPause = "Пауза"
+	AppCopySearchWatchResume = "Продолжить"
+	AppCopySearchWatchStop  = "Стоп"
+	AppCopySearchWatchReset = "Сбросить историю"
+	AppClassWatchError      = "watch-error"
+	AppClassWatchActions    = "watch-actions"
 	AppCopyServicesTitle    = "Сервисы"
 	AppCopyServicesLede     = "Каталог product_services (SoT = tokens + БД)."
 	AppCopyAvitoTitle       = "Аккаунты Авито"
@@ -432,6 +438,11 @@ func appFaceStyleBlock() string {
     .watch-title { margin: 0 0 var(--space-sm); font-size: .95rem; font-weight: 600; }
     .watch-meta { margin: 0; font-size: .82rem; color: var(--color-text-muted); line-height: 1.45; word-break: break-word; }
     .watch-meta code { font-family: var(--font-mono); font-size: .78rem; }
+    .watch-error { border-color: var(--color-danger, #b42318); }
+    .watch-actions { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .meta-pending::after { content: " …"; opacity: .7; }
+    .meta-fail { outline: 2px solid var(--color-danger, #b42318); }
+    .meta-ready { }
     .shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
     @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .side { position: sticky; top: 0; z-index: 5; } }
     .side { padding: var(--space-lg); border-right: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 70%, transparent); backdrop-filter: blur(10px); }

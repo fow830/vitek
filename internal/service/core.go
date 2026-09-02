@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -179,6 +180,81 @@ func (s *Proxies) ListActive(ctx context.Context) ([]repository.Proxy, error) {
 
 func (s *Proxies) ListAll(ctx context.Context) ([]repository.Proxy, error) {
 	return s.q.ListAllProxies(ctx)
+}
+
+func (s *Proxies) RecordHealthOK(ctx context.Context, id pgtype.UUID) error {
+	return s.q.RecordProxyHealthOK(ctx, id)
+}
+
+func (s *Proxies) RecordHealthFail(ctx context.Context, id pgtype.UUID, errMsg string) (repository.Proxy, error) {
+	errMsg = strings.TrimSpace(errMsg)
+	if errMsg == "" {
+		errMsg = tokens.ErrMsgProxyProbeFailed
+	}
+	return s.q.RecordProxyHealthFail(ctx, repository.RecordProxyHealthFailParams{
+		LastErr:   &errMsg,
+		DeadAfter: int32(tokens.ProxyDeadAfterFails),
+		ID:        id,
+	})
+}
+
+// ProxyProbeFunc probes one proxy against a target URL.
+type ProxyProbeFunc func(ctx context.Context, proxyEndpoint, targetURL string) error
+
+// ProbeActive runs health probes for all active (non-DEAD) proxies and pauses bindings on DEAD.
+func ProbeActive(ctx context.Context, proxies *Proxies, bindings *Bindings, probe ProxyProbeFunc) (ok, fail int, err error) {
+	if probe == nil {
+		probe = DefaultHTTPProxyProbe
+	}
+	list, err := proxies.ListActive(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	target := tokens.ProxyProbeURL()
+	for _, p := range list {
+		if err := probe(ctx, p.Endpoint, target); err != nil {
+			updated, recErr := proxies.RecordHealthFail(ctx, p.ID, err.Error())
+			if recErr != nil {
+				return ok, fail, recErr
+			}
+			if updated.Health == repository.ProxyHealthStatusDEAD && bindings != nil {
+				if err := bindings.PauseForProxy(ctx, p.ID); err != nil {
+					return ok, fail, err
+				}
+			}
+			fail++
+			continue
+		}
+		if err := proxies.RecordHealthOK(ctx, p.ID); err != nil {
+			return ok, fail, err
+		}
+		ok++
+	}
+	return ok, fail, nil
+}
+
+// AssertProxyPoolReady enforces fetchable proxy pool rules for production boots.
+func AssertProxyPoolReady(ctx context.Context, proxies *Proxies, appEnv string) error {
+	if appEnv != tokens.AppEnvProduction {
+		return nil
+	}
+	list, err := proxies.ListActive(ctx)
+	if err != nil {
+		return err
+	}
+	if len(list) < tokens.ProxyPoolMinActive {
+		return fmt.Errorf("%s", tokens.ErrMsgProxyPoolTooSmall)
+	}
+	nonBridge := 0
+	for _, p := range list {
+		if !tokens.IsDockerBridgeProxyEndpoint(p.Endpoint) {
+			nonBridge++
+		}
+	}
+	if nonBridge == 0 {
+		return fmt.Errorf("%s", tokens.ErrMsgProxyPoolDockerBridgeOnly)
+	}
+	return nil
 }
 
 func (s *Proxies) Update(ctx context.Context, id pgtype.UUID, endpoint string, status repository.ProxyStatus, label string) (repository.Proxy, error) {

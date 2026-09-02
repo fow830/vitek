@@ -2,7 +2,8 @@ package tokens
 
 // Infrastructure image and volume tokens (docker compose / CI).
 const (
-	ImageRuntime = "gcr.io/distroless/static-debian12"
+	ImageRuntime       = "gcr.io/distroless/static-debian12"
+	ImageWorkerRuntime = "chromedp/headless-shell:latest"
 
 	VolumePostgres = "vitek_pg"
 

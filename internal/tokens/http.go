@@ -16,8 +16,9 @@ const (
 	PathV1Tasks                = "/v1/tasks"
 	PathV1TaskResultsSuffix    = "/results"
 	PathV1MeTasks              = "/v1/me/tasks"
-	PathV1MeWatches             = "/v1/me/watches"
-	PathV1WatchResultsSuffix    = "/results"
+	PathV1MeWatches              = "/v1/me/watches"
+	PathV1WatchResultsSuffix     = "/results"
+	PathV1WatchResetBaselineSuffix = "/reset-baseline"
 	PathV1ProxiesActive        = "/v1/proxies/active"
 	PathV1AuthMagicLink        = "/v1/auth/magic-link"
 	PathV1AuthMagicLinkConsume = "/v1/auth/magic-link/consume"
@@ -25,6 +26,8 @@ const (
 	PathV1AuthLogout           = "/v1/auth/logout"
 	PathV1AdminProxies         = "/v1/admin/proxies"
 	PathV1AdminAvitoAccounts   = "/v1/admin/avito-accounts"
+	PathV1AdminBindings        = "/v1/admin/bindings"
+	PathV1MeNotifications      = "/v1/me/notifications"
 	PathRoot                   = "/"
 	PathAppSSE                 = "/sse"
 	PathTokensCSS              = "/tokens.css"
@@ -80,7 +83,11 @@ const (
 	JSONFieldRegion      = "region"
 	JSONFieldCategories  = "categories"
 	JSONFieldParams      = "params"
-	JSONFieldExtras      = "extras"
+	JSONFieldExtras              = "extras"
+	JSONFieldLastError           = "last_error"
+	JSONFieldLastErrorAt         = "last_error_at"
+	JSONFieldConsecutiveFailures = "consecutive_failures"
+	JSONFieldLastSuccessAt       = "last_success_at"
 
 	HeaderContentType = "Content-Type"
 	HeaderSetCookie   = "Set-Cookie"
@@ -150,7 +157,10 @@ const (
 	ErrMsgTaskNotFound         = "task not found"
 	ErrMsgWatchNotFound        = "watch not found"
 	ErrMsgCreateWatchFailed    = "create watch failed"
+	ErrMsgUpdateWatchFailed    = "update watch failed"
 	ErrMsgListWatchesFailed    = "list watches failed"
+	ErrMsgWatchLimit           = "subscription watch limit exceeded"
+	ErrMsgInvalidWatchStatus   = "invalid watch status"
 	ErrMsgListTasksFailed      = "list tasks failed"
 	ErrMsgGetTaskFailed        = "get task failed"
 	ErrMsgInvalidPassword      = "invalid password"
@@ -166,9 +176,15 @@ func HTTPPathTaskResults() string {
 func HTTPPathMeWatchResults() string {
 	return HTTPPathID(PathV1MeWatches) + PathV1WatchResultsSuffix
 }
+
+// HTTPPathMeWatchResetBaseline returns POST /v1/me/watches/{id}/reset-baseline pattern.
+func HTTPPathMeWatchResetBaseline() string {
+	return HTTPPathID(PathV1MeWatches) + PathV1WatchResetBaselineSuffix
+}
 func HTTPGet(path string) string   { return "GET " + path }
 func HTTPPost(path string) string  { return "POST " + path }
 func HTTPPatch(path string) string { return "PATCH " + path }
+func HTTPPut(path string) string   { return "PUT " + path }
 func HTTPDelete(path string) string { return "DELETE " + path }
 
 // HTTPPathID appends the ServeMux {id} suffix.

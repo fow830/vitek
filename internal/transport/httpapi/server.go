@@ -25,7 +25,10 @@ type Server struct {
 	filterWatches     *service.FilterWatches
 	proxies           *service.Proxies
 	avito             *service.AvitoAccounts
+	bindings          *service.Bindings
+	notifications     *service.Notifications
 	auth              *service.Auth
+	pageFetch         service.AvitoPageFetcher
 	exposeMagicTokens bool
 	secureCookies     bool
 }
@@ -46,6 +49,10 @@ func WithSecureCookies(v bool) Option {
 	return func(s *Server) { s.secureCookies = v }
 }
 
+func WithPageFetcher(f service.AvitoPageFetcher) Option {
+	return func(s *Server) { s.pageFetch = f }
+}
+
 func NewServer(pool *pgxpool.Pool, opts ...Option) *Server {
 	s := &Server{
 		pool:              pool,
@@ -54,7 +61,10 @@ func NewServer(pool *pgxpool.Pool, opts ...Option) *Server {
 		filterWatches:     service.NewFilterWatches(pool),
 		proxies:           service.NewProxies(pool),
 		avito:             service.NewAvitoAccounts(pool),
+		bindings:          service.NewBindings(pool),
+		notifications:     service.NewNotifications(pool, nil),
 		auth:              service.NewAuth(pool, service.NewMemoryMagicLinkMailer()),
+		pageFetch:         service.NewRodPageFetcher("", tokens.AvitoHTTPSBase),
 		exposeMagicTokens: false,
 		secureCookies:     false,
 	}
@@ -75,6 +85,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1MeTasks), s.requireUser(s.handleCreateMyTask))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1MeWatches), s.requireUser(s.handleListMyWatches))
 	mux.HandleFunc(tokens.HTTPGet(tokens.HTTPPathMeWatchResults()), s.requireUser(s.handleGetMyWatchResults))
+	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1MeWatches)), s.requireUser(s.handlePatchMyWatch))
+	mux.HandleFunc(tokens.HTTPDelete(tokens.HTTPPathID(tokens.PathV1MeWatches)), s.requireUser(s.handleDeleteMyWatch))
+	mux.HandleFunc(tokens.HTTPPost(tokens.HTTPPathMeWatchResetBaseline()), s.requireUser(s.handleResetMyWatchBaseline))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1ProxiesActive), s.handleListActiveProxies)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLink), s.handleMagicLinkRequest)
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AuthMagicLinkConsume), s.handleMagicLinkConsume)
@@ -88,6 +101,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AdminAvitoAccounts), s.requireAdmin(s.handleAdminCreateAvito))
 	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts)), s.requireAdmin(s.handleAdminPatchAvito))
 	mux.HandleFunc(tokens.HTTPDelete(tokens.HTTPPathID(tokens.PathV1AdminAvitoAccounts)), s.requireAdmin(s.handleAdminDeleteAvito))
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1AdminBindings), s.requireAdmin(s.handleAdminListBindings))
+	mux.HandleFunc(tokens.HTTPPost(tokens.PathV1AdminBindings), s.requireAdmin(s.handleAdminCreateBinding))
+	mux.HandleFunc(tokens.HTTPPatch(tokens.HTTPPathID(tokens.PathV1AdminBindings)), s.requireAdmin(s.handleAdminPatchBinding))
+	mux.HandleFunc(tokens.HTTPDelete(tokens.HTTPPathID(tokens.PathV1AdminBindings)), s.requireAdmin(s.handleAdminDeleteBinding))
+	mux.HandleFunc(tokens.HTTPPost(tokens.HTTPPathAdminBindingSessionLogin()), s.requireAdmin(s.handleAdminBindingLogin))
+	mux.HandleFunc(tokens.HTTPGet(tokens.PathV1MeNotifications), s.requireUser(s.handleGetMyNotifications))
+	mux.HandleFunc(tokens.HTTPPut(tokens.PathV1MeNotifications), s.requireUser(s.handlePutMyNotifications))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathRoot), s.handleRoot)
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathAppSSE), s.requireAdmin(s.handleAppSSE))
 	mux.HandleFunc(tokens.HTTPGet(tokens.PathTokensCSS), s.handleDesignCSS)
@@ -245,12 +265,7 @@ func (s *Server) handleAdminListProxies(w http.ResponseWriter, r *http.Request) 
 	}
 	out := make([]map[string]any, 0, len(list))
 	for _, p := range list {
-		out = append(out, map[string]any{
-			tokens.JSONFieldID:       service.UUIDString(p.ID),
-			tokens.JSONFieldEndpoint: p.Endpoint,
-			tokens.JSONFieldStatus:   string(p.Status),
-			tokens.JSONFieldLabel:    p.Label,
-		})
+		out = append(out, service.ProxyJSON(p))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldProxies: out})
 }
@@ -274,12 +289,7 @@ func (s *Server) handleAdminCreateProxy(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminProxiesFailed})
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{
-		tokens.JSONFieldID:       service.UUIDString(p.ID),
-		tokens.JSONFieldEndpoint: p.Endpoint,
-		tokens.JSONFieldStatus:   string(p.Status),
-		tokens.JSONFieldLabel:    p.Label,
-	})
+	writeJSON(w, http.StatusCreated, service.ProxyJSON(p))
 }
 
 func (s *Server) handleAdminPatchProxy(w http.ResponseWriter, r *http.Request) {
@@ -306,12 +316,7 @@ func (s *Server) handleAdminPatchProxy(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminProxiesFailed})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		tokens.JSONFieldID:       service.UUIDString(p.ID),
-		tokens.JSONFieldEndpoint: p.Endpoint,
-		tokens.JSONFieldStatus:   string(p.Status),
-		tokens.JSONFieldLabel:    p.Label,
-	})
+	writeJSON(w, http.StatusOK, service.ProxyJSON(p))
 }
 
 func (s *Server) handleAdminDeleteProxy(w http.ResponseWriter, r *http.Request) {
@@ -632,6 +637,10 @@ func (s *Server) handleCreateMyTask(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusForbidden, map[string]string{tokens.JSONFieldError: domain.ErrServiceNotEntitled.Error()})
 				return
 			}
+			if errors.Is(err, domain.ErrWatchLimitExceeded) {
+				writeJSON(w, http.StatusConflict, map[string]string{tokens.JSONFieldError: domain.ErrWatchLimitExceeded.Error()})
+				return
+			}
 			writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgCreateWatchFailed})
 			return
 		}
@@ -787,6 +796,93 @@ func (s *Server) handleListMyWatches(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldWatches: out})
 }
 
+func (s *Server) handlePatchMyWatch(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	watchID, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	watch, err := s.filterWatches.UpdateStatus(r.Context(), user.UserID, watchID, req.Status)
+	if err != nil {
+		if errors.Is(err, domain.ErrWatchNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{tokens.JSONFieldError: tokens.ErrMsgWatchNotFound})
+			return
+		}
+		if errors.Is(err, domain.ErrInvalidWatchStatus) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidWatchStatus})
+			return
+		}
+		if errors.Is(err, domain.ErrWatchLimitExceeded) {
+			writeJSON(w, http.StatusConflict, map[string]string{tokens.JSONFieldError: domain.ErrWatchLimitExceeded.Error()})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUpdateWatchFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, service.WatchJSON(watch))
+}
+
+func (s *Server) handleDeleteMyWatch(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	watchID, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	if err := s.filterWatches.Disable(r.Context(), user.UserID, watchID); err != nil {
+		if errors.Is(err, domain.ErrWatchNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{tokens.JSONFieldError: tokens.ErrMsgWatchNotFound})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUpdateWatchFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldStatus: tokens.ListingWatchStatusDisabled})
+}
+
+func (s *Server) handleResetMyWatchBaseline(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	watchID, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	if err := s.filterWatches.ResetBaseline(r.Context(), user.UserID, watchID); err != nil {
+		if errors.Is(err, domain.ErrWatchNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{tokens.JSONFieldError: tokens.ErrMsgWatchNotFound})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUpdateWatchFailed})
+		return
+	}
+	watch, err := s.filterWatches.GetForUser(r.Context(), user.UserID, watchID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUpdateWatchFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, service.WatchJSON(watch))
+}
+
 func (s *Server) handleListActiveProxies(w http.ResponseWriter, r *http.Request) {
 	list, err := s.proxies.ListActive(r.Context())
 	if err != nil {
@@ -795,13 +891,126 @@ func (s *Server) handleListActiveProxies(w http.ResponseWriter, r *http.Request)
 	}
 	out := make([]map[string]any, 0, len(list))
 	for _, p := range list {
-		out = append(out, map[string]any{
-			tokens.JSONFieldID:       service.UUIDString(p.ID),
-			tokens.JSONFieldEndpoint: p.Endpoint,
-			tokens.JSONFieldStatus:   string(p.Status),
-		})
+		out = append(out, service.ProxyJSON(p))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldProxies: out})
+}
+
+func (s *Server) handleAdminListBindings(w http.ResponseWriter, r *http.Request) {
+	list, err := s.bindings.List(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminBindingsFailed})
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for _, b := range list {
+		out = append(out, service.BindingJSON(b))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{tokens.JSONFieldBindings: out})
+}
+
+func (s *Server) handleAdminCreateBinding(w http.ResponseWriter, r *http.Request) {
+	var raw map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	accountID, err := parseUUID(anyString(raw[tokens.JSONFieldAccountID]))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	proxyID, err := parseUUID(anyString(raw[tokens.JSONFieldProxyID]))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	b, err := s.bindings.Create(r.Context(), accountID, proxyID, anyString(raw[tokens.JSONFieldUserDataDir]))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminBindingsFailed})
+		return
+	}
+	writeJSON(w, http.StatusCreated, service.BindingJSON(b))
+}
+
+func (s *Server) handleAdminPatchBinding(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	var raw map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	b, err := s.bindings.UpdateStatus(r.Context(), id, anyString(raw[tokens.JSONFieldStatus]))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidBindingStatus})
+		return
+	}
+	writeJSON(w, http.StatusOK, service.BindingJSON(b))
+}
+
+func (s *Server) handleAdminDeleteBinding(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	if err := s.bindings.Disable(r.Context(), id); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgAdminBindingsFailed})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleAdminBindingLogin(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r.PathValue(tokens.PathParamID))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
+		return
+	}
+	b, err := s.bindings.WarmSession(r.Context(), id, s.pageFetch)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgSessionWarmFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, service.BindingJSON(b))
+}
+
+func (s *Server) handleGetMyNotifications(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	row, err := s.notifications.GetSettings(r.Context(), user.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgNotificationsFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, service.NotificationSettingsJSON(row))
+}
+
+func (s *Server) handlePutMyNotifications(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.sessionUser(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{tokens.JSONFieldError: tokens.ErrMsgUnauthorized})
+		return
+	}
+	var raw map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidJSON})
+		return
+	}
+	enabled, _ := raw[tokens.JSONFieldEnabled].(bool)
+	row, err := s.notifications.UpsertSettings(r.Context(), user.UserID, anyString(raw[tokens.JSONFieldTelegramChatID]), enabled)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgNotificationsFailed})
+		return
+	}
+	writeJSON(w, http.StatusOK, service.NotificationSettingsJSON(row))
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -816,4 +1025,9 @@ func parseUUID(raw string) (pgtype.UUID, error) {
 		return pgtype.UUID{}, err
 	}
 	return pgtype.UUID{Bytes: id, Valid: true}, nil
+}
+
+func anyString(v any) string {
+	s, _ := v.(string)
+	return strings.TrimSpace(s)
 }

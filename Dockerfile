@@ -15,7 +15,6 @@ USER nonroot:nonroot
 EXPOSE 8080
 ENTRYPOINT ["/api"]
 
-FROM gcr.io/distroless/static-debian12 AS worker
+FROM chromedp/headless-shell:latest AS worker
 COPY --from=build /out/worker /worker
-USER nonroot:nonroot
 ENTRYPOINT ["/worker"]

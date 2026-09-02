@@ -33,11 +33,16 @@ func main() {
 	defer pool.Close()
 
 	proxies := service.NewProxies(pool)
+	bindings := service.NewBindings(pool)
+	if err := service.AssertProxyPoolReady(ctx, proxies, cfg.AppEnv); err != nil {
+		log.Fatalf("proxy pool: %v", err)
+	}
 	processor, err := service.NewListingProcessor(pool, cfg.ListingSearchProcessor, cfg.AvitoHTTPBase, cfg.RodUserDataDir)
 	if err != nil {
 		log.Fatalf("listing processor: %v", err)
 	}
-	listing := service.NewListingSearchWorker(pool, processor)
+	notify := service.NewNotifications(pool, nil)
+	listing := service.NewListingSearchWorkerWithNotify(pool, processor, notify)
 
 	log.Printf("%s %s (%s) started env=%s tick=%s", tokens.ProductName, tokens.ProductNameLocal, tokens.BinaryWorker, cfg.AppEnv, cfg.WorkerTick)
 
@@ -50,17 +55,16 @@ func main() {
 			log.Printf("%s %s shutting down", tokens.ProductName, tokens.BinaryWorker)
 			return
 		case <-ticker.C:
-			runTick(ctx, proxies, listing)
+			runTick(ctx, proxies, bindings, listing, notify)
 		}
 	}
 }
 
-func runTick(ctx context.Context, proxies *service.Proxies, listing *service.ListingSearchWorker) {
-	list, err := proxies.ListActive(ctx)
-	if err != nil {
+func runTick(ctx context.Context, proxies *service.Proxies, bindings *service.Bindings, listing *service.ListingSearchWorker, notify *service.Notifications) {
+	if ok, fail, err := service.ProbeActive(ctx, proxies, bindings, nil); err != nil {
 		log.Printf(tokens.LogWorkerProxiesErr, err)
 	} else {
-		log.Printf(tokens.LogWorkerTickActive, len(list))
+		log.Printf(tokens.LogWorkerProxyProbe, ok, fail)
 	}
 	if _, err := listing.ProcessOne(ctx); err != nil {
 		log.Printf(tokens.LogWorkerListingSearchErr, err)
@@ -69,5 +73,10 @@ func runTick(ctx context.Context, proxies *service.Proxies, listing *service.Lis
 		log.Printf(tokens.LogWorkerWatchPollErr, err)
 	} else if n > 0 {
 		log.Printf(tokens.LogWorkerWatchPollDone, n)
+	}
+	if n, err := notify.ProcessOutbox(ctx, tokens.ListingSearchWatchDueLimit); err != nil {
+		log.Printf(tokens.LogWorkerNotifyErr, err)
+	} else if n > 0 {
+		log.Printf(tokens.LogWorkerNotifyDone, n)
 	}
 }

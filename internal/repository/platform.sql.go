@@ -168,7 +168,7 @@ func (q *Queries) HasUserService(ctx context.Context, arg HasUserServiceParams) 
 }
 
 const listPlanLimits = `-- name: ListPlanLimits :many
-SELECT plan_type, max_tasks
+SELECT plan_type, max_tasks, max_watches
 FROM plan_limits
 ORDER BY plan_type ASC
 `
@@ -182,7 +182,7 @@ func (q *Queries) ListPlanLimits(ctx context.Context) ([]PlanLimit, error) {
 	items := []PlanLimit{}
 	for rows.Next() {
 		var i PlanLimit
-		if err := rows.Scan(&i.PlanType, &i.MaxTasks); err != nil {
+		if err := rows.Scan(&i.PlanType, &i.MaxTasks, &i.MaxWatches); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

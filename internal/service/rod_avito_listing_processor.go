@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -18,15 +19,17 @@ import (
 
 // AvitoPageFetcher loads an Avito page HTML (browser session).
 type AvitoPageFetcher interface {
-	FetchHTML(ctx context.Context, proxyEndpoint, pageURL string) (string, error)
+	FetchHTML(ctx context.Context, proxyEndpoint, userDataDir, pageURL string) (string, error)
 }
 
 // RodAvitoListingProcessor finds filter SERP listings via Chrome (Rod).
 // Item URLs are not supported (ErrListingSearchRodFilterOnly).
 type RodAvitoListingProcessor struct {
-	proxies *Proxies
-	avito   *AvitoAccounts
-	fetch   AvitoPageFetcher
+	bindings *Bindings
+	fetch    AvitoPageFetcher
+
+	mu       sync.Mutex
+	lastMeta tokens.ListingFilterMeta
 }
 
 func NewRodAvitoListingProcessor(pool *pgxpool.Pool, fetch AvitoPageFetcher) *RodAvitoListingProcessor {
@@ -34,10 +37,16 @@ func NewRodAvitoListingProcessor(pool *pgxpool.Pool, fetch AvitoPageFetcher) *Ro
 		fetch = NewRodPageFetcher("", "")
 	}
 	return &RodAvitoListingProcessor{
-		proxies: NewProxies(pool),
-		avito:   NewAvitoAccounts(pool),
-		fetch:   fetch,
+		bindings: NewBindings(pool),
+		fetch:    fetch,
 	}
+}
+
+// LastFilterMeta returns meta enriched from the last successful SERP HTML fetch.
+func (p *RodAvitoListingProcessor) LastFilterMeta() tokens.ListingFilterMeta {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.lastMeta
 }
 
 func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL string) ([]SimilarListing, error) {
@@ -47,33 +56,66 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 	if !tokens.IsListingFilterURL(listingURL) {
 		return nil, domain.ErrListingSearchRodFilterOnly
 	}
-	proxies, err := p.proxies.ListActive(ctx)
+	binding, err := p.bindings.PickReady(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(proxies) == 0 {
-		return nil, domain.ErrListingSearchNoProxy
+
+	baseURL := tokens.NormalizeListingSearchURL(listingURL)
+	meta := tokens.ParseListingFilterMeta(listingURL)
+	seen := map[string]struct{}{}
+	out := make([]SimilarListing, 0, tokens.ListingSearchSERPMaxItems)
+	var lastHTML string
+
+	for page := 1; page <= tokens.ListingSearchSERPMaxPages; page++ {
+		if page > 1 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(tokens.RodInterRequestDelay):
+			}
+		}
+		pageURL := tokens.ListingSearchSERPPageURL(baseURL, page)
+		html, err := p.fetch.FetchHTML(ctx, binding.ProxyEndpoint, binding.UserDataDir, pageURL)
+		if err != nil {
+			return nil, domain.ErrListingSearchAvitoFetch
+		}
+		if tokens.IsAvitoChallengeHTML(html) {
+			_, _ = p.bindings.MarkSessionChallenge(ctx, binding.ID, tokens.ErrMsgSessionChallenge)
+			return nil, domain.ErrListingSearchAvitoFetch
+		}
+		items, err := tokens.ParseAvitoSERPItems(html)
+		if err != nil {
+			return nil, domain.ErrListingSearchAvitoFetch
+		}
+		if len(items) == 0 {
+			break
+		}
+		lastHTML = html
+		for _, it := range items {
+			if _, ok := seen[it.AvitoID]; ok {
+				continue
+			}
+			seen[it.AvitoID] = struct{}{}
+			out = append(out, SimilarListing{AvitoID: it.AvitoID, Title: it.Title})
+			if len(out) >= tokens.ListingSearchSERPMaxItems {
+				break
+			}
+		}
+		if len(out) >= tokens.ListingSearchSERPMaxItems {
+			break
+		}
 	}
-	// Account presence is a contracted gate (credentials used when session login is contracted).
-	if _, err := p.avito.PickActive(ctx); err != nil {
-		return nil, domain.ErrListingSearchNoAccount
+
+	if lastHTML != "" {
+		meta = tokens.MergeFilterMetaFromSERPHTML(meta, lastHTML)
 	}
-	proxy := proxies[0].Endpoint
-	pageURL := tokens.NormalizeListingSearchURL(listingURL)
-	html, err := p.fetch.FetchHTML(ctx, proxy, pageURL)
-	if err != nil {
+	p.mu.Lock()
+	p.lastMeta = meta
+	p.mu.Unlock()
+
+	if len(out) == 0 {
 		return nil, domain.ErrListingSearchAvitoFetch
-	}
-	items, err := tokens.ParseAvitoSERPItems(html)
-	if err != nil {
-		return nil, domain.ErrListingSearchAvitoFetch
-	}
-	if len(items) == 0 {
-		return nil, domain.ErrListingSearchAvitoFetch
-	}
-	out := make([]SimilarListing, 0, len(items))
-	for _, it := range items {
-		out = append(out, SimilarListing{AvitoID: it.AvitoID, Title: it.Title})
 	}
 	return out, nil
 }
@@ -95,11 +137,15 @@ func NewRodPageFetcher(userDataDir, httpBase string) *RodPageFetcher {
 	}
 }
 
-func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, pageURL string) (string, error) {
+func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, userDataDir, pageURL string) (string, error) {
 	pageURL = tokens.ListingSearchRewriteHTTPBase(pageURL, f.httpBase)
+	dir := strings.TrimSpace(userDataDir)
+	if dir == "" {
+		dir = f.userDataDir
+	}
 	l := launcher.New().Headless(f.headless)
-	if f.userDataDir != "" {
-		l = l.UserDataDir(f.userDataDir)
+	if dir != "" {
+		l = l.UserDataDir(dir)
 	}
 	if strings.TrimSpace(proxyEndpoint) != "" {
 		proxyURL, err := url.Parse(proxyEndpoint)

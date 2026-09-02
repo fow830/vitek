@@ -1,5 +1,7 @@
 package tokens
 
+import "strconv"
+
 func appFaceAdminScriptBlock() string {
 	return `  <script>
     const pathAdminProxies = '` + PathV1AdminProxies + `';
@@ -26,7 +28,7 @@ func appFaceAdminScriptBlock() string {
         '<tr data-id="' + esc(p.` + JSONFieldID + `) + '">' +
         '<td>' + esc(p.` + JSONFieldLabel + `) + '</td>' +
         '<td class="mono">' + esc(p.` + JSONFieldEndpoint + `) + '</td>' +
-        '<td><span class="status">' + esc(p.` + JSONFieldStatus + `) + '</span></td>' +
+        '<td><span class="status">' + esc(p.` + JSONFieldStatus + `) + ' / ' + esc(p.` + JSONFieldHealth + ` || '') + '</span></td>' +
         '<td class="row-actions">' +
         '<button type="button" class="btn btn-sm btn-ghost" onclick="editProxy(this)">` + AppCopyAdminEdit + `</button>' +
         '<button type="button" class="btn btn-sm btn-ghost" onclick="deleteProxy(this)">` + AppCopyAdminDelete + `</button>' +
@@ -174,6 +176,7 @@ func appFaceAdminScriptBlock() string {
 
     loadProxies();
     loadAvito();
+    setInterval(() => { loadProxies(); loadAvito(); }, ` + strconv.Itoa(AdminLivePollIntervalMs) + `);
     const adminNav = document.getElementById('` + AppDOMNav + `');
     if (adminNav) adminNav.addEventListener('click', (e) => {
       const a = e.target.closest('a[data-view]');

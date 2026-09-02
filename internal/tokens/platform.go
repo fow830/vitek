@@ -54,11 +54,15 @@ func ReservedServiceCodes() []string {
 	return out
 }
 
-// Plan task limits — must match plan_limits seed (FREE/PRO/ULTRA).
+// Plan task / watch limits — must match plan_limits seed (FREE/PRO/ULTRA).
 const (
 	PlanMaxTasksFREE  int32 = 1
 	PlanMaxTasksPRO   int32 = 20
 	PlanMaxTasksULTRA int32 = 100
+
+	PlanMaxWatchesFREE  int32 = 1
+	PlanMaxWatchesPRO   int32 = 20
+	PlanMaxWatchesULTRA int32 = 100
 )
 
 // SchemaPlatformTables: DB tables that form the platform surface (HTTP may lag).
@@ -77,7 +81,6 @@ const TableUsersPasswordColumn = "password"
 
 // ForbiddenPackagePathFragments: Day-0 negative surface (must not appear yet).
 var ForbiddenPackagePathFragments = []string{
-	"telegram",
 	"tgbot",
 	"aiogram",
 	"browser_session",
@@ -89,10 +92,14 @@ var ForbiddenArtifactPaths = []string{
 	"web/admin/face.html",
 }
 
-// ForbiddenGoModPathFragments: go.mod must not pull these until contracted.
+// ForbiddenGoModPathFragments: go.mod must not pull these (narrow; wave D allowlist is separate).
 var ForbiddenGoModPathFragments = []string{
-	"github.com/go-telegram",
 	"gopkg.in/telebot",
-	"github.com/redis/go-redis",
-	"github.com/go-redis/redis",
+	"github.com/go-redis/redis ", // legacy v6 path; go-redis/go-redis is allowed
+}
+
+// AllowedNotifyGoModFragments may appear after CONTRACT-DAY0-002b.
+var AllowedNotifyGoModFragments = []string{
+	GoModRedisClient,
+	GoModTelegramBotAPI,
 }

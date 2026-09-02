@@ -38,11 +38,14 @@ type fakeRodPageFetcher struct {
 	err  error
 }
 
-func (f *fakeRodPageFetcher) FetchHTML(_ context.Context, _, _ string) (string, error) {
+func (f *fakeRodPageFetcher) FetchHTML(_ context.Context, _, _, _ string) (string, error) {
 	if f.err != nil {
 		return "", f.err
 	}
-	return f.html, nil
+	if f.html != "" {
+		return f.html, nil
+	}
+	return tokens.FixtureWarmSessionHTML, nil
 }
 
 // CONTRACT-LISTING-021: Rod processor completes filter task from browser HTML (SERP items).
@@ -59,10 +62,15 @@ func TestContract_ListingSearch_RodProcessorFilterFromHTML(t *testing.T) {
 	require.NoError(t, err)
 
 	proxies := service.NewProxies(pool)
-	_, err = proxies.Create(ctx, tokens.FixtureRodProxyEndpoint, repository.ProxyStatusACTIVE, "rod-proxy")
+	proxy, err := proxies.Create(ctx, tokens.FixtureRodProxyEndpoint, repository.ProxyStatusACTIVE, "rod-proxy")
 	require.NoError(t, err)
 
-	_, err = service.NewAvitoAccounts(pool).CreateWithSecret(ctx, "acc-rod", repository.AvitoAccountStatusACTIVE, "login@test", "secret")
+	acc, err := service.NewAvitoAccounts(pool).CreateWithSecret(ctx, "acc-rod", repository.AvitoAccountStatusACTIVE, "login@test", "secret")
+	require.NoError(t, err)
+	bindings := service.NewBindings(pool)
+	b, err := bindings.Create(ctx, acc.ID, proxy.ID, tokens.FixtureBindingUserDataDir)
+	require.NoError(t, err)
+	_, err = bindings.WarmSession(ctx, b.ID, &fakeRodPageFetcher{})
 	require.NoError(t, err)
 
 	task, err := service.NewTasks(pool).CreateTask(ctx, user.ID, tokens.FixtureFilterListingURL)
@@ -96,8 +104,8 @@ func TestContract_ListingSearch_ParseAvitoSERPHTML(t *testing.T) {
 	require.Equal(t, tokens.FixtureAvitoItemID2, items[1].AvitoID)
 }
 
-// CONTRACT-LISTING-023: Rod processor fails task when no active proxy.
-func TestContract_ListingSearch_RodProcessorNoProxyFailsTask(t *testing.T) {
+// CONTRACT-LISTING-023: Rod processor fails task when no READY binding (no proxy/account binding).
+func TestContract_ListingSearch_RodProcessorNoBindingFailsTask(t *testing.T) {
 	ctx := context.Background()
 	pool, q := queries(t)
 
@@ -105,9 +113,7 @@ func TestContract_ListingSearch_RodProcessorNoProxyFailsTask(t *testing.T) {
 	worker := service.NewListingSearchWorker(pool, proc)
 
 	users := service.NewUsers(pool)
-	user, err := users.CreateUser(ctx, tokens.ProductEmail("listing-rod-noproxy"), repository.PlanTypeFREE)
-	require.NoError(t, err)
-	_, err = service.NewAvitoAccounts(pool).CreateWithSecret(ctx, "acc-rod-2", repository.AvitoAccountStatusACTIVE, "login@test", "secret")
+	user, err := users.CreateUser(ctx, tokens.ProductEmail("listing-rod-nobind"), repository.PlanTypeFREE)
 	require.NoError(t, err)
 
 	task, err := service.NewTasks(pool).CreateTask(ctx, user.ID, tokens.FixtureFilterListingURL)
@@ -122,30 +128,17 @@ func TestContract_ListingSearch_RodProcessorNoProxyFailsTask(t *testing.T) {
 	require.Equal(t, repository.TaskStatusFAILED, got.Status)
 }
 
-// CONTRACT-LISTING-024: Rod processor fails task when no active account.
-func TestContract_ListingSearch_RodProcessorNoAccountFailsTask(t *testing.T) {
+// CONTRACT-LISTING-024: Rod FindSimilar returns ErrListingSearchNoBinding without READY binding.
+func TestContract_ListingSearch_RodProcessorNoBindingError(t *testing.T) {
 	ctx := context.Background()
-	pool, q := queries(t)
+	pool, _ := queries(t)
 
 	proc := service.NewRodAvitoListingProcessor(pool, &fakeRodPageFetcher{html: tokens.FixtureAvitoFilterSERPHTML})
-	worker := service.NewListingSearchWorker(pool, proc)
-
-	users := service.NewUsers(pool)
-	user, err := users.CreateUser(ctx, tokens.ProductEmail("listing-rod-noacc"), repository.PlanTypeFREE)
-	require.NoError(t, err)
-	_, err = service.NewProxies(pool).Create(ctx, tokens.FixtureRodProxyEndpoint, repository.ProxyStatusACTIVE, "rod-proxy")
+	_, err := service.NewProxies(pool).Create(ctx, tokens.FixtureRodProxyEndpoint, repository.ProxyStatusACTIVE, "rod-proxy")
 	require.NoError(t, err)
 
-	task, err := service.NewTasks(pool).CreateTask(ctx, user.ID, tokens.FixtureFilterListingURL)
-	require.NoError(t, err)
-
-	ok, err := worker.ProcessOne(ctx)
-	require.NoError(t, err)
-	require.True(t, ok)
-
-	got, err := q.GetTask(ctx, task.ID)
-	require.NoError(t, err)
-	require.Equal(t, repository.TaskStatusFAILED, got.Status)
+	_, err = proc.FindSimilar(ctx, tokens.FixtureFilterListingURL)
+	require.ErrorIs(t, err, domain.ErrListingSearchNoBinding)
 }
 
 // CONTRACT-LISTING-025: Rod processor is filter-only (item URL → domain error).

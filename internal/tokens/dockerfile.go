@@ -20,8 +20,7 @@ func RenderDockerfile() string {
 		"EXPOSE " + DefaultHTTPPort + "\n" +
 		"ENTRYPOINT [\"/" + BinaryAPI + "\"]\n" +
 		"\n" +
-		"FROM " + ImageRuntime + " AS worker\n" +
+		"FROM " + ImageWorkerRuntime + " AS worker\n" +
 		"COPY --from=build /out/" + BinaryWorker + " /" + BinaryWorker + "\n" +
-		"USER nonroot:nonroot\n" +
 		"ENTRYPOINT [\"/" + BinaryWorker + "\"]\n"
 }

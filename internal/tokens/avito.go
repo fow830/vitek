@@ -25,7 +25,7 @@ const (
 	AvitoQueryPresentationType = "presentationType"
 	AvitoQueryGeoCoords        = "geoCoords"
 	AvitoPresentationTypeSerp  = "serp"
-	AvitoSimilarSearchLimit = 10
+	AvitoSimilarSearchLimit = 50
 
 	AvitoJSONFieldItems      = "items"
 	AvitoJSONFieldID         = "id"
@@ -60,6 +60,8 @@ const (
 		`<div ` + AvitoSERPAttrItemID + `="` + FixtureAvitoItemID1 + `" data-marker="` + AvitoSERPMarkerItem + `"><h3 data-marker="` + AvitoSERPMarkerItemTitle + `">` + FixtureAvitoItemTitle1 + `</h3></div>` +
 		`<div ` + AvitoSERPAttrItemID + `="` + FixtureAvitoItemID2 + `" data-marker="` + AvitoSERPMarkerItem + `"><h3 data-marker="` + AvitoSERPMarkerItemTitle + `">` + FixtureAvitoItemTitle2 + `</h3></div>` +
 		`</body></html>`
+	FixtureAvitoChallengeHTML = `<!doctype html><html><body><div id="challenge-stage">firewall</div></body></html>`
+	AvitoChallengeMarker      = "challenge-stage"
 
 	ErrMsgListingSearchNoProxy            = "no active proxy for listing search"
 	ErrMsgListingSearchNoAccount          = "no active avito account for listing search"
@@ -162,4 +164,41 @@ func ListingSearchRewriteHTTPBase(pageURL, httpBase string) string {
 	u.Scheme = b.Scheme
 	u.Host = b.Host
 	return u.String()
+}
+
+// ListingSearchSERPPageURL sets/replaces SERP page query param (1-based; page 1 omits param).
+func ListingSearchSERPPageURL(raw string, page int) string {
+	if page <= 1 {
+		return raw
+	}
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return raw
+	}
+	q := u.Query()
+	q.Set(ListingSearchSERPPageParam, strconv.Itoa(page))
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// MergeFilterMetaFromSERPHTML enriches URL meta with location/category ids from SERP HTML.
+func MergeFilterMetaFromSERPHTML(base ListingFilterMeta, html string) ListingFilterMeta {
+	if loc, cat, ok := ParseAvitoFilterPageIDs(html); ok {
+		if base.Extras == nil {
+			base.Extras = map[string]any{}
+		}
+		base.Extras[AvitoJSONFieldLocationID] = loc
+		base.Extras[AvitoJSONFieldCategoryID] = cat
+	}
+	return base
+}
+
+// ProxyProbeURL is the contracted health probe target (Avito origin).
+func ProxyProbeURL() string {
+	return AvitoHTTPSBase + ProxyProbePath
+}
+
+// IsAvitoChallengeHTML reports Avito anti-bot / challenge interstitial HTML.
+func IsAvitoChallengeHTML(html string) bool {
+	return strings.Contains(html, AvitoChallengeMarker)
 }

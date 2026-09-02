@@ -56,6 +56,11 @@ func Load() (Config, error) {
 	if cfg.WorkerTick <= 0 {
 		return Config{}, fmt.Errorf("%s must be > 0", tokens.EnvWorkerTick)
 	}
+	if cfg.AppEnv == tokens.AppEnvProduction &&
+		cfg.ListingSearchProcessor == tokens.ListingSearchProcessorRod &&
+		strings.TrimSpace(cfg.RodUserDataDir) == "" {
+		return Config{}, fmt.Errorf("%s", tokens.ErrMsgRodUserDataDirRequired)
+	}
 
 	return cfg, nil
 }

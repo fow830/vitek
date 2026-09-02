@@ -17,7 +17,7 @@ FROM product_services
 ORDER BY code ASC;
 
 -- name: ListPlanLimits :many
-SELECT plan_type, max_tasks
+SELECT plan_type, max_tasks, max_watches
 FROM plan_limits
 ORDER BY plan_type ASC;
 

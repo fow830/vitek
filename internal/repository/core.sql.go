@@ -28,7 +28,7 @@ func (q *Queries) CountUserTasks(ctx context.Context, userID pgtype.UUID) (int64
 const createProxy = `-- name: CreateProxy :one
 INSERT INTO proxies (endpoint, status, label)
 VALUES ($1, $2, $3)
-RETURNING id, endpoint, status, created_at, label
+RETURNING id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health
 `
 
 type CreateProxyParams struct {
@@ -46,6 +46,10 @@ func (q *Queries) CreateProxy(ctx context.Context, arg CreateProxyParams) (Proxy
 		&i.Status,
 		&i.CreatedAt,
 		&i.Label,
+		&i.LastOkAt,
+		&i.LastErr,
+		&i.FailStreak,
+		&i.Health,
 	)
 	return i, err
 }
@@ -142,7 +146,8 @@ SELECT
     s.plan_type,
     s.active,
     s.created_at,
-    pl.max_tasks
+    pl.max_tasks,
+    pl.max_watches
 FROM subscriptions s
 JOIN plan_limits pl ON s.plan_type = pl.plan_type
 WHERE s.user_id = $1 AND s.active = true
@@ -150,12 +155,13 @@ FOR UPDATE OF s
 `
 
 type GetActiveSubscriptionForUpdateRow struct {
-	ID        pgtype.UUID        `json:"id"`
-	UserID    pgtype.UUID        `json:"user_id"`
-	PlanType  PlanType           `json:"plan_type"`
-	Active    bool               `json:"active"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	MaxTasks  int32              `json:"max_tasks"`
+	ID         pgtype.UUID        `json:"id"`
+	UserID     pgtype.UUID        `json:"user_id"`
+	PlanType   PlanType           `json:"plan_type"`
+	Active     bool               `json:"active"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	MaxTasks   int32              `json:"max_tasks"`
+	MaxWatches int32              `json:"max_watches"`
 }
 
 func (q *Queries) GetActiveSubscriptionForUpdate(ctx context.Context, userID pgtype.UUID) (GetActiveSubscriptionForUpdateRow, error) {
@@ -168,6 +174,7 @@ func (q *Queries) GetActiveSubscriptionForUpdate(ctx context.Context, userID pgt
 		&i.Active,
 		&i.CreatedAt,
 		&i.MaxTasks,
+		&i.MaxWatches,
 	)
 	return i, err
 }
@@ -214,9 +221,10 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 }
 
 const listActiveProxies = `-- name: ListActiveProxies :many
-SELECT id, endpoint, status, created_at, label
+SELECT id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health
 FROM proxies
 WHERE status = 'ACTIVE'
+  AND health <> 'DEAD'
 ORDER BY created_at ASC
 `
 
@@ -235,6 +243,10 @@ func (q *Queries) ListActiveProxies(ctx context.Context) ([]Proxy, error) {
 			&i.Status,
 			&i.CreatedAt,
 			&i.Label,
+			&i.LastOkAt,
+			&i.LastErr,
+			&i.FailStreak,
+			&i.Health,
 		); err != nil {
 			return nil, err
 		}

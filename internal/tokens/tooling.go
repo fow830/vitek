@@ -22,8 +22,14 @@ const (
 	PathMigrationAvitoSecrets  = "db/migrations/000005_avito_secrets.up.sql"
 	PathMigrationListingFilterSeen = "db/migrations/000006_listing_filter_seen.up.sql"
 	PathMigrationListingFilterWatches = "db/migrations/000007_listing_filter_watches.up.sql"
+	PathMigrationWatchLifecycleHealth = "db/migrations/000008_watch_lifecycle_health.up.sql"
+	PathMigrationProxyBindings        = "db/migrations/000009_proxy_bindings.up.sql"
+	PathMigrationWatchMeta            = "db/migrations/000010_watch_meta.up.sql"
+	PathMigrationNotifications        = "db/migrations/000011_notifications.up.sql"
 	PathQueries           = "db/queries"
 	PathQueryListingWatches = "db/queries/listing_watches.sql"
+	PathQueryBindings       = "db/queries/bindings.sql"
+	PathQueryNotifications  = "db/queries/notifications.sql"
 	PathRepository        = "internal/repository"
 	PathSQLC              = "sqlc.yaml"
 	PathCompose           = "docker-compose.yml"
@@ -64,6 +70,10 @@ func RenderSQLCYAML() string {
 		"      - \"" + PathMigrationAvitoSecrets + "\"\n" +
 		"      - \"" + PathMigrationListingFilterSeen + "\"\n" +
 		"      - \"" + PathMigrationListingFilterWatches + "\"\n" +
+		"      - \"" + PathMigrationWatchLifecycleHealth + "\"\n" +
+		"      - \"" + PathMigrationProxyBindings + "\"\n" +
+		"      - \"" + PathMigrationWatchMeta + "\"\n" +
+		"      - \"" + PathMigrationNotifications + "\"\n" +
 		"    gen:\n" +
 		"      go:\n" +
 		"        package: \"" + PackageRepository + "\"\n" +

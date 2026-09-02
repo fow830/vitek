@@ -67,6 +67,8 @@ func appFaceSearchScriptBlock() string {
     const pathMeWatches = '` + PathV1MeWatches + `';
     const pathTaskResults = (id) => '` + PathV1Tasks + `/' + id + '` + PathV1TaskResultsSuffix + `';
     const pathWatchResults = (id) => '` + PathV1MeWatches + `/' + id + '` + PathV1WatchResultsSuffix + `';
+    const pathWatchReset = (id) => '` + PathV1MeWatches + `/' + id + '` + PathV1WatchResetBaselineSuffix + `';
+    const pathWatch = (id) => '` + PathV1MeWatches + `/' + id;
     let watchPollTimer = null;
     let activeWatchID = null;
     function esc(s) {
@@ -91,7 +93,27 @@ func appFaceSearchScriptBlock() string {
       const extras = w.` + JSONFieldExtras + ` || {};
       Object.keys(extras).sort().forEach(k => lines.push(k + '=' + extras[k]));
       lines.push('status=' + (w.` + JSONFieldStatus + ` || ''));
+      if (w.` + JSONFieldLastError + `) lines.push('error=' + w.` + JSONFieldLastError + `);
       return lines.map(esc).join('<br>');
+    }
+    async function patchWatch(id, status) {
+      await fetch(pathWatch(id), {
+        method: 'PATCH',
+        headers: { '` + HeaderContentType + `': '` + MIMEApplicationJSON + `' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ ` + JSONFieldStatus + `: status })
+      });
+      await loadWatches(activeWatchID);
+    }
+    async function resetWatch(id) {
+      await fetch(pathWatchReset(id), { method: 'POST', credentials: 'same-origin' });
+      await loadWatches(id);
+      if (activeWatchID === id) selectWatch(id);
+    }
+    async function stopWatch(id) {
+      await fetch(pathWatch(id), { method: 'DELETE', credentials: 'same-origin' });
+      if (activeWatchID === id) activeWatchID = null;
+      await loadWatches();
     }
     function selectWatch(watchID) {
       activeWatchID = watchID;
@@ -118,9 +140,19 @@ func appFaceSearchScriptBlock() string {
         watches.map(w => {
           const id = w.` + JSONFieldID + `;
           const active = id === (selectID || activeWatchID) ? ' ` + AppClassIsActive + `' : '';
-          return '<div class="watch' + active + '" data-id="' + esc(id) + '" onclick="selectWatch(\'' + esc(id) + '\')">' +
+          const errClass = w.` + JSONFieldLastError + ` ? ' ` + AppClassWatchError + `' : '';
+          const metaClass = w.` + JSONFieldMetaStatus + ` === '` + WatchMetaStatusPending + `' ? ' ` + AppClassMetaPending + `' :
+            (w.` + JSONFieldMetaStatus + ` === '` + WatchMetaStatusFailed + `' ? ' ` + AppClassMetaFail + `' : ' ` + AppClassMetaReady + `');
+          const pauseLabel = w.` + JSONFieldStatus + ` === '` + ListingWatchStatusPaused + `' ? '` + AppCopySearchWatchResume + `' : '` + AppCopySearchWatchPause + `';
+          const pauseStatus = w.` + JSONFieldStatus + ` === '` + ListingWatchStatusPaused + `' ? '` + ListingWatchStatusActive + `' : '` + ListingWatchStatusPaused + `';
+          return '<div class="watch' + active + errClass + metaClass + '" data-id="' + esc(id) + '" onclick="selectWatch(\'' + esc(id) + '\')">' +
             '<p class="watch-title">' + esc(w.` + JSONFieldLabel + ` || w.` + JSONFieldRegion + ` || id) + '</p>' +
-            '<p class="watch-meta">' + formatWatchMeta(w) + '</p></div>';
+            '<p class="watch-meta">' + formatWatchMeta(w) + '</p>' +
+            '<p class="` + AppClassWatchActions + `" onclick="event.stopPropagation()">' +
+              '<button type="button" class="btn ghost" onclick="patchWatch(\'' + esc(id) + '\',\'' + pauseStatus + '\')">' + pauseLabel + '</button> ' +
+              '<button type="button" class="btn ghost" onclick="resetWatch(\'' + esc(id) + '\')">` + AppCopySearchWatchReset + `</button> ' +
+              '<button type="button" class="btn ghost" onclick="stopWatch(\'' + esc(id) + '\')">` + AppCopySearchWatchStop + `</button>' +
+            '</p></div>';
         }).join('');
       if (selectID) selectWatch(selectID);
       else if (!activeWatchID && watches[0]) selectWatch(watches[0].` + JSONFieldID + `);

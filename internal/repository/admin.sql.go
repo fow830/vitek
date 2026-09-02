@@ -126,7 +126,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const listAllProxies = `-- name: ListAllProxies :many
-SELECT id, endpoint, status, created_at, label
+SELECT id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health
 FROM proxies
 ORDER BY created_at ASC
 `
@@ -146,6 +146,10 @@ func (q *Queries) ListAllProxies(ctx context.Context) ([]Proxy, error) {
 			&i.Status,
 			&i.CreatedAt,
 			&i.Label,
+			&i.LastOkAt,
+			&i.LastErr,
+			&i.FailStreak,
+			&i.Health,
 		); err != nil {
 			return nil, err
 		}
@@ -272,7 +276,7 @@ SET endpoint = $2,
     status = $3,
     label = $4
 WHERE id = $1
-RETURNING id, endpoint, status, created_at, label
+RETURNING id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health
 `
 
 type UpdateProxyParams struct {
@@ -296,6 +300,10 @@ func (q *Queries) UpdateProxy(ctx context.Context, arg UpdateProxyParams) (Proxy
 		&i.Status,
 		&i.CreatedAt,
 		&i.Label,
+		&i.LastOkAt,
+		&i.LastErr,
+		&i.FailStreak,
+		&i.Health,
 	)
 	return i, err
 }

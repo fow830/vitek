@@ -20,7 +20,8 @@ SELECT
     s.plan_type,
     s.active,
     s.created_at,
-    pl.max_tasks
+    pl.max_tasks,
+    pl.max_watches
 FROM subscriptions s
 JOIN plan_limits pl ON s.plan_type = pl.plan_type
 WHERE s.user_id = $1 AND s.active = true
@@ -38,15 +39,16 @@ VALUES ($1, $2, 'PENDING')
 RETURNING id, user_id, query, status, created_at;
 
 -- name: ListActiveProxies :many
-SELECT id, endpoint, status, created_at, label
+SELECT id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health
 FROM proxies
 WHERE status = 'ACTIVE'
+  AND health <> 'DEAD'
 ORDER BY created_at ASC;
 
 -- name: CreateProxy :one
 INSERT INTO proxies (endpoint, status, label)
 VALUES ($1, $2, $3)
-RETURNING id, endpoint, status, created_at, label;
+RETURNING id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health;
 
 -- name: InsertItem :one
 INSERT INTO items (avito_id, title)

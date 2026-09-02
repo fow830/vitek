@@ -11,8 +11,49 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearWatchHits = `-- name: ClearWatchHits :exec
+DELETE FROM listing_watch_hits
+WHERE watch_id = $1
+`
+
+func (q *Queries) ClearWatchHits(ctx context.Context, watchID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearWatchHits, watchID)
+	return err
+}
+
+const countUserWatches = `-- name: CountUserWatches :one
+SELECT count(*)::bigint AS count
+FROM listing_filter_watches
+WHERE user_id = $1
+  AND status IN ('ACTIVE', 'PAUSED')
+`
+
+func (q *Queries) CountUserWatches(ctx context.Context, userID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countUserWatches, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteFilterSeenForUserFilter = `-- name: DeleteFilterSeenForUserFilter :exec
+DELETE FROM listing_filter_seen
+WHERE user_id = $1
+  AND filter_key = $2
+`
+
+type DeleteFilterSeenForUserFilterParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	FilterKey string      `json:"filter_key"`
+}
+
+func (q *Queries) DeleteFilterSeenForUserFilter(ctx context.Context, arg DeleteFilterSeenForUserFilterParams) error {
+	_, err := q.db.Exec(ctx, deleteFilterSeenForUserFilter, arg.UserID, arg.FilterKey)
+	return err
+}
+
 const getFilterWatch = `-- name: GetFilterWatch :one
-SELECT id, user_id, filter_key, query, status, last_polled_at, created_at
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
 FROM listing_filter_watches
 WHERE id = $1
 `
@@ -28,48 +69,53 @@ func (q *Queries) GetFilterWatch(ctx context.Context, id pgtype.UUID) (ListingFi
 		&i.Status,
 		&i.LastPolledAt,
 		&i.CreatedAt,
+		&i.LastError,
+		&i.LastErrorAt,
+		&i.ConsecutiveFailures,
+		&i.LastSuccessAt,
+		&i.MetaStatus,
+		&i.MetaJson,
 	)
 	return i, err
 }
 
-const listFilterWatchesByUser = `-- name: ListFilterWatchesByUser :many
-SELECT id, user_id, filter_key, query, status, last_polled_at, created_at
+const getFilterWatchByUserFilter = `-- name: GetFilterWatchByUserFilter :one
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
 FROM listing_filter_watches
 WHERE user_id = $1
-  AND status = 'ACTIVE'
-ORDER BY created_at DESC
+  AND filter_key = $2
 `
 
-func (q *Queries) ListFilterWatchesByUser(ctx context.Context, userID pgtype.UUID) ([]ListingFilterWatch, error) {
-	rows, err := q.db.Query(ctx, listFilterWatchesByUser, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListingFilterWatch{}
-	for rows.Next() {
-		var i ListingFilterWatch
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.FilterKey,
-			&i.Query,
-			&i.Status,
-			&i.LastPolledAt,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+type GetFilterWatchByUserFilterParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	FilterKey string      `json:"filter_key"`
+}
+
+func (q *Queries) GetFilterWatchByUserFilter(ctx context.Context, arg GetFilterWatchByUserFilterParams) (ListingFilterWatch, error) {
+	row := q.db.QueryRow(ctx, getFilterWatchByUserFilter, arg.UserID, arg.FilterKey)
+	var i ListingFilterWatch
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.FilterKey,
+		&i.Query,
+		&i.Status,
+		&i.LastPolledAt,
+		&i.CreatedAt,
+		&i.LastError,
+		&i.LastErrorAt,
+		&i.ConsecutiveFailures,
+		&i.LastSuccessAt,
+		&i.MetaStatus,
+		&i.MetaJson,
+	)
+	return i, err
 }
 
 const getFilterWatchForUser = `-- name: GetFilterWatchForUser :one
-SELECT id, user_id, filter_key, query, status, last_polled_at, created_at
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
 FROM listing_filter_watches
 WHERE id = $1
   AND user_id = $2
@@ -91,6 +137,12 @@ func (q *Queries) GetFilterWatchForUser(ctx context.Context, arg GetFilterWatchF
 		&i.Status,
 		&i.LastPolledAt,
 		&i.CreatedAt,
+		&i.LastError,
+		&i.LastErrorAt,
+		&i.ConsecutiveFailures,
+		&i.LastSuccessAt,
+		&i.MetaStatus,
+		&i.MetaJson,
 	)
 	return i, err
 }
@@ -112,7 +164,8 @@ func (q *Queries) InsertWatchHit(ctx context.Context, arg InsertWatchHitParams) 
 }
 
 const listDueFilterWatches = `-- name: ListDueFilterWatches :many
-SELECT id, user_id, filter_key, query, status, last_polled_at, created_at
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
 FROM listing_filter_watches
 WHERE status = 'ACTIVE'
   AND (
@@ -121,7 +174,6 @@ WHERE status = 'ACTIVE'
   )
 ORDER BY last_polled_at NULLS FIRST, created_at ASC
 LIMIT 20
-FOR UPDATE SKIP LOCKED
 `
 
 func (q *Queries) ListDueFilterWatches(ctx context.Context) ([]ListingFilterWatch, error) {
@@ -141,6 +193,55 @@ func (q *Queries) ListDueFilterWatches(ctx context.Context) ([]ListingFilterWatc
 			&i.Status,
 			&i.LastPolledAt,
 			&i.CreatedAt,
+			&i.LastError,
+			&i.LastErrorAt,
+			&i.ConsecutiveFailures,
+			&i.LastSuccessAt,
+			&i.MetaStatus,
+			&i.MetaJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilterWatchesByUser = `-- name: ListFilterWatchesByUser :many
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
+FROM listing_filter_watches
+WHERE user_id = $1
+  AND status IN ('ACTIVE', 'PAUSED')
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListFilterWatchesByUser(ctx context.Context, userID pgtype.UUID) ([]ListingFilterWatch, error) {
+	rows, err := q.db.Query(ctx, listFilterWatchesByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListingFilterWatch{}
+	for rows.Next() {
+		var i ListingFilterWatch
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FilterKey,
+			&i.Query,
+			&i.Status,
+			&i.LastPolledAt,
+			&i.CreatedAt,
+			&i.LastError,
+			&i.LastErrorAt,
+			&i.ConsecutiveFailures,
+			&i.LastSuccessAt,
+			&i.MetaStatus,
+			&i.MetaJson,
 		); err != nil {
 			return nil, err
 		}
@@ -199,9 +300,69 @@ func (q *Queries) ListWatchHits(ctx context.Context, watchID pgtype.UUID) ([]Lis
 	return items, nil
 }
 
+const recordFilterWatchPollFailure = `-- name: RecordFilterWatchPollFailure :one
+UPDATE listing_filter_watches
+SET last_error = $1,
+    last_error_at = now(),
+    consecutive_failures = consecutive_failures + 1,
+    meta_status = CASE
+        WHEN meta_status = 'PENDING' THEN 'FAILED'::listing_watch_meta_status
+        ELSE meta_status
+    END,
+    status = CASE
+        WHEN consecutive_failures + 1 >= $2::int THEN 'PAUSED'::listing_watch_status
+        ELSE status
+    END
+WHERE id = $3
+RETURNING id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
+`
+
+type RecordFilterWatchPollFailureParams struct {
+	LastError   *string     `json:"last_error"`
+	MaxFailures int32       `json:"max_failures"`
+	ID          pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) RecordFilterWatchPollFailure(ctx context.Context, arg RecordFilterWatchPollFailureParams) (ListingFilterWatch, error) {
+	row := q.db.QueryRow(ctx, recordFilterWatchPollFailure, arg.LastError, arg.MaxFailures, arg.ID)
+	var i ListingFilterWatch
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.FilterKey,
+		&i.Query,
+		&i.Status,
+		&i.LastPolledAt,
+		&i.CreatedAt,
+		&i.LastError,
+		&i.LastErrorAt,
+		&i.ConsecutiveFailures,
+		&i.LastSuccessAt,
+		&i.MetaStatus,
+		&i.MetaJson,
+	)
+	return i, err
+}
+
+const resetFilterWatchBaseline = `-- name: ResetFilterWatchBaseline :exec
+UPDATE listing_filter_watches
+SET last_polled_at = NULL
+WHERE id = $1
+`
+
+func (q *Queries) ResetFilterWatchBaseline(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, resetFilterWatchBaseline, id)
+	return err
+}
+
 const touchFilterWatchPolled = `-- name: TouchFilterWatchPolled :exec
 UPDATE listing_filter_watches
-SET last_polled_at = now()
+SET last_polled_at = now(),
+    last_success_at = now(),
+    last_error = NULL,
+    last_error_at = NULL,
+    consecutive_failures = 0
 WHERE id = $1
 `
 
@@ -210,40 +371,72 @@ func (q *Queries) TouchFilterWatchPolled(ctx context.Context, id pgtype.UUID) er
 	return err
 }
 
-const deleteFilterSeenForUserFilter = `-- name: DeleteFilterSeenForUserFilter :exec
-DELETE FROM listing_filter_seen
-WHERE user_id = $1
-  AND filter_key = $2
+const updateFilterWatchMeta = `-- name: UpdateFilterWatchMeta :exec
+UPDATE listing_filter_watches
+SET meta_status = $2,
+    meta_json = $3
+WHERE id = $1
 `
 
-type DeleteFilterSeenForUserFilterParams struct {
-	UserID    pgtype.UUID `json:"user_id"`
-	FilterKey string      `json:"filter_key"`
+type UpdateFilterWatchMetaParams struct {
+	ID         pgtype.UUID            `json:"id"`
+	MetaStatus ListingWatchMetaStatus `json:"meta_status"`
+	MetaJson   []byte                 `json:"meta_json"`
 }
 
-func (q *Queries) DeleteFilterSeenForUserFilter(ctx context.Context, arg DeleteFilterSeenForUserFilterParams) error {
-	_, err := q.db.Exec(ctx, deleteFilterSeenForUserFilter, arg.UserID, arg.FilterKey)
+func (q *Queries) UpdateFilterWatchMeta(ctx context.Context, arg UpdateFilterWatchMetaParams) error {
+	_, err := q.db.Exec(ctx, updateFilterWatchMeta, arg.ID, arg.MetaStatus, arg.MetaJson)
 	return err
 }
 
-const clearWatchHits = `-- name: ClearWatchHits :exec
-DELETE FROM listing_watch_hits
-WHERE watch_id = $1
+const updateFilterWatchStatus = `-- name: UpdateFilterWatchStatus :one
+UPDATE listing_filter_watches
+SET status = $2
+WHERE id = $1
+  AND user_id = $3
+RETURNING id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
 `
 
-func (q *Queries) ClearWatchHits(ctx context.Context, watchID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, clearWatchHits, watchID)
-	return err
+type UpdateFilterWatchStatusParams struct {
+	ID     pgtype.UUID        `json:"id"`
+	Status ListingWatchStatus `json:"status"`
+	UserID pgtype.UUID        `json:"user_id"`
+}
+
+func (q *Queries) UpdateFilterWatchStatus(ctx context.Context, arg UpdateFilterWatchStatusParams) (ListingFilterWatch, error) {
+	row := q.db.QueryRow(ctx, updateFilterWatchStatus, arg.ID, arg.Status, arg.UserID)
+	var i ListingFilterWatch
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.FilterKey,
+		&i.Query,
+		&i.Status,
+		&i.LastPolledAt,
+		&i.CreatedAt,
+		&i.LastError,
+		&i.LastErrorAt,
+		&i.ConsecutiveFailures,
+		&i.LastSuccessAt,
+		&i.MetaStatus,
+		&i.MetaJson,
+	)
+	return i, err
 }
 
 const upsertFilterWatch = `-- name: UpsertFilterWatch :one
-INSERT INTO listing_filter_watches (user_id, filter_key, query, status)
-VALUES ($1, $2, $3, 'ACTIVE')
+INSERT INTO listing_filter_watches (user_id, filter_key, query, status, meta_status)
+VALUES ($1, $2, $3, 'ACTIVE', 'PENDING')
 ON CONFLICT (user_id, filter_key) DO UPDATE
 SET query = EXCLUDED.query,
     status = 'ACTIVE',
-    last_polled_at = NULL
-RETURNING id, user_id, filter_key, query, status, last_polled_at, created_at
+    meta_status = CASE
+        WHEN listing_filter_watches.query IS DISTINCT FROM EXCLUDED.query THEN 'PENDING'::listing_watch_meta_status
+        ELSE listing_filter_watches.meta_status
+    END
+RETURNING id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
 `
 
 type UpsertFilterWatchParams struct {
@@ -263,6 +456,12 @@ func (q *Queries) UpsertFilterWatch(ctx context.Context, arg UpsertFilterWatchPa
 		&i.Status,
 		&i.LastPolledAt,
 		&i.CreatedAt,
+		&i.LastError,
+		&i.LastErrorAt,
+		&i.ConsecutiveFailures,
+		&i.LastSuccessAt,
+		&i.MetaStatus,
+		&i.MetaJson,
 	)
 	return i, err
 }

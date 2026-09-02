@@ -54,6 +54,137 @@ func (ns NullAvitoAccountStatus) Value() (driver.Value, error) {
 	return string(ns.AvitoAccountStatus), nil
 }
 
+type ListingBindingStatus string
+
+const (
+	ListingBindingStatusACTIVE   ListingBindingStatus = "ACTIVE"
+	ListingBindingStatusPAUSED   ListingBindingStatus = "PAUSED"
+	ListingBindingStatusDISABLED ListingBindingStatus = "DISABLED"
+)
+
+func (e *ListingBindingStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ListingBindingStatus(s)
+	case string:
+		*e = ListingBindingStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ListingBindingStatus: %T", src)
+	}
+	return nil
+}
+
+type NullListingBindingStatus struct {
+	ListingBindingStatus ListingBindingStatus `json:"listing_binding_status"`
+	Valid                bool                 `json:"valid"` // Valid is true if ListingBindingStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullListingBindingStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ListingBindingStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ListingBindingStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullListingBindingStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ListingBindingStatus), nil
+}
+
+type ListingSessionStatus string
+
+const (
+	ListingSessionStatusLOGGEDOUT ListingSessionStatus = "LOGGED_OUT"
+	ListingSessionStatusLOGGINGIN ListingSessionStatus = "LOGGING_IN"
+	ListingSessionStatusREADY     ListingSessionStatus = "READY"
+	ListingSessionStatusCHALLENGE ListingSessionStatus = "CHALLENGE"
+	ListingSessionStatusERROR     ListingSessionStatus = "ERROR"
+)
+
+func (e *ListingSessionStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ListingSessionStatus(s)
+	case string:
+		*e = ListingSessionStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ListingSessionStatus: %T", src)
+	}
+	return nil
+}
+
+type NullListingSessionStatus struct {
+	ListingSessionStatus ListingSessionStatus `json:"listing_session_status"`
+	Valid                bool                 `json:"valid"` // Valid is true if ListingSessionStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullListingSessionStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ListingSessionStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ListingSessionStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullListingSessionStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ListingSessionStatus), nil
+}
+
+type ListingWatchMetaStatus string
+
+const (
+	ListingWatchMetaStatusPENDING ListingWatchMetaStatus = "PENDING"
+	ListingWatchMetaStatusREADY   ListingWatchMetaStatus = "READY"
+	ListingWatchMetaStatusFAILED  ListingWatchMetaStatus = "FAILED"
+)
+
+func (e *ListingWatchMetaStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ListingWatchMetaStatus(s)
+	case string:
+		*e = ListingWatchMetaStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ListingWatchMetaStatus: %T", src)
+	}
+	return nil
+}
+
+type NullListingWatchMetaStatus struct {
+	ListingWatchMetaStatus ListingWatchMetaStatus `json:"listing_watch_meta_status"`
+	Valid                  bool                   `json:"valid"` // Valid is true if ListingWatchMetaStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullListingWatchMetaStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ListingWatchMetaStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ListingWatchMetaStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullListingWatchMetaStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ListingWatchMetaStatus), nil
+}
+
 type ListingWatchStatus string
 
 const (
@@ -97,6 +228,91 @@ func (ns NullListingWatchStatus) Value() (driver.Value, error) {
 	return string(ns.ListingWatchStatus), nil
 }
 
+type NotificationChannel string
+
+const (
+	NotificationChannelTELEGRAM NotificationChannel = "TELEGRAM"
+)
+
+func (e *NotificationChannel) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = NotificationChannel(s)
+	case string:
+		*e = NotificationChannel(s)
+	default:
+		return fmt.Errorf("unsupported scan type for NotificationChannel: %T", src)
+	}
+	return nil
+}
+
+type NullNotificationChannel struct {
+	NotificationChannel NotificationChannel `json:"notification_channel"`
+	Valid               bool                `json:"valid"` // Valid is true if NotificationChannel is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullNotificationChannel) Scan(value interface{}) error {
+	if value == nil {
+		ns.NotificationChannel, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.NotificationChannel.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullNotificationChannel) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.NotificationChannel), nil
+}
+
+type NotificationOutboxStatus string
+
+const (
+	NotificationOutboxStatusPENDING   NotificationOutboxStatus = "PENDING"
+	NotificationOutboxStatusSUBMITTED NotificationOutboxStatus = "SUBMITTED"
+	NotificationOutboxStatusDONE      NotificationOutboxStatus = "DONE"
+	NotificationOutboxStatusFAILED    NotificationOutboxStatus = "FAILED"
+)
+
+func (e *NotificationOutboxStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = NotificationOutboxStatus(s)
+	case string:
+		*e = NotificationOutboxStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for NotificationOutboxStatus: %T", src)
+	}
+	return nil
+}
+
+type NullNotificationOutboxStatus struct {
+	NotificationOutboxStatus NotificationOutboxStatus `json:"notification_outbox_status"`
+	Valid                    bool                     `json:"valid"` // Valid is true if NotificationOutboxStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullNotificationOutboxStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.NotificationOutboxStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.NotificationOutboxStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullNotificationOutboxStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.NotificationOutboxStatus), nil
+}
+
 type PlanType string
 
 const (
@@ -138,6 +354,50 @@ func (ns NullPlanType) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.PlanType), nil
+}
+
+type ProxyHealthStatus string
+
+const (
+	ProxyHealthStatusUNKNOWN  ProxyHealthStatus = "UNKNOWN"
+	ProxyHealthStatusOK       ProxyHealthStatus = "OK"
+	ProxyHealthStatusDEGRADED ProxyHealthStatus = "DEGRADED"
+	ProxyHealthStatusDEAD     ProxyHealthStatus = "DEAD"
+)
+
+func (e *ProxyHealthStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ProxyHealthStatus(s)
+	case string:
+		*e = ProxyHealthStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ProxyHealthStatus: %T", src)
+	}
+	return nil
+}
+
+type NullProxyHealthStatus struct {
+	ProxyHealthStatus ProxyHealthStatus `json:"proxy_health_status"`
+	Valid             bool              `json:"valid"` // Valid is true if ProxyHealthStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullProxyHealthStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ProxyHealthStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ProxyHealthStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullProxyHealthStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ProxyHealthStatus), nil
 }
 
 type ProxyStatus string
@@ -292,6 +552,18 @@ type Item struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type ListingFetchBinding struct {
+	ID             pgtype.UUID          `json:"id"`
+	AvitoAccountID pgtype.UUID          `json:"avito_account_id"`
+	ProxyID        pgtype.UUID          `json:"proxy_id"`
+	UserDataDir    string               `json:"user_data_dir"`
+	Status         ListingBindingStatus `json:"status"`
+	SessionStatus  ListingSessionStatus `json:"session_status"`
+	SessionErr     *string              `json:"session_err"`
+	LastSessionAt  pgtype.Timestamptz   `json:"last_session_at"`
+	CreatedAt      pgtype.Timestamptz   `json:"created_at"`
+}
+
 type ListingFilterSeen struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	FilterKey string             `json:"filter_key"`
@@ -300,13 +572,19 @@ type ListingFilterSeen struct {
 }
 
 type ListingFilterWatch struct {
-	ID           pgtype.UUID        `json:"id"`
-	UserID       pgtype.UUID        `json:"user_id"`
-	FilterKey    string             `json:"filter_key"`
-	Query        string             `json:"query"`
-	Status       ListingWatchStatus `json:"status"`
-	LastPolledAt pgtype.Timestamptz `json:"last_polled_at"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ID                  pgtype.UUID            `json:"id"`
+	UserID              pgtype.UUID            `json:"user_id"`
+	FilterKey           string                 `json:"filter_key"`
+	Query               string                 `json:"query"`
+	Status              ListingWatchStatus     `json:"status"`
+	LastPolledAt        pgtype.Timestamptz     `json:"last_polled_at"`
+	CreatedAt           pgtype.Timestamptz     `json:"created_at"`
+	LastError           *string                `json:"last_error"`
+	LastErrorAt         pgtype.Timestamptz     `json:"last_error_at"`
+	ConsecutiveFailures int32                  `json:"consecutive_failures"`
+	LastSuccessAt       pgtype.Timestamptz     `json:"last_success_at"`
+	MetaStatus          ListingWatchMetaStatus `json:"meta_status"`
+	MetaJson            []byte                 `json:"meta_json"`
 }
 
 type ListingWatchHit struct {
@@ -325,9 +603,22 @@ type MagicLinkChallenge struct {
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
+type NotificationOutbox struct {
+	ID        pgtype.UUID              `json:"id"`
+	UserID    pgtype.UUID              `json:"user_id"`
+	WatchID   pgtype.UUID              `json:"watch_id"`
+	ItemID    pgtype.UUID              `json:"item_id"`
+	Channel   NotificationChannel      `json:"channel"`
+	Status    NotificationOutboxStatus `json:"status"`
+	Attempts  int32                    `json:"attempts"`
+	LastError *string                  `json:"last_error"`
+	CreatedAt pgtype.Timestamptz       `json:"created_at"`
+}
+
 type PlanLimit struct {
-	PlanType PlanType `json:"plan_type"`
-	MaxTasks int32    `json:"max_tasks"`
+	PlanType   PlanType `json:"plan_type"`
+	MaxTasks   int32    `json:"max_tasks"`
+	MaxWatches int32    `json:"max_watches"`
 }
 
 type ProductService struct {
@@ -338,11 +629,15 @@ type ProductService struct {
 }
 
 type Proxy struct {
-	ID        pgtype.UUID        `json:"id"`
-	Endpoint  string             `json:"endpoint"`
-	Status    ProxyStatus        `json:"status"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	Label     string             `json:"label"`
+	ID         pgtype.UUID        `json:"id"`
+	Endpoint   string             `json:"endpoint"`
+	Status     ProxyStatus        `json:"status"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	Label      string             `json:"label"`
+	LastOkAt   pgtype.Timestamptz `json:"last_ok_at"`
+	LastErr    *string            `json:"last_err"`
+	FailStreak int32              `json:"fail_streak"`
+	Health     ProxyHealthStatus  `json:"health"`
 }
 
 type Session struct {
@@ -382,6 +677,13 @@ type User struct {
 	Email     string             `json:"email"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	Role      UserRole           `json:"role"`
+}
+
+type UserNotificationSetting struct {
+	UserID         pgtype.UUID        `json:"user_id"`
+	TelegramChatID *string            `json:"telegram_chat_id"`
+	Enabled        bool               `json:"enabled"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type UserServiceEntitlement struct {
