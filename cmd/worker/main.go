@@ -33,7 +33,7 @@ func main() {
 	defer pool.Close()
 
 	proxies := service.NewProxies(pool)
-	processor, err := service.NewListingProcessor(pool, cfg.ListingSearchProcessor, cfg.AvitoHTTPBase)
+	processor, err := service.NewListingProcessor(pool, cfg.ListingSearchProcessor, cfg.AvitoHTTPBase, cfg.RodUserDataDir)
 	if err != nil {
 		log.Fatalf("listing processor: %v", err)
 	}

@@ -102,19 +102,24 @@ func (w *ListingSearchWorker) pollWatch(ctx context.Context, qtx *repository.Que
 	if err != nil {
 		return err
 	}
-	if err := w.storeFilterPoll(ctx, qtx, watch.UserID, watch.ID, watch.FilterKey, similar, true); err != nil {
+	if err := w.applyFilterHits(ctx, qtx, watch.UserID, watch.FilterKey, similar, func(item repository.Item) error {
+		return qtx.InsertWatchHit(ctx, repository.InsertWatchHitParams{
+			WatchID: watch.ID,
+			ItemID:  item.ID,
+		})
+	}); err != nil {
 		return err
 	}
 	return qtx.TouchFilterWatchPolled(ctx, watch.ID)
 }
 
-func (w *ListingSearchWorker) storeFilterPoll(
+func (w *ListingSearchWorker) applyFilterHits(
 	ctx context.Context,
 	qtx *repository.Queries,
-	userID, watchID pgtype.UUID,
+	userID pgtype.UUID,
 	filterKey string,
 	similar []SimilarListing,
-	recordWatchHits bool,
+	onNew func(repository.Item) error,
 ) error {
 	seen, err := qtx.ListFilterSeenAvitoIDs(ctx, repository.ListFilterSeenAvitoIDsParams{
 		UserID:    userID,
@@ -147,11 +152,8 @@ func (w *ListingSearchWorker) storeFilterPoll(
 		if _, ok := seenSet[hit.AvitoID]; ok {
 			continue
 		}
-		if recordWatchHits {
-			if err := qtx.InsertWatchHit(ctx, repository.InsertWatchHitParams{
-				WatchID: watchID,
-				ItemID:  item.ID,
-			}); err != nil {
+		if onNew != nil {
+			if err := onNew(item); err != nil {
 				return err
 			}
 		}
@@ -161,49 +163,19 @@ func (w *ListingSearchWorker) storeFilterPoll(
 
 func (w *ListingSearchWorker) completeFilterTask(ctx context.Context, qtx *repository.Queries, task repository.Task, similar []SimilarListing) error {
 	filterKey := tokens.CanonicalListingSearchQuery(task.Query)
-	seen, err := qtx.ListFilterSeenAvitoIDs(ctx, repository.ListFilterSeenAvitoIDsParams{
-		UserID:    task.UserID,
-		FilterKey: filterKey,
-	})
-	if err != nil {
-		return err
-	}
-	seenSet := make(map[string]struct{}, len(seen))
-	for _, avitoID := range seen {
-		seenSet[avitoID] = struct{}{}
-	}
-
-	baseline := len(seenSet) == 0
 	rank := 0
-	for _, hit := range similar {
-		item, recErr := w.items.UpsertTx(ctx, qtx, hit.AvitoID, hit.Title)
-		if recErr != nil {
-			return recErr
-		}
-		if err := qtx.InsertFilterSeen(ctx, repository.InsertFilterSeenParams{
-			UserID:    task.UserID,
-			FilterKey: filterKey,
-			AvitoID:   hit.AvitoID,
-		}); err != nil {
-			return err
-		}
-		if baseline {
-			continue
-		}
-		if _, ok := seenSet[hit.AvitoID]; ok {
-			continue
-		}
-		if err := qtx.InsertTaskItem(ctx, repository.InsertTaskItemParams{
+	if err := w.applyFilterHits(ctx, qtx, task.UserID, filterKey, similar, func(item repository.Item) error {
+		err := qtx.InsertTaskItem(ctx, repository.InsertTaskItemParams{
 			TaskID: task.ID,
 			ItemID: item.ID,
 			Rank:   int32(rank),
-		}); err != nil {
-			return err
-		}
+		})
 		rank++
+		return err
+	}); err != nil {
+		return err
 	}
-
-	_, err = qtx.UpdateTaskStatus(ctx, repository.UpdateTaskStatusParams{
+	_, err := qtx.UpdateTaskStatus(ctx, repository.UpdateTaskStatusParams{
 		ID:     task.ID,
 		Status: repository.TaskStatusCOMPLETED,
 	})

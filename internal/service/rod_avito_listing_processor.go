@@ -21,7 +21,8 @@ type AvitoPageFetcher interface {
 	FetchHTML(ctx context.Context, proxyEndpoint, pageURL string) (string, error)
 }
 
-// RodAvitoListingProcessor finds listings via Chrome (Rod) + persistent-capable fetcher.
+// RodAvitoListingProcessor finds filter SERP listings via Chrome (Rod).
+// Item URLs are not supported (ErrListingSearchRodFilterOnly).
 type RodAvitoListingProcessor struct {
 	proxies *Proxies
 	avito   *AvitoAccounts
@@ -43,6 +44,9 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 	if !tokens.ValidListingURL(listingURL) {
 		return nil, domain.ErrInvalidListingURL
 	}
+	if !tokens.IsListingFilterURL(listingURL) {
+		return nil, domain.ErrListingSearchRodFilterOnly
+	}
 	proxies, err := p.proxies.ListActive(ctx)
 	if err != nil {
 		return nil, err
@@ -50,6 +54,7 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 	if len(proxies) == 0 {
 		return nil, domain.ErrListingSearchNoProxy
 	}
+	// Account presence is a contracted gate (credentials used when session login is contracted).
 	if _, err := p.avito.PickActive(ctx); err != nil {
 		return nil, domain.ErrListingSearchNoAccount
 	}
@@ -59,38 +64,37 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 	if err != nil {
 		return nil, domain.ErrListingSearchAvitoFetch
 	}
-	if tokens.IsListingFilterURL(listingURL) {
-		items, err := tokens.ParseAvitoSERPItems(html)
-		if err != nil {
-			return nil, domain.ErrListingSearchAvitoFetch
-		}
-		if len(items) == 0 {
-			return nil, domain.ErrListingSearchAvitoFetch
-		}
-		out := make([]SimilarListing, 0, len(items))
-		for _, it := range items {
-			out = append(out, SimilarListing{AvitoID: it.AvitoID, Title: it.Title})
-		}
-		return out, nil
+	items, err := tokens.ParseAvitoSERPItems(html)
+	if err != nil {
+		return nil, domain.ErrListingSearchAvitoFetch
 	}
-	return nil, domain.ErrListingSearchAvitoFetch
+	if len(items) == 0 {
+		return nil, domain.ErrListingSearchAvitoFetch
+	}
+	out := make([]SimilarListing, 0, len(items))
+	for _, it := range items {
+		out = append(out, SimilarListing{AvitoID: it.AvitoID, Title: it.Title})
+	}
+	return out, nil
 }
 
 // RodPageFetcher opens pages with go-rod Chrome (optional user-data-dir for profiles).
 type RodPageFetcher struct {
 	userDataDir string
 	timeout     time.Duration
+	headless    bool
 }
 
 func NewRodPageFetcher(userDataDir string) *RodPageFetcher {
 	return &RodPageFetcher{
 		userDataDir: strings.TrimSpace(userDataDir),
-		timeout:     45 * time.Second,
+		timeout:     tokens.RodPageFetchTimeout,
+		headless:    tokens.RodHeadlessDefault,
 	}
 }
 
 func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, pageURL string) (string, error) {
-	l := launcher.New().Headless(true)
+	l := launcher.New().Headless(f.headless)
 	if f.userDataDir != "" {
 		l = l.UserDataDir(f.userDataDir)
 	}
@@ -116,7 +120,9 @@ func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, pageURL s
 		return "", err
 	}
 	page = page.Context(ctx).Timeout(f.timeout)
-	_ = page.WaitLoad()
+	if err := page.WaitLoad(); err != nil {
+		return "", domain.ErrListingSearchAvitoFetch
+	}
 	html, err := page.HTML()
 	if err != nil {
 		return "", err

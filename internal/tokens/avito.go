@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Avito HTTP client tokens (listing_search worker).
@@ -15,11 +16,14 @@ const (
 	AvitoHTTPUserAgent      = "Mozilla/5.0 (compatible; VitekListingSearch/1.0)"
 	AvitoHTTPAccept         = "application/json, text/plain, */*"
 	AvitoHTTPAcceptLanguage = "ru-RU,ru;q=0.9"
+	AvitoHTTPClientTimeout  = 30 * time.Second
+	AvitoHTTPMaxBodyBytes   = 4 << 20
 	AvitoQueryCategoryID    = "categoryId"
 	AvitoQueryLocationID    = "locationId"
 	AvitoQueryLimit         = "limit"
 	AvitoQueryFilterF       = "f"
 	AvitoQueryPresentationType = "presentationType"
+	AvitoQueryGeoCoords        = "geoCoords"
 	AvitoPresentationTypeSerp  = "serp"
 	AvitoSimilarSearchLimit = 10
 
@@ -29,11 +33,18 @@ const (
 	AvitoJSONFieldCategoryID = "categoryId"
 	AvitoJSONFieldLocationID = "locationId"
 
+	AvitoSERPAttrItemID       = "data-item-id"
+	AvitoSERPMarkerItemTitle  = "item-title"
+	AvitoSERPMarkerItem       = "item"
+
 	AvitoAccountLoginField = JSONFieldExternalRef
 
 	ListingSearchProcessorStub  = "stub"
 	ListingSearchProcessorAvito = "avito"
 	ListingSearchProcessorRod   = "rod"
+
+	RodPageFetchTimeout = 45 * time.Second
+	RodHeadlessDefault  = true
 
 	FixtureAvitoItemID1    = "7654321098"
 	FixtureAvitoItemID2    = "7654321099"
@@ -41,18 +52,20 @@ const (
 	FixtureAvitoItemTitle2 = "Filter hit 2"
 	FixtureAvitoCategoryID = "84"
 	FixtureAvitoLocationID = "636736"
+	FixtureRodProxyEndpoint = "socks5://127.0.0.1:9"
 	FixtureAvitoFilterPageHTML = `<!doctype html><html><body>` +
 		`"locationId":` + FixtureAvitoLocationID + `,"categoryId":` + FixtureAvitoCategoryID +
 		`</body></html>`
 	FixtureAvitoFilterSERPHTML = `<!doctype html><html><body>` +
 		`"locationId":` + FixtureAvitoLocationID + `,"categoryId":` + FixtureAvitoCategoryID +
-		`<div data-item-id="` + FixtureAvitoItemID1 + `" data-marker="item"><h3 data-marker="item-title">` + FixtureAvitoItemTitle1 + `</h3></div>` +
-		`<div data-item-id="` + FixtureAvitoItemID2 + `" data-marker="item"><h3 data-marker="item-title">` + FixtureAvitoItemTitle2 + `</h3></div>` +
+		`<div ` + AvitoSERPAttrItemID + `="` + FixtureAvitoItemID1 + `" data-marker="` + AvitoSERPMarkerItem + `"><h3 data-marker="` + AvitoSERPMarkerItemTitle + `">` + FixtureAvitoItemTitle1 + `</h3></div>` +
+		`<div ` + AvitoSERPAttrItemID + `="` + FixtureAvitoItemID2 + `" data-marker="` + AvitoSERPMarkerItem + `"><h3 data-marker="` + AvitoSERPMarkerItemTitle + `">` + FixtureAvitoItemTitle2 + `</h3></div>` +
 		`</body></html>`
 
 	ErrMsgListingSearchNoProxy            = "no active proxy for listing search"
 	ErrMsgListingSearchNoAccount          = "no active avito account for listing search"
 	ErrMsgListingSearchAvitoFetch         = "avito fetch failed"
+	ErrMsgListingSearchRodFilterOnly      = "rod processor supports filter urls only"
 	ErrMsgInvalidListingSearchProcessor   = "invalid listing search processor"
 )
 
@@ -83,10 +96,8 @@ func AvitoFilterSearchURL(base, locationID, categoryID string, filterQuery url.V
 	if f := strings.TrimSpace(filterQuery.Get(AvitoQueryFilterF)); f != "" {
 		v.Set(AvitoQueryFilterF, f)
 	}
-	for _, key := range []string{"geoCoords"} {
-		if val := strings.TrimSpace(filterQuery.Get(key)); val != "" {
-			v.Set(key, val)
-		}
+	if val := strings.TrimSpace(filterQuery.Get(AvitoQueryGeoCoords)); val != "" {
+		v.Set(AvitoQueryGeoCoords, val)
 	}
 	return strings.TrimSuffix(base, "/") + AvitoWebPathItemSearch + "?" + v.Encode()
 }
@@ -106,8 +117,8 @@ type AvitoSERPItem struct {
 	Title   string
 }
 
-var (
-	avitoSERPItemBlockPattern = regexp.MustCompile(`(?is)data-item-id="(\d+)"[^>]*>.*?data-marker="item-title"[^>]*>([^<]+)<`)
+var avitoSERPItemBlockPattern = regexp.MustCompile(
+	`(?is)` + AvitoSERPAttrItemID + `="(\d+)"[^>]*>.*?data-marker="` + regexp.QuoteMeta(AvitoSERPMarkerItemTitle) + `"[^>]*>([^<]+)<`,
 )
 
 // ParseAvitoSERPItems extracts listing cards from Avito filter SERP HTML.

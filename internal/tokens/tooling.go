@@ -23,6 +23,7 @@ const (
 	PathMigrationListingFilterSeen = "db/migrations/000006_listing_filter_seen.up.sql"
 	PathMigrationListingFilterWatches = "db/migrations/000007_listing_filter_watches.up.sql"
 	PathQueries           = "db/queries"
+	PathQueryListingWatches = "db/queries/listing_watches.sql"
 	PathRepository        = "internal/repository"
 	PathSQLC              = "sqlc.yaml"
 	PathCompose           = "docker-compose.yml"

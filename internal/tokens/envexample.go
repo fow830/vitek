@@ -17,6 +17,7 @@ var EnvExampleKeys = []string{
 	EnvWorkerTick,
 	EnvListingSearchProcessor,
 	EnvAvitoHTTPBase,
+	EnvRodUserDataDir,
 }
 
 // EnvExampleValues maps each EnvExampleKeys entry to its local default.
@@ -32,6 +33,7 @@ func EnvExampleValues() map[string]string {
 		EnvWorkerTick:             DefaultWorkerTick,
 		EnvListingSearchProcessor: DefaultListingSearchProcessor,
 		EnvAvitoHTTPBase:          AvitoHTTPSBase,
+		EnvRodUserDataDir:         "",
 	}
 }
 

@@ -13,6 +13,7 @@ const (
 	EnvWorkerTick              = "WORKER_TICK"
 	EnvListingSearchProcessor  = "LISTING_SEARCH_PROCESSOR"
 	EnvAvitoHTTPBase           = "AVITO_HTTP_BASE"
+	EnvRodUserDataDir          = "ROD_USER_DATA_DIR"
 )
 
 // AppEnv allowed values.

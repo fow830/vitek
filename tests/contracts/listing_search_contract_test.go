@@ -140,7 +140,7 @@ func TestContract_ListingSearch_TokensAligned(t *testing.T) {
 	)
 }
 
-// CONTRACT-LISTING-006: item + filter stream URLs accepted; hosts classified.
+// CONTRACT-LISTING-015: item + filter stream URLs accepted; hosts classified.
 func TestContract_ListingSearch_FilterStreamURL(t *testing.T) {
 	require.True(t, tokens.ValidListingURL(tokens.FixtureMobileListingURL))
 	require.True(t, tokens.IsListingItemURL(tokens.FixtureMobileListingURL))

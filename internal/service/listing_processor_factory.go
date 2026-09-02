@@ -9,7 +9,7 @@ import (
 )
 
 // NewListingProcessor builds the configured listing_search processor.
-func NewListingProcessor(pool *pgxpool.Pool, kind, avitoBase string) (ListingProcessor, error) {
+func NewListingProcessor(pool *pgxpool.Pool, kind, avitoBase, rodUserDataDir string) (ListingProcessor, error) {
 	switch kind {
 	case tokens.ListingSearchProcessorStub, "":
 		return NewStubListingProcessor(), nil
@@ -20,7 +20,7 @@ func NewListingProcessor(pool *pgxpool.Pool, kind, avitoBase string) (ListingPro
 		}
 		return NewAvitoListingProcessor(pool, NewAvitoClient(WithAvitoHTTPBase(base))), nil
 	case tokens.ListingSearchProcessorRod:
-		return NewRodAvitoListingProcessor(pool, NewRodPageFetcher("")), nil
+		return NewRodAvitoListingProcessor(pool, NewRodPageFetcher(rodUserDataDir)), nil
 	default:
 		return nil, fmt.Errorf("%s: %q", tokens.ErrMsgInvalidListingSearchProcessor, kind)
 	}

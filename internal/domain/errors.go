@@ -18,5 +18,6 @@ var (
 	ErrListingSearchNoProxy      = errors.New(tokens.ErrMsgListingSearchNoProxy)
 	ErrListingSearchNoAccount    = errors.New(tokens.ErrMsgListingSearchNoAccount)
 	ErrListingSearchAvitoFetch   = errors.New(tokens.ErrMsgListingSearchAvitoFetch)
+	ErrListingSearchRodFilterOnly = errors.New(tokens.ErrMsgListingSearchRodFilterOnly)
 	ErrResourceNotFound          = errors.New(tokens.ErrMsgResourceNotFound)
 )

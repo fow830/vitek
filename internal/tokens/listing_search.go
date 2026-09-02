@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Avito listing URL tokens.
@@ -40,15 +41,20 @@ const (
 	ListingSearchStubResultCount = 2
 
 	ListingSearchTaskListLimit int32 = 20
+	ListingSearchWatchDueLimit int32 = ListingSearchTaskListLimit
 
 	ListingSearchPollMaxAttempts = 30
 	ListingSearchPollIntervalMs  = 500
-	ListingSearchWatchPollIntervalMs = 60000
+	ListingSearchWatchPollInterval = time.Minute
+	ListingSearchWatchPollIntervalMs = int(ListingSearchWatchPollInterval / time.Millisecond)
+	ListingSearchWatchDueSQLInterval = "interval '1 minute'"
 
 	ListingSearchKindWatch = "watch"
 	ListingSearchKindTask  = "task"
 
-	ListingWatchStatusActive = "ACTIVE"
+	ListingWatchStatusActive   = "ACTIVE"
+	ListingWatchStatusPaused   = "PAUSED"
+	ListingWatchStatusDisabled = "DISABLED"
 )
 
 // TaskStatus* mirror PostgreSQL task_status enum (SoT for JSON + generated JS).
@@ -103,6 +109,8 @@ var SchemaListingSearchTables = []string{
 // SchemaListingWatchStatuses mirror PostgreSQL listing_watch_status enum.
 var SchemaListingWatchStatuses = []string{
 	ListingWatchStatusActive,
+	ListingWatchStatusPaused,
+	ListingWatchStatusDisabled,
 }
 
 // SchemaListingSearchTaskStatuses are task_status enum values added for listing_search.
@@ -253,7 +261,7 @@ var (
 // ListingSearchDedupVolatileQueryKeys are dropped when canonicalizing filter URLs.
 var ListingSearchDedupVolatileQueryKeys = []string{
 	"context",
-	"geoCoords",
+	AvitoQueryGeoCoords,
 	"radius",
 	"moreExpensive",
 }

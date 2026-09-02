@@ -41,7 +41,7 @@ func NewAvitoClient(opts ...AvitoClientOption) *AvitoClient {
 	c := &AvitoClient{
 		base: tokens.AvitoHTTPSBase,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: tokens.AvitoHTTPClientTimeout,
 		},
 		now: time.Now,
 	}
@@ -192,7 +192,7 @@ func (c *AvitoClient) doGET(ctx context.Context, proxyEndpoint, targetURL, accep
 		return nil, domain.ErrListingSearchAvitoFetch
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(res.Body, 4<<20))
+	body, err := io.ReadAll(io.LimitReader(res.Body, int64(tokens.AvitoHTTPMaxBodyBytes)))
 	if err != nil {
 		return nil, err
 	}

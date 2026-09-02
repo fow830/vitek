@@ -11,12 +11,13 @@ import (
 
 // Config is runtime configuration loaded exclusively via tokens.Env* keys.
 type Config struct {
-	AppEnv                  string
-	HTTPAddr                string
-	DatabaseURL             string
-	WorkerTick              time.Duration
-	ListingSearchProcessor  string
-	AvitoHTTPBase           string
+	AppEnv                 string
+	HTTPAddr               string
+	DatabaseURL            string
+	WorkerTick             time.Duration
+	ListingSearchProcessor string
+	AvitoHTTPBase          string
+	RodUserDataDir         string
 }
 
 // Load reads process environment. Missing optional keys fall back to tokens.Default*.
@@ -34,6 +35,7 @@ func Load() (Config, error) {
 		WorkerTick:             tick,
 		ListingSearchProcessor: get(tokens.EnvListingSearchProcessor, tokens.DefaultListingSearchProcessor),
 		AvitoHTTPBase:          get(tokens.EnvAvitoHTTPBase, tokens.AvitoHTTPSBase),
+		RodUserDataDir:         get(tokens.EnvRodUserDataDir, ""),
 	}
 
 	switch cfg.ListingSearchProcessor {
