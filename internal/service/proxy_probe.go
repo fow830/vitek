@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"vitek/internal/tokens"
@@ -17,15 +17,9 @@ func DefaultHTTPProxyProbe(ctx context.Context, proxyEndpoint, targetURL string)
 	if proxyEndpoint == "" || targetURL == "" {
 		return fmt.Errorf("%s", tokens.ErrMsgProxyProbeFailed)
 	}
-	proxyURL, err := url.Parse(proxyEndpoint)
+	client, err := HTTPClientViaProxy(proxyEndpoint, tokens.ProxyHealthTimeout)
 	if err != nil {
-		return err
-	}
-	client := &http.Client{
-		Timeout: tokens.ProxyHealthTimeout,
-		Transport: &http.Transport{
-			Proxy: http.ProxyURL(proxyURL),
-		},
+		return fmt.Errorf("%s: %w", tokens.ErrMsgProxyProbeFailed, err)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
@@ -37,6 +31,7 @@ func DefaultHTTPProxyProbe(ctx context.Context, proxyEndpoint, targetURL string)
 		return fmt.Errorf("%s: %w", tokens.ErrMsgProxyProbeFailed, err)
 	}
 	defer res.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 64<<10))
 	if res.StatusCode > tokens.ProxyProbeMaxStatusCode {
 		return fmt.Errorf("%s: status %d", tokens.ErrMsgProxyProbeFailed, res.StatusCode)
 	}

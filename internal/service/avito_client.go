@@ -166,14 +166,11 @@ func (c *AvitoClient) doGET(ctx context.Context, proxyEndpoint, targetURL, accep
 
 	client := c.client
 	if strings.TrimSpace(proxyEndpoint) != "" {
-		proxyURL, err := url.Parse(proxyEndpoint)
+		pc, err := HTTPClientViaProxy(proxyEndpoint, c.client.Timeout)
 		if err != nil {
-			return nil, err
+			return nil, domain.ErrListingSearchAvitoFetch
 		}
-		client = &http.Client{
-			Timeout:   c.client.Timeout,
-			Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)},
-		}
+		client = pc
 	}
 
 	res, err := client.Do(req)
