@@ -40,6 +40,17 @@ func (q *Queries) CreateBinding(ctx context.Context, arg CreateBindingParams) (L
 	return i, err
 }
 
+const forceProxyDegraded = `-- name: ForceProxyDegraded :exec
+UPDATE proxies
+SET health = 'DEGRADED'
+WHERE id = $1
+`
+
+func (q *Queries) ForceProxyDegraded(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, forceProxyDegraded, id)
+	return err
+}
+
 const getBinding = `-- name: GetBinding :one
 SELECT id, avito_account_id, proxy_id, user_data_dir, status, session_status, session_err, last_session_at, created_at
 FROM listing_fetch_bindings

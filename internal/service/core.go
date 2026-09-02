@@ -202,6 +202,7 @@ func (s *Proxies) RecordHealthFail(ctx context.Context, id pgtype.UUID, errMsg s
 type ProxyProbeFunc func(ctx context.Context, proxyEndpoint, targetURL string) error
 
 // ProbeActive runs health probes for all active (non-DEAD) proxies and pauses bindings on DEAD.
+// The last remaining fetchable proxy is clamped to DEGRADED (never DEAD) so the pool stays usable.
 func ProbeActive(ctx context.Context, proxies *Proxies, bindings *Bindings, probe ProxyProbeFunc) (ok, fail int, err error) {
 	if probe == nil {
 		probe = DefaultHTTPProxyProbe
@@ -217,9 +218,19 @@ func ProbeActive(ctx context.Context, proxies *Proxies, bindings *Bindings, prob
 			if recErr != nil {
 				return ok, fail, recErr
 			}
-			if updated.Health == repository.ProxyHealthStatusDEAD && bindings != nil {
-				if err := bindings.PauseForProxy(ctx, p.ID); err != nil {
-					return ok, fail, err
+			if updated.Health == repository.ProxyHealthStatusDEAD {
+				remaining, listErr := proxies.ListActive(ctx)
+				if listErr != nil {
+					return ok, fail, listErr
+				}
+				if len(remaining) == 0 {
+					if err := proxies.q.ForceProxyDegraded(ctx, p.ID); err != nil {
+						return ok, fail, err
+					}
+				} else if bindings != nil {
+					if err := bindings.PauseForProxy(ctx, p.ID); err != nil {
+						return ok, fail, err
+					}
 				}
 			}
 			fail++
@@ -233,27 +244,39 @@ func ProbeActive(ctx context.Context, proxies *Proxies, bindings *Bindings, prob
 	return ok, fail, nil
 }
 
-// AssertProxyPoolReady enforces minimum fetchable proxies for production boots.
-// Docker-bridge-only pools are allowed but returned as a soft warning for ops logs.
+// AssertProxyPoolReady enforces minimum configured ACTIVE proxies for production boots.
 func AssertProxyPoolReady(ctx context.Context, proxies *Proxies, appEnv string) error {
 	_, err := ProxyPoolBootIssues(ctx, proxies, appEnv)
 	return err
 }
 
-// ProxyPoolBootIssues returns a hard error (empty pool) and optional soft warnings.
+// ProxyPoolBootIssues hard-fails when no status=ACTIVE proxies exist; soft-warns DEAD-only / docker-bridge pools.
 func ProxyPoolBootIssues(ctx context.Context, proxies *Proxies, appEnv string) (warns []string, err error) {
 	if appEnv != tokens.AppEnvProduction {
 		return nil, nil
 	}
-	list, err := proxies.ListActive(ctx)
+	all, err := proxies.ListAll(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(list) < tokens.ProxyPoolMinActive {
+	var statusActive []repository.Proxy
+	for _, p := range all {
+		if p.Status == repository.ProxyStatusACTIVE {
+			statusActive = append(statusActive, p)
+		}
+	}
+	if len(statusActive) < tokens.ProxyPoolMinActive {
 		return nil, fmt.Errorf("%s", tokens.ErrMsgProxyPoolTooSmall)
 	}
+	fetchable, err := proxies.ListActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(fetchable) == 0 {
+		warns = append(warns, tokens.ErrMsgProxyPoolAllDead)
+	}
 	nonBridge := 0
-	for _, p := range list {
+	for _, p := range statusActive {
 		if !tokens.IsDockerBridgeProxyEndpoint(p.Endpoint) {
 			nonBridge++
 		}

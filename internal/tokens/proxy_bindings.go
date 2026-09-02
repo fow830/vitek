@@ -53,6 +53,7 @@ const (
 	ErrMsgSessionChallenge          = "avito session challenge"
 	ErrMsgRodUserDataDirRequired    = "ROD_USER_DATA_DIR is required for rod in production"
 	ErrMsgProxyPoolTooSmall         = "proxy pool below minimum active"
+	ErrMsgProxyPoolAllDead          = "all ACTIVE proxies are DEAD"
 	ErrMsgProxyPoolDockerBridgeOnly = "production proxy pool is docker-bridge only"
 
 	FixtureBindingUserDataDir = "/tmp/vitek-rod-profile"

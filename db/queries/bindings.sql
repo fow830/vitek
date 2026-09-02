@@ -22,6 +22,11 @@ SET last_err = sqlc.arg(last_err),
 WHERE id = sqlc.arg(id)
 RETURNING id, endpoint, status, created_at, label, last_ok_at, last_err, fail_streak, health;
 
+-- name: ForceProxyDegraded :exec
+UPDATE proxies
+SET health = 'DEGRADED'
+WHERE id = $1;
+
 -- name: CreateBinding :one
 INSERT INTO listing_fetch_bindings (avito_account_id, proxy_id, user_data_dir, status, session_status)
 VALUES ($1, $2, $3, 'ACTIVE', 'LOGGED_OUT')

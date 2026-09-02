@@ -50,11 +50,12 @@ func TestContract_ProxyHealthProbe(t *testing.T) {
 	}
 	got, err = q.GetProxy(ctx, p.ID)
 	require.NoError(t, err)
-	require.Equal(t, repository.ProxyHealthStatusDEAD, got.Health)
+	// last fetchable proxy is clamped to DEGRADED (never left DEAD alone)
+	require.Equal(t, repository.ProxyHealthStatusDEGRADED, got.Health)
 	require.Equal(t, int32(tokens.ProxyDeadAfterFails), got.FailStreak)
 }
 
-// CONTRACT-PROXY-013: production boot rejects empty pool; docker-bridge-only is soft-warn.
+// CONTRACT-PROXY-013: production boot rejects empty ACTIVE pool; DEAD-only / docker-bridge soft-warn.
 func TestContract_ProxyPoolBootGuard(t *testing.T) {
 	ctx := context.Background()
 	pool, _ := queries(t)
@@ -64,17 +65,27 @@ func TestContract_ProxyPoolBootGuard(t *testing.T) {
 	require.Error(t, err)
 	require.Empty(t, warns)
 
-	_, err = proxies.Create(ctx, "socks5://172.19.0.1:11080", repository.ProxyStatusACTIVE, "bridge")
+	alive, err := proxies.Create(ctx, "socks5://172.19.0.1:11080", repository.ProxyStatusACTIVE, "bridge")
 	require.NoError(t, err)
 	warns, err = service.ProxyPoolBootIssues(ctx, proxies, tokens.AppEnvProduction)
 	require.NoError(t, err)
 	require.Equal(t, []string{tokens.ErrMsgProxyPoolDockerBridgeOnly}, warns)
 
+	for i := 0; i < tokens.ProxyDeadAfterFails; i++ {
+		_, err = proxies.RecordHealthFail(ctx, alive.ID, tokens.ErrMsgProxyProbeFailed)
+		require.NoError(t, err)
+	}
+	warns, err = service.ProxyPoolBootIssues(ctx, proxies, tokens.AppEnvProduction)
+	require.NoError(t, err)
+	require.Contains(t, warns, tokens.ErrMsgProxyPoolAllDead)
+	require.Contains(t, warns, tokens.ErrMsgProxyPoolDockerBridgeOnly)
+
 	_, err = proxies.Create(ctx, "socks5://10.8.0.2:1080", repository.ProxyStatusACTIVE, "ok")
 	require.NoError(t, err)
 	warns, err = service.ProxyPoolBootIssues(ctx, proxies, tokens.AppEnvProduction)
 	require.NoError(t, err)
-	require.Empty(t, warns)
+	require.NotContains(t, warns, tokens.ErrMsgProxyPoolAllDead)
+	require.Empty(t, warns) // has non-bridge ACTIVE (even if other is DEAD)
 	require.True(t, tokens.IsDockerBridgeProxyEndpoint("socks5://172.19.0.1:11080"))
 	require.False(t, tokens.IsDockerBridgeProxyEndpoint("socks5://10.8.0.2:1080"))
 	require.Equal(t, tokens.DockerBridgeCIDR, "172.16.0.0/12")
@@ -110,6 +121,7 @@ func TestContract_RodUsesReadyBinding(t *testing.T) {
 		})
 		require.NoError(t, err)
 	}
+	require.NoError(t, bindings.PauseForProxy(ctx, proxy.ID))
 
 	got, err := bindings.List(ctx)
 	require.NoError(t, err)
