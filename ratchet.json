@@ -1,0 +1,51 @@
+{
+  "schema_version": 2,
+  "module": "vitek",
+  "preset": "vitek",
+  "profile": "standard",
+  "layers": {
+    "/domain": "domain",
+    "/repository": "repository",
+    "/service": "service",
+    "/transport": "transport"
+  },
+  "allowed_edges": {
+    "domain": [],
+    "repository": [],
+    "service": [
+      "domain",
+      "repository"
+    ],
+    "transport": [
+      "service",
+      "domain"
+    ]
+  },
+  "forbidden_edges": [
+    {
+      "from": "transport",
+      "to": "repository"
+    },
+    {
+      "from": "domain",
+      "to": "transport"
+    },
+    {
+      "from": "domain",
+      "to": "service"
+    },
+    {
+      "from": "domain",
+      "to": "repository"
+    }
+  ],
+  "contract_files": [
+    ".cursorrules",
+    "ratchet.json"
+  ],
+  "allowed_prose_docs": [
+    "README.md",
+    "DEPLOY.md"
+  ],
+  "contracts_dir": "tests/contracts"
+}

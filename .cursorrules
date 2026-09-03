@@ -1,0 +1,24 @@
+# ratchet — Zero Architectural Regression (Anti-Drift)
+
+Module: vitek
+Preset: vitek
+Profile: standard
+
+## Absolute Guardrails
+1. Pure Go SSOT in ratchet.json (+ optional Go codegen: sqlc/buf/oapi via profiles).
+2. NO Go .so plugins — use WebAssembly (wazero) rule packs.
+3. No academic formal-verifier translators (TLA+, Lean4) in core.
+4. Validate with go/ast, PBT, testcontainers, race/fuzz/mutation gates.
+
+## Layer Edges
+- domain → (none; leaf)
+- repository → (none; leaf)
+- service → domain, repository
+- transport → domain, service
+
+## Agent Protocol (RED→GREEN)
+1. Write or extend a failing contract in tests/contracts/ first (RED).
+2. Implement the minimal fix (GREEN).
+3. Run `ratchet check --format=llm` and fix every RULE_VIOLATION.
+4. Run `ratchet gen` / `ratchet lock` before committing contract/SSOT changes.
+5. When contracts change, include LRT-VERIFY in the commit message.
