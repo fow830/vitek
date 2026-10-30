@@ -36,7 +36,7 @@ func startAvitoMock(t *testing.T) *httptest.Server {
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					tokens.AvitoJSONFieldItems: []map[string]any{
 						{tokens.AvitoJSONFieldID: tokens.FixtureAvitoItemID1, tokens.AvitoJSONFieldTitle: tokens.FixtureAvitoItemTitle1},
-						{tokens.AvitoJSONFieldID: tokens.FixtureAvitoItemID2, tokens.AvitoJSONFieldTitle: "Filter hit 2"},
+						{tokens.AvitoJSONFieldID: tokens.FixtureAvitoItemID2, tokens.AvitoJSONFieldTitle: tokens.FixtureAvitoItemTitle2},
 					},
 				})
 				return
@@ -49,9 +49,9 @@ func startAvitoMock(t *testing.T) *httptest.Server {
 				},
 			})
 		default:
-			if strings.Contains(r.URL.Path, "apple-") {
+			if strings.Contains(r.URL.Path, "apple-") || strings.Contains(r.URL.Path, "samsung-") {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				_, _ = w.Write([]byte(tokens.FixtureAvitoFilterPageHTML))
+				_, _ = w.Write([]byte(tokens.FixtureAvitoFilterSERPHTML))
 				return
 			}
 			http.NotFound(w, r)
@@ -317,4 +317,54 @@ func TestContract_ListingSearch_FilterURLNewOnly(t *testing.T) {
 	items3, err := q.ListTaskItems(ctx, task3.ID)
 	require.NoError(t, err)
 	require.Empty(t, items3)
+}
+
+// CONTRACT-LISTING-028: filter fetch uses the filter SERP URL params (not /web/1/main/items); 429 → change-IP retry.
+func TestContract_ListingSearch_FilterSERPParamsAndRateLimit(t *testing.T) {
+	fetchURL := tokens.ListingSearchFilterFetchURL(tokens.FixtureFilterListingURL)
+	require.Contains(t, fetchURL, tokens.AvitoQueryFilterF+"=")
+	require.NotContains(t, fetchURL, "context=")
+
+	var sawItemsAPI, sawChange, sawFilterSERP bool
+	var serpHits int
+	changeSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawChange = true
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(changeSrv.Close)
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == tokens.AvitoWebPathItemSearch {
+			sawItemsAPI = true
+			http.Error(w, "filter must not use items API", http.StatusBadRequest)
+			return
+		}
+		if !strings.Contains(r.URL.Path, "apple-") {
+			http.NotFound(w, r)
+			return
+		}
+		sawFilterSERP = true
+		require.NotEmpty(t, r.URL.Query().Get(tokens.AvitoQueryFilterF))
+		serpHits++
+		if serpHits == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(tokens.FixtureAvitoFilterSERPHTML))
+	}))
+	t.Cleanup(mock.Close)
+
+	client := service.NewAvitoClient(
+		service.WithAvitoHTTPBase(mock.URL),
+		service.WithProxyChangeIPURL(changeSrv.URL),
+	)
+	items, err := client.FindFromFilterURL(context.Background(), "", tokens.FixtureFilterListingURL, "")
+	require.NoError(t, err)
+	require.True(t, sawFilterSERP)
+	require.True(t, sawChange)
+	require.False(t, sawItemsAPI)
+	require.Len(t, items, 2)
+	require.Equal(t, tokens.FixtureAvitoItemID1, items[0].AvitoID)
 }

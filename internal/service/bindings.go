@@ -85,6 +85,56 @@ func (s *Bindings) MarkSessionChallenge(ctx context.Context, id pgtype.UUID, err
 	})
 }
 
+func warmFetchHTML(ctx context.Context, fetch AvitoPageFetcher, proxyEndpoint, userDataDir string) (string, error) {
+	if warmer, ok := fetch.(ProfileWarmer); ok {
+		return warmer.WarmProfile(ctx, proxyEndpoint, userDataDir)
+	}
+	return fetch.FetchHTML(ctx, proxyEndpoint, userDataDir, tokens.ProxyProbeURL())
+}
+
+// BeginSessionWarm marks LOGGING_IN so the Chrome worker can run ProfileWarmer.
+func (s *Bindings) BeginSessionWarm(ctx context.Context, id pgtype.UUID) (repository.ListingFetchBinding, error) {
+	_, err := s.q.GetBinding(ctx, id)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return repository.ListingFetchBinding{}, domain.ErrResourceNotFound
+		}
+		return repository.ListingFetchBinding{}, err
+	}
+	return s.q.UpdateBindingSession(ctx, repository.UpdateBindingSessionParams{
+		ID:            id,
+		SessionStatus: repository.ListingSessionStatusLOGGINGIN,
+		SessionErr:    nil,
+	})
+}
+
+// WarmLoggingIn completes multi-step Chrome warm for ACTIVE bindings stuck in LOGGING_IN.
+func (s *Bindings) WarmLoggingIn(ctx context.Context, fetch AvitoPageFetcher) (int, error) {
+	if fetch == nil {
+		return 0, nil
+	}
+	list, err := s.List(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, b := range list {
+		if b.Status != repository.ListingBindingStatusACTIVE {
+			continue
+		}
+		if b.SessionStatus != repository.ListingSessionStatusLOGGINGIN {
+			continue
+		}
+		if _, err := s.WarmSession(ctx, b.ID, fetch); err != nil {
+			// Session already marked ERROR/CHALLENGE inside WarmSession; keep ticking.
+			n++
+			continue
+		}
+		n++
+	}
+	return n, nil
+}
+
 // WarmSession opens Avito via the binding profile+proxy and marks READY / CHALLENGE / ERROR.
 func (s *Bindings) WarmSession(ctx context.Context, id pgtype.UUID, fetch AvitoPageFetcher) (repository.ListingFetchBinding, error) {
 	if fetch == nil {
@@ -110,7 +160,7 @@ func (s *Bindings) WarmSession(ctx context.Context, id pgtype.UUID, fetch AvitoP
 		return repository.ListingFetchBinding{}, err
 	}
 
-	html, err := fetch.FetchHTML(ctx, proxy.Endpoint, b.UserDataDir, tokens.ProxyProbeURL())
+	html, err := warmFetchHTML(ctx, fetch, proxy.Endpoint, b.UserDataDir)
 	if err != nil {
 		msg := err.Error()
 		failed, updErr := s.q.UpdateBindingSession(ctx, repository.UpdateBindingSessionParams{

@@ -90,6 +90,11 @@ var ForbiddenPackagePathFragments = []string{
 // ForbiddenArtifactPaths are stale generated/hand paths that must not exist on disk.
 var ForbiddenArtifactPaths = []string{
 	"web/admin/face.html",
+	// ratchet dogfood stubs (no consumer in vitek runtime).
+	"generated/Dockerfile.ratchet",
+	"generated/docker-compose.ratchet.yml",
+	"generated/ratchet_layers.go",
+	"generated/sqlc.ratchet.yaml",
 }
 
 // ForbiddenGoModPathFragments: go.mod must not pull these (narrow; wave D allowlist is separate).

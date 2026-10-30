@@ -88,19 +88,37 @@ func (w *ListingSearchWorker) ProcessWatchPolls(ctx context.Context) (int, error
 		return 0, err
 	}
 
-	n := 0
+	// One Avito fetch per filter_key — all users on that filter share the stream.
+	type group struct {
+		query   string
+		watches []repository.ListingFilterWatch
+	}
+	ordered := make([]group, 0)
+	index := map[string]int{}
 	for _, watch := range watches {
-		if err := w.pollWatch(ctx, watch); err != nil {
-			return n, err
+		i, ok := index[watch.FilterKey]
+		if !ok {
+			i = len(ordered)
+			index[watch.FilterKey] = i
+			ordered = append(ordered, group{query: watch.Query})
 		}
-		n++
+		ordered[i].watches = append(ordered[i].watches, watch)
+	}
+
+	n := 0
+	for _, g := range ordered {
+		similar, findErr := w.processor.FindSimilar(ctx, g.query)
+		for _, watch := range g.watches {
+			if err := w.applyWatchPoll(ctx, watch, similar, findErr); err != nil {
+				return n, err
+			}
+			n++
+		}
 	}
 	return n, nil
 }
 
-func (w *ListingSearchWorker) pollWatch(ctx context.Context, watch repository.ListingFilterWatch) error {
-	similar, findErr := w.processor.FindSimilar(ctx, watch.Query)
-
+func (w *ListingSearchWorker) applyWatchPoll(ctx context.Context, watch repository.ListingFilterWatch, similar []SimilarListing, findErr error) error {
 	tx, err := w.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -110,6 +128,15 @@ func (w *ListingSearchWorker) pollWatch(ctx context.Context, watch repository.Li
 
 	if findErr != nil {
 		msg := findErr.Error()
+		if isAvitoSoftWatchFailure(findErr) {
+			if _, err := qtx.RecordFilterWatchPollSoftFailure(ctx, repository.RecordFilterWatchPollSoftFailureParams{
+				ID:        watch.ID,
+				LastError: &msg,
+			}); err != nil {
+				return err
+			}
+			return tx.Commit(ctx)
+		}
 		if _, err := qtx.RecordFilterWatchPollFailure(ctx, repository.RecordFilterWatchPollFailureParams{
 			ID:          watch.ID,
 			LastError:   &msg,

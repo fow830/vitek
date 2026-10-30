@@ -163,6 +163,48 @@ func (q *Queries) InsertWatchHit(ctx context.Context, arg InsertWatchHitParams) 
 	return err
 }
 
+const listAllFilterWatchesByUser = `-- name: ListAllFilterWatchesByUser :many
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
+FROM listing_filter_watches
+WHERE user_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListAllFilterWatchesByUser(ctx context.Context, userID pgtype.UUID) ([]ListingFilterWatch, error) {
+	rows, err := q.db.Query(ctx, listAllFilterWatchesByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListingFilterWatch{}
+	for rows.Next() {
+		var i ListingFilterWatch
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.FilterKey,
+			&i.Query,
+			&i.Status,
+			&i.LastPolledAt,
+			&i.CreatedAt,
+			&i.LastError,
+			&i.LastErrorAt,
+			&i.ConsecutiveFailures,
+			&i.LastSuccessAt,
+			&i.MetaStatus,
+			&i.MetaJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDueFilterWatches = `-- name: ListDueFilterWatches :many
 SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
     last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
@@ -170,7 +212,7 @@ FROM listing_filter_watches
 WHERE status = 'ACTIVE'
   AND (
     last_polled_at IS NULL
-    OR last_polled_at <= now() - interval '1 minute'
+    OR last_polled_at <= now() - interval '30 seconds'
   )
 ORDER BY last_polled_at NULLS FIRST, created_at ASC
 LIMIT 20
@@ -304,6 +346,7 @@ const recordFilterWatchPollFailure = `-- name: RecordFilterWatchPollFailure :one
 UPDATE listing_filter_watches
 SET last_error = $1,
     last_error_at = now(),
+    last_polled_at = now(),
     consecutive_failures = consecutive_failures + 1,
     meta_status = CASE
         WHEN meta_status = 'PENDING' THEN 'FAILED'::listing_watch_meta_status
@@ -326,6 +369,44 @@ type RecordFilterWatchPollFailureParams struct {
 
 func (q *Queries) RecordFilterWatchPollFailure(ctx context.Context, arg RecordFilterWatchPollFailureParams) (ListingFilterWatch, error) {
 	row := q.db.QueryRow(ctx, recordFilterWatchPollFailure, arg.LastError, arg.MaxFailures, arg.ID)
+	var i ListingFilterWatch
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.FilterKey,
+		&i.Query,
+		&i.Status,
+		&i.LastPolledAt,
+		&i.CreatedAt,
+		&i.LastError,
+		&i.LastErrorAt,
+		&i.ConsecutiveFailures,
+		&i.LastSuccessAt,
+		&i.MetaStatus,
+		&i.MetaJson,
+	)
+	return i, err
+}
+
+const recordFilterWatchPollSoftFailure = `-- name: RecordFilterWatchPollSoftFailure :one
+UPDATE listing_filter_watches
+SET last_error = $1,
+    last_error_at = now(),
+    last_polled_at = now(),
+    consecutive_failures = 0
+WHERE id = $2
+RETURNING id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
+`
+
+type RecordFilterWatchPollSoftFailureParams struct {
+	LastError *string     `json:"last_error"`
+	ID        pgtype.UUID `json:"id"`
+}
+
+// Soft = antibot/rate-limit: keep ACTIVE, do not flip meta, clear pause streak.
+func (q *Queries) RecordFilterWatchPollSoftFailure(ctx context.Context, arg RecordFilterWatchPollSoftFailureParams) (ListingFilterWatch, error) {
+	row := q.db.QueryRow(ctx, recordFilterWatchPollSoftFailure, arg.LastError, arg.ID)
 	var i ListingFilterWatch
 	err := row.Scan(
 		&i.ID,

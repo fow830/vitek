@@ -96,7 +96,7 @@ func (s *Notifications) ProcessOutbox(ctx context.Context, limit int32) (int, er
 		if err := qtx.MarkNotificationSubmitted(ctx, row.ID); err != nil {
 			return n, err
 		}
-		text := fmt.Sprintf(tokens.NotifyWatchHitFormat, row.ItemTitle, row.ItemAvitoID)
+		text := fmt.Sprintf(tokens.NotifyWatchHitFormat, row.ItemTitle, tokens.AvitoItemPageURL(row.ItemAvitoID))
 		if err := s.sender.Send(ctx, *row.TelegramChatID, text); err != nil {
 			msg := err.Error()
 			_ = qtx.MarkNotificationFailed(ctx, repository.MarkNotificationFailedParams{

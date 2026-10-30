@@ -2,19 +2,13 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"net/url"
-	"os"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"vitek/internal/domain"
+	"vitek/internal/repository"
 	"vitek/internal/tokens"
 )
 
@@ -23,24 +17,50 @@ type AvitoPageFetcher interface {
 	FetchHTML(ctx context.Context, proxyEndpoint, userDataDir, pageURL string) (string, error)
 }
 
-// RodAvitoListingProcessor finds filter SERP listings via Chrome (Rod).
-// Item URLs are not supported (ErrListingSearchRodFilterOnly).
+// ProfileWarmer runs a multi-step sticky-profile warm (home → dwell → secondary).
+// WarmSession prefers this over a single FetchHTML probe when available.
+type ProfileWarmer interface {
+	WarmProfile(ctx context.Context, proxyEndpoint, userDataDir string) (string, error)
+}
+
+// RodAvitoListingProcessor finds filter SERP listings via optional AvitoClient (HTTP heal)
+// then Chrome/HTML page fetcher.
 type RodAvitoListingProcessor struct {
 	bindings *Bindings
 	fetch    AvitoPageFetcher
+	client   *AvitoClient
 
 	mu       sync.Mutex
 	lastMeta tokens.ListingFilterMeta
 }
 
 func NewRodAvitoListingProcessor(pool *pgxpool.Pool, fetch AvitoPageFetcher) *RodAvitoListingProcessor {
+	return NewRodAvitoListingProcessorWithClient(pool, fetch, nil)
+}
+
+// NewRodAvitoListingProcessorWithClient prefers healed HTTP SERP when client is set.
+func NewRodAvitoListingProcessorWithClient(pool *pgxpool.Pool, fetch AvitoPageFetcher, client *AvitoClient) *RodAvitoListingProcessor {
 	if fetch == nil {
 		fetch = NewRodPageFetcher("", "")
 	}
 	return &RodAvitoListingProcessor{
 		bindings: NewBindings(pool),
 		fetch:    fetch,
+		client:   client,
 	}
+}
+
+// HasHTTPHeal reports AvitoClient HTTP rotate-until-clean before Chrome SERP.
+func (p *RodAvitoListingProcessor) HasHTTPHeal() bool {
+	return p != nil && p.client != nil
+}
+
+// PageFetcher exposes the session-warm / HTML SERP fetcher (Chrome when configured).
+func (p *RodAvitoListingProcessor) PageFetcher() AvitoPageFetcher {
+	if p == nil {
+		return nil
+	}
+	return p.fetch
 }
 
 // LastFilterMeta returns meta enriched from the last successful SERP HTML fetch.
@@ -62,8 +82,46 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 		return nil, err
 	}
 
-	baseURL := tokens.NormalizeListingSearchURL(listingURL)
 	meta := tokens.ParseListingFilterMeta(listingURL)
+	var clientErr error
+	if p.client != nil {
+		items, err := p.client.FindFromFilterURL(ctx, binding.ProxyEndpoint, listingURL, binding.UserDataDir)
+		if err == nil {
+			p.mu.Lock()
+			p.lastMeta = meta
+			p.mu.Unlock()
+			return items, nil
+		}
+		clientErr = err
+		if !isAvitoFetchRecoverable(err) {
+			return nil, err
+		}
+	}
+
+	items, htmlMeta, err := p.collectSERP(ctx, binding, listingURL, meta, p.fetch)
+	if err == nil {
+		p.mu.Lock()
+		p.lastMeta = htmlMeta
+		p.mu.Unlock()
+		return items, nil
+	}
+	if clientErr != nil {
+		return nil, clientErr
+	}
+	return nil, err
+}
+
+func (p *RodAvitoListingProcessor) collectSERP(
+	ctx context.Context,
+	binding repository.PickReadyBindingRow,
+	listingURL string,
+	meta tokens.ListingFilterMeta,
+	fetch AvitoPageFetcher,
+) ([]SimilarListing, tokens.ListingFilterMeta, error) {
+	if fetch == nil {
+		return nil, meta, newAvitoFetchFailure(tokens.AvitoFetchStateOther, 0, false)
+	}
+	baseURL := tokens.NormalizeListingSearchURL(listingURL)
 	seen := map[string]struct{}{}
 	out := make([]SimilarListing, 0, tokens.ListingSearchSERPMaxItems)
 	var lastHTML string
@@ -72,22 +130,22 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 		if page > 1 {
 			select {
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, meta, ctx.Err()
 			case <-time.After(tokens.RodInterRequestDelay):
 			}
 		}
 		pageURL := tokens.ListingSearchSERPPageURL(baseURL, page)
-		html, err := p.fetch.FetchHTML(ctx, binding.ProxyEndpoint, binding.UserDataDir, pageURL)
+		html, err := fetch.FetchHTML(ctx, binding.ProxyEndpoint, binding.UserDataDir, pageURL)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %v", domain.ErrListingSearchAvitoFetch, err)
+			return nil, meta, err
 		}
 		if tokens.IsAvitoChallengeHTML(html) {
 			_, _ = p.bindings.MarkSessionChallenge(ctx, binding.ID, tokens.ErrMsgSessionChallenge)
-			return nil, domain.ErrListingSearchAvitoFetch
+			return nil, meta, newAvitoFetchFailure(tokens.AvitoFetchStateChallenge, 0, true)
 		}
 		items, err := tokens.ParseAvitoSERPItems(html)
 		if err != nil {
-			return nil, domain.ErrListingSearchAvitoFetch
+			return nil, meta, newAvitoFetchFailure(tokens.AvitoFetchStateOther, 0, false)
 		}
 		if len(items) == 0 {
 			break
@@ -111,88 +169,8 @@ func (p *RodAvitoListingProcessor) FindSimilar(ctx context.Context, listingURL s
 	if lastHTML != "" {
 		meta = tokens.MergeFilterMetaFromSERPHTML(meta, lastHTML)
 	}
-	p.mu.Lock()
-	p.lastMeta = meta
-	p.mu.Unlock()
-
 	if len(out) == 0 {
-		return nil, domain.ErrListingSearchAvitoFetch
+		return nil, meta, newAvitoFetchFailure(tokens.AvitoFetchStateEmpty, 0, false)
 	}
-	return out, nil
-}
-
-// RodPageFetcher opens pages with go-rod Chrome (optional user-data-dir + HTTP base rewrite).
-type RodPageFetcher struct {
-	userDataDir string
-	httpBase    string
-	timeout     time.Duration
-	headless    bool
-}
-
-func NewRodPageFetcher(userDataDir, httpBase string) *RodPageFetcher {
-	return &RodPageFetcher{
-		userDataDir: strings.TrimSpace(userDataDir),
-		httpBase:    strings.TrimSpace(httpBase),
-		timeout:     tokens.RodPageFetchTimeout,
-		headless:    tokens.RodHeadlessDefault,
-	}
-}
-
-func (f *RodPageFetcher) FetchHTML(ctx context.Context, proxyEndpoint, userDataDir, pageURL string) (string, error) {
-	pageURL = tokens.ListingSearchRewriteHTTPBase(pageURL, f.httpBase)
-	dir := strings.TrimSpace(userDataDir)
-	if dir == "" {
-		dir = f.userDataDir
-	}
-	l := launcher.New().Headless(f.headless).NoSandbox(true).
-		Set("disable-dev-shm-usage").
-		Set("disable-gpu").
-		Set("no-zygote").
-		Set("single-process")
-	bin := strings.TrimSpace(os.Getenv(tokens.EnvRodBrowser))
-	if bin == "" {
-		bin = tokens.DefaultRodChromeBin
-	}
-	if bin != "" {
-		l = l.Bin(bin)
-	}
-	if dir != "" {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return "", fmt.Errorf("%s: %w", tokens.ErrMsgRodLaunch, err)
-		}
-		l = l.UserDataDir(dir)
-	}
-	if strings.TrimSpace(proxyEndpoint) != "" {
-		proxyURL, err := url.Parse(proxyEndpoint)
-		if err != nil {
-			return "", err
-		}
-		l = l.Proxy(proxyURL.String())
-	}
-	controlURL, err := l.Launch()
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", tokens.ErrMsgRodLaunch, err)
-	}
-	browser := rod.New().ControlURL(controlURL).Context(ctx)
-	if err := browser.Connect(); err != nil {
-		return "", fmt.Errorf("%s: %w", tokens.ErrMsgRodConnect, err)
-	}
-	defer func() { _ = browser.Close() }()
-
-	page, err := browser.Page(proto.TargetCreateTarget{URL: pageURL})
-	if err != nil {
-		return "", err
-	}
-	page = page.Context(ctx).Timeout(f.timeout)
-	if err := page.WaitLoad(); err != nil {
-		return "", domain.ErrListingSearchAvitoFetch
-	}
-	html, err := page.HTML()
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(html) == "" {
-		return "", domain.ErrListingSearchAvitoFetch
-	}
-	return html, nil
+	return out, meta, nil
 }

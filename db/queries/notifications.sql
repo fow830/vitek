@@ -12,6 +12,12 @@ SELECT user_id, telegram_chat_id, enabled, updated_at
 FROM user_notification_settings
 WHERE user_id = $1;
 
+-- name: GetNotificationSettingsByTelegramChatID :one
+SELECT user_id, telegram_chat_id, enabled, updated_at
+FROM user_notification_settings
+WHERE telegram_chat_id = $1
+LIMIT 1;
+
 -- name: EnqueueNotification :exec
 INSERT INTO notification_outbox (user_id, watch_id, item_id, channel, status)
 VALUES ($1, $2, $3, 'TELEGRAM', 'PENDING')

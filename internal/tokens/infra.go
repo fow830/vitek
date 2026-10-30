@@ -3,13 +3,13 @@ package tokens
 // Infrastructure image and volume tokens (docker compose / CI).
 const (
 	ImageRuntime       = "gcr.io/distroless/static-debian12"
-	ImageWorkerRuntime = "chromedp/headless-shell:latest"
+	ImageWorkerRuntime = "debian:bookworm-slim"
 
 	VolumePostgres = "vitek_pg"
 
 	ContainerPostgresPort = "5432"
 
-	DefaultWorkerTick = "5s"
+	DefaultWorkerTick = "30s"
 
 	DefaultListingSearchProcessor = ListingSearchProcessorStub
 )

@@ -58,8 +58,8 @@ const (
 	AppCopyOverviewTitle    = "Обзор"
 	AppCopyOverviewLede     = "Платформа сервисов. Shipped и reserved — из каталога токенов."
 	AppCopySearchTitle      = "Поиск похожих"
-	AppCopySearchLede       = "Вставьте ссылку на фильтр Avito — сервис проверяет новые объявления каждую минуту."
-	AppCopySearchStatusWatch = "Мониторинг — проверка каждую минуту"
+	AppCopySearchLede        = "Вставьте ссылку на фильтр Avito — сервис проверяет новые объявления " + ListingSearchWatchPollHumanRU + "."
+	AppCopySearchStatusWatch = "Мониторинг — проверка " + ListingSearchWatchPollHumanRU
 	AppCopySearchURLLabel   = "Ссылка на фильтр"
 	AppCopySearchSubmit     = "Искать"
 	AppCopySearchStatusIdle = "Создайте задачу или выберите из списка."
@@ -71,6 +71,33 @@ const (
 	AppCopySearchWatchResume = "Продолжить"
 	AppCopySearchWatchStop  = "Стоп"
 	AppCopySearchWatchReset = "Сбросить историю"
+	AppCopyWatchDetailRegion    = "Регион"
+	AppCopyWatchDetailCategory  = "Категория"
+	AppCopyWatchDetailBrand     = "Бренд / модель"
+	AppCopyWatchDetailPrice     = "Цена"
+	AppCopyWatchDetailPriceFrom = "от"
+	AppCopyWatchDetailPriceTo   = "до"
+	AppCopyWatchDetailPriceRub  = "₽"
+	AppCopyWatchDetailMonitor   = "Мониторинг"
+	AppCopyWatchDetailPoll      = "Опрос Avito"
+	AppCopyWatchDetailPollOK    = "работает"
+	AppCopyWatchDetailPollFail  = "ошибка"
+	AppCopyWatchDetailLastOK    = "Последний успешный опрос"
+	AppCopyWatchDetailLastFail  = "Последняя ошибка"
+	AppCopyWatchDetailFailStreak = "Подряд неудачных опросов"
+	AppCopyWatchDetailMeta      = "Параметры фильтра"
+	AppCopyWatchDetailLink      = "Ссылка"
+	AppCopyWatchDetailUnknown   = "не указано"
+	AppCopyWatchStatusActive    = "включён, проверка " + ListingSearchWatchPollHumanRU
+	AppCopyWatchStatusPaused    = "на паузе"
+	AppCopyWatchStatusDisabled  = "остановлен"
+	AppCopyWatchMetaPending     = "уточняем…"
+	AppCopyWatchMetaReady       = "загружены"
+	AppCopyWatchMetaFailed      = "не удалось разобрать"
+	AppCopyWatchErrFetch        = "Не удалось загрузить выдачу Avito"
+	AppCopyWatchErrRateLimited  = "Avito временно ограничивает доступ — повторим позже"
+	AppCopyWatchErrEmpty        = "Пустая выдача Avito по фильтру"
+	AppCopyWatchErrNoBinding    = "Нет готовой сессии для опроса (binding не READY)"
 	AppClassWatchError      = "watch-error"
 	AppClassWatchActions    = "watch-actions"
 	AppCopyServicesTitle    = "Сервисы"
@@ -84,6 +111,10 @@ const (
 	AppCopyStatAvito        = "Аккаунты Авито"
 	AppCopyStatProxies      = "Прокси ACTIVE"
 	AppCopyStatShipped      = "Сервисы shipped"
+	AppCopyColFoundAt       = "Найдено"
+	AppCopyColDescription   = "Описание"
+	AppCopyColLink          = "Ссылка"
+	AppCopyLinkOpen         = "Открыть на Avito"
 	AppCopyColCode          = "Code"
 	AppCopyColTitle         = "Title"
 	AppCopyColShipped       = "Shipped"
@@ -100,6 +131,13 @@ func AppSSEStatsPatch(avitoN, proxyN, shippedN int) string {
 type AppNavItem struct {
 	ID    string
 	Label string
+}
+
+// WatchRegionLabels maps Avito region slugs to display names (watch card).
+var WatchRegionLabels = map[string]string{
+	"sankt-peterburg": "Санкт-Петербург",
+	"moskva":          "Москва",
+	"spb":             "Санкт-Петербург",
 }
 
 // AppNav is the platform shell navigation SoT.

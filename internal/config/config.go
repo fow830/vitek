@@ -19,6 +19,8 @@ type Config struct {
 	AvitoHTTPBase          string
 	RodUserDataDir         string
 	RodFetchMode           string
+	TelegramBotToken       string
+	ProxyChangeIPURL       string
 }
 
 // Load reads process environment. Missing optional keys fall back to tokens.Default*.
@@ -38,6 +40,8 @@ func Load() (Config, error) {
 		AvitoHTTPBase:          get(tokens.EnvAvitoHTTPBase, tokens.AvitoHTTPSBase),
 		RodUserDataDir:         get(tokens.EnvRodUserDataDir, ""),
 		RodFetchMode:           get(tokens.EnvRodFetchMode, tokens.DefaultRodFetchMode),
+		TelegramBotToken:       get(tokens.EnvTelegramBotToken, ""),
+		ProxyChangeIPURL:       get(tokens.EnvProxyChangeIPURL, ""),
 	}
 
 	switch cfg.ListingSearchProcessor {

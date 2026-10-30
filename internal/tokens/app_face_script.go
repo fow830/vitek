@@ -1,6 +1,9 @@
 package tokens
 
-import "strconv"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 func appFaceScriptBlock() string {
 	return `  <script>
@@ -62,7 +65,9 @@ func appFaceScriptBlock() string {
 }
 
 func appFaceSearchScriptBlock() string {
+	regionLabelsJSON, _ := json.Marshal(WatchRegionLabels)
 	return `  <script>
+    const watchRegionLabels = ` + string(regionLabelsJSON) + `;
     const pathMeTasks = '` + PathV1MeTasks + `';
     const pathMeWatches = '` + PathV1MeWatches + `';
     const pathTaskResults = (id) => '` + PathV1Tasks + `/' + id + '` + PathV1TaskResultsSuffix + `';
@@ -74,27 +79,90 @@ func appFaceSearchScriptBlock() string {
     function esc(s) {
       return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
+    function formatResultRow(it) {
+      const time = it.` + JSONFieldFoundAt + ` ? fmtTime(it.` + JSONFieldFoundAt + `) : '';
+      const title = esc(it.` + JSONFieldTitle + ` || '');
+      const url = it.` + JSONFieldURL + ` || '';
+      const link = url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">` + AppCopyLinkOpen + `</a>' : '';
+      return '<tr><td>' + esc(time) + '</td><td>' + title + '</td><td>' + link + '</td></tr>';
+    }
     function renderResults(box, rows) {
-      box.innerHTML = '<table><thead><tr><th>` + AppCopyColCode + `</th><th>` + AppCopyColTitle + `</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      box.innerHTML = '<table><thead><tr><th>` + AppCopyColFoundAt + `</th><th>` + AppCopyColDescription + `</th><th>` + AppCopyColLink + `</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+    function humanizeSlug(s) {
+      return String(s || '').split('-').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+    function regionLabel(slug) {
+      return watchRegionLabels[slug] || humanizeSlug(slug) || '` + AppCopyWatchDetailUnknown + `';
+    }
+    function fmtTime(iso) {
+      if (!iso) return '';
+      try {
+        return new Date(iso).toLocaleString('` + LocaleBCP47 + `', { hour12: false });
+      } catch (_) { return String(iso); }
+    }
+    function humanizeWatchError(msg) {
+      const m = String(msg || '').toLowerCase();
+      if (!m) return '';
+      if (m.includes('` + ErrMsgListingSearchRateLimited + `')) return '` + AppCopyWatchErrRateLimited + `';
+      if (m.includes('` + ErrMsgListingSearchAvitoEmpty + `')) return '` + AppCopyWatchErrEmpty + `';
+      if (m.includes('` + ErrMsgListingSearchAvitoFetch + `')) return '` + AppCopyWatchErrFetch + `';
+      if (m.includes('` + ErrMsgListingSearchNoBinding + `')) return '` + AppCopyWatchErrNoBinding + `';
+      return String(msg);
+    }
+    function watchStatusLabel(status) {
+      switch (status) {
+        case '` + ListingWatchStatusActive + `': return '` + AppCopyWatchStatusActive + `';
+        case '` + ListingWatchStatusPaused + `': return '` + AppCopyWatchStatusPaused + `';
+        case '` + ListingWatchStatusDisabled + `': return '` + AppCopyWatchStatusDisabled + `';
+        default: return status || '` + AppCopyWatchDetailUnknown + `';
+      }
+    }
+    function watchMetaStatusLabel(st) {
+      switch (st) {
+        case '` + WatchMetaStatusPending + `': return '` + AppCopyWatchMetaPending + `';
+        case '` + WatchMetaStatusReady + `': return '` + AppCopyWatchMetaReady + `';
+        case '` + WatchMetaStatusFailed + `': return '` + AppCopyWatchMetaFailed + `';
+        default: return st || '` + AppCopyWatchDetailUnknown + `';
+      }
+    }
+    function formatPrice(extras, params) {
+      const from = extras.from ?? extras.fromPrice ?? params.from;
+      const to = extras.to ?? extras.toPrice ?? params.to;
+      const parts = [];
+      if (from !== undefined && from !== null && String(from) !== '') {
+        parts.push('` + AppCopyWatchDetailPriceFrom + ` ' + Number(from).toLocaleString('` + LocaleBCP47 + `') + ' ` + AppCopyWatchDetailPriceRub + `');
+      }
+      if (to !== undefined && to !== null && String(to) !== '') {
+        parts.push('` + AppCopyWatchDetailPriceTo + ` ' + Number(to).toLocaleString('` + LocaleBCP47 + `') + ' ` + AppCopyWatchDetailPriceRub + `');
+      }
+      return parts.join(' · ') || '';
     }
     function formatWatchMeta(w) {
-      const cats = (w.` + JSONFieldCategories + ` || []).join(' / ');
-      const parts = [];
-      if (w.` + JSONFieldRegion + `) parts.push(w.` + JSONFieldRegion + `);
-      if (cats) parts.push(cats);
-      if (w.` + JSONFieldLabel + `) parts.push(w.` + JSONFieldLabel + `);
-      const lines = [parts.join(' · ') || '` + AppCopySearchWatchesTitle + `'];
-      const params = w.` + JSONFieldParams + ` || {};
-      Object.keys(params).sort().forEach(k => {
-        let v = String(params[k]);
-        if (k === '` + AvitoQueryFilterF + `' && v.length > 48) v = v.slice(0, 48) + '…';
-        lines.push(k + '=' + v);
-      });
-      const extras = w.` + JSONFieldExtras + ` || {};
-      Object.keys(extras).sort().forEach(k => lines.push(k + '=' + extras[k]));
-      lines.push('status=' + (w.` + JSONFieldStatus + ` || ''));
-      if (w.` + JSONFieldLastError + `) lines.push('error=' + w.` + JSONFieldLastError + `);
-      return lines.map(esc).join('<br>');
+      const lines = [];
+      const cats = (w.` + JSONFieldCategories + ` || []).map(humanizeSlug).join(' → ');
+      if (w.` + JSONFieldRegion + `) lines.push('<strong>` + AppCopyWatchDetailRegion + `:</strong> ' + esc(regionLabel(w.` + JSONFieldRegion + `)));
+      if (cats) lines.push('<strong>` + AppCopyWatchDetailCategory + `:</strong> ' + esc(cats));
+      if (w.` + JSONFieldLabel + `) lines.push('<strong>` + AppCopyWatchDetailBrand + `:</strong> ' + esc(humanizeSlug(w.` + JSONFieldLabel + `)));
+      const price = formatPrice(w.` + JSONFieldExtras + ` || {}, w.` + JSONFieldParams + ` || {});
+      if (price) lines.push('<strong>` + AppCopyWatchDetailPrice + `:</strong> ' + esc(price));
+      lines.push('<strong>` + AppCopyWatchDetailMonitor + `:</strong> ' + esc(watchStatusLabel(w.` + JSONFieldStatus + `)));
+      lines.push('<strong>` + AppCopyWatchDetailMeta + `:</strong> ' + esc(watchMetaStatusLabel(w.` + JSONFieldMetaStatus + `)));
+      const pollOK = !w.` + JSONFieldLastError + ` && (w.` + JSONFieldConsecutiveFailures + ` || 0) === 0;
+      lines.push('<strong>` + AppCopyWatchDetailPoll + `:</strong> ' + esc(pollOK ? '` + AppCopyWatchDetailPollOK + `' : '` + AppCopyWatchDetailPollFail + `'));
+      if (w.` + JSONFieldLastSuccessAt + `) {
+        lines.push('<strong>` + AppCopyWatchDetailLastOK + `:</strong> ' + esc(fmtTime(w.` + JSONFieldLastSuccessAt + `)));
+      }
+      if (w.` + JSONFieldLastError + `) {
+        lines.push('<strong>` + AppCopyWatchDetailLastFail + `:</strong> ' + esc(humanizeWatchError(w.` + JSONFieldLastError + `)));
+      }
+      if ((w.` + JSONFieldConsecutiveFailures + ` || 0) > 0) {
+        lines.push('<strong>` + AppCopyWatchDetailFailStreak + `:</strong> ' + esc(String(w.` + JSONFieldConsecutiveFailures + `)));
+      }
+      if (w.` + JSONFieldQuery + `) {
+        lines.push('<strong>` + AppCopyWatchDetailLink + `:</strong> <span class="mono">' + esc(w.` + JSONFieldQuery + `) + '</span>');
+      }
+      return lines.join('<br>');
     }
     async function patchWatch(id, status) {
       await fetch(pathWatch(id), {
@@ -123,7 +191,10 @@ func appFaceSearchScriptBlock() string {
       const status = document.getElementById('` + AppDOMSearchStatus + `');
       if (watchPollTimer) { clearInterval(watchPollTimer); watchPollTimer = null; }
       loadWatchResults(watchID, status);
-      watchPollTimer = setInterval(() => loadWatchResults(watchID, status), ` + strconv.Itoa(ListingSearchWatchPollIntervalMs) + `);
+      watchPollTimer = setInterval(async () => {
+        await loadWatches(watchID);
+        await loadWatchResults(watchID, status);
+      }, ` + strconv.Itoa(ListingSearchWatchPollIntervalMs) + `);
     }
     async function loadWatches(selectID) {
       const box = document.getElementById('` + AppDOMSearchWatches + `');
@@ -162,9 +233,7 @@ func appFaceSearchScriptBlock() string {
       const res = await fetch(pathWatchResults(watchID), { credentials: 'same-origin' });
       if (!res.ok) return;
       const data = await res.json();
-      const rows = (data.` + JSONFieldResults + ` || []).map(it =>
-        '<tr><td class="mono">' + it.` + JSONFieldAvitoID + ` + '</td><td>' + it.` + JSONFieldTitle + ` + '</td></tr>'
-      ).join('');
+      const rows = (data.` + JSONFieldResults + ` || []).map(formatResultRow).join('');
       renderResults(box, rows);
       if (status) status.textContent = '` + AppCopySearchStatusWatch + `';
     }
@@ -207,9 +276,7 @@ func appFaceSearchScriptBlock() string {
       const res = await fetch(pathTaskResults(taskID), { credentials: 'same-origin' });
       if (!res.ok) return;
       const data = await res.json();
-      const rows = (data.` + JSONFieldResults + ` || []).map(it =>
-        '<tr><td class="mono">' + it.` + JSONFieldAvitoID + ` + '</td><td>' + it.` + JSONFieldTitle + ` + '</td></tr>'
-      ).join('');
+      const rows = (data.` + JSONFieldResults + ` || []).map(formatResultRow).join('');
       renderResults(box, rows);
     }
     if (document.getElementById('` + AppDOMSearchWatches + `')) loadWatches();

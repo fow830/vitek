@@ -20,6 +20,8 @@ var EnvExampleKeys = []string{
 	EnvRodUserDataDir,
 	EnvRodBrowser,
 	EnvRodFetchMode,
+	EnvTelegramBotToken,
+	EnvProxyChangeIPURL,
 }
 
 // EnvExampleValues maps each EnvExampleKeys entry to its local default.
@@ -38,6 +40,8 @@ func EnvExampleValues() map[string]string {
 		EnvRodUserDataDir:         DefaultRodUserDataDir,
 		EnvRodBrowser:             DefaultRodChromeBin,
 		EnvRodFetchMode:           DefaultRodFetchMode,
+		EnvTelegramBotToken:       "",
+		EnvProxyChangeIPURL:       "",
 	}
 }
 

@@ -23,10 +23,12 @@ const (
 	FixtureListingID1   = "1234567890"
 	FixtureListingID2   = "9876543210"
 
-	FixtureMobileListingSlug = "sankt-peterburg/telefony/iphone_15_1234567890"
-	FixtureFilterListingSlug = "sankt-peterburg/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wa3OqzmwwQ2I_Dc"
+	FixtureMobileListingSlug  = "sankt-peterburg/telefony/iphone_15_1234567890"
+	FixtureFilterListingSlug  = "sankt-peterburg/telefony/mobilnye_telefony/apple-ASgBAgICAkS0wa3OqzmwwQ2I_Dc"
 	FixtureFilterListingSlug2 = "moskva/telefony/mobilnye_telefony/samsung-ASgBAgICAkS0wa3OqzmwwQ2I_Dc"
-	FixtureFilterQueryF      = "ASgBAQECAkS0wA3OqzmwwQ2I_DcDQLLADUSSn~0R1qHtEcqxjBXMsYwV5uANNPbBXPjBXPrBXOjrDjT6_dsC_P3bAv792wIBRcaaDBV7ImZyb20iOjAsInRvIjo3MDAwMH0"
+	FixtureFilterQueryF       = "ASgBAQECAkS0wA3OqzmwwQ2I_DcDQLLADUSSn~0R1qHtEcqxjBXMsYwV5uANNPbBXPjBXPrBXOjrDjT6_dsC_P3bAv792wIBRcaaDBV7ImZyb20iOjAsInRvIjo3MDAwMH0"
+	// FixtureFilterQueryFWithIDs is a base64 JSON blob with locationId+categoryId for JSON-only filter fetch tests.
+	FixtureFilterQueryFWithIDs = "eyJsb2NhdGlvbklkIjoiNjM2NzM2IiwiY2F0ZWdvcnlJZCI6Ijg0In0="
 
 	ListingSearchQueryKindItem   = "item"
 	ListingSearchQueryKindFilter = "filter"
@@ -44,11 +46,13 @@ const (
 	ListingSearchTaskListLimit int32 = 20
 	ListingSearchWatchDueLimit int32 = ListingSearchTaskListLimit
 
-	ListingSearchPollMaxAttempts = 30
-	ListingSearchPollIntervalMs  = 500
-	ListingSearchWatchPollInterval = time.Minute
+	ListingSearchPollMaxAttempts     = 30
+	ListingSearchPollIntervalMs      = 500
+	ListingSearchWatchPollInterval   = 30 * time.Second
 	ListingSearchWatchPollIntervalMs = int(ListingSearchWatchPollInterval / time.Millisecond)
-	ListingSearchWatchDueSQLInterval = "interval '1 minute'"
+	ListingSearchWatchDueSQLInterval = "interval '30 seconds'"
+	// ListingSearchWatchPollHumanRU is the face/copy phrase for the due interval (SoT with SQL).
+	ListingSearchWatchPollHumanRU = "каждые 30 секунд"
 
 	ListingSearchKindWatch = "watch"
 	ListingSearchKindTask  = "task"
@@ -430,6 +434,28 @@ func ListingSearchFilterQueryForFetch(raw string) url.Values {
 	return out
 }
 
+// ListingSearchFilterFetchURL is the exact filter SERP URL used for watch polls
+// (volatile tracking params stripped; filter params like f= kept).
+func ListingSearchFilterFetchURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(NormalizeListingSearchURL(raw))
+	if err != nil {
+		return raw
+	}
+	q := u.Query()
+	volatile := map[string]struct{}{}
+	for _, k := range ListingSearchDedupVolatileQueryKeys {
+		volatile[k] = struct{}{}
+	}
+	for k := range q {
+		if _, drop := volatile[k]; drop {
+			q.Del(k)
+		}
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
 // ParseAvitoFilterPageIDs extracts location/category ids embedded in a filter SERP HTML page.
 func ParseAvitoFilterPageIDs(html string) (locationID, categoryID string, ok bool) {
 	loc := avitoHTMLLocationIDPattern.FindStringSubmatch(html)
@@ -450,7 +476,7 @@ func StubSimilarTitle(listingID string, rank int) string {
 	return "Similar listing " + strconv.Itoa(rank) + " for " + listingID
 }
 
-// ListingTitleAllowedForFilter drops obvious foreign brand titles for apple-labelled filters.
+// ListingTitleAllowedForFilter drops obvious foreign/accessory titles for apple-labelled filters.
 func ListingTitleAllowedForFilter(query, title string) bool {
 	meta := ParseListingFilterMeta(query)
 	label := strings.ToLower(strings.TrimSpace(meta.Label))
@@ -465,6 +491,25 @@ func ListingTitleAllowedForFilter(query, title string) bool {
 	}
 	if title == FixtureNonAppleTitle {
 		return false
+	}
+	phonePath := false
+	for _, cat := range meta.Categories {
+		if strings.EqualFold(strings.TrimSpace(cat), ListingFilterPhoneCategoryPath) {
+			phonePath = true
+			break
+		}
+	}
+	if phonePath && len(ListingFilterApplePhoneRequireSubstrings) > 0 {
+		ok := false
+		for _, need := range ListingFilterApplePhoneRequireSubstrings {
+			if strings.Contains(low, need) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return false
+		}
 	}
 	return true
 }

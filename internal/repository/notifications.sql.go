@@ -120,6 +120,25 @@ func (q *Queries) GetNotificationSettings(ctx context.Context, userID pgtype.UUI
 	return i, err
 }
 
+const getNotificationSettingsByTelegramChatID = `-- name: GetNotificationSettingsByTelegramChatID :one
+SELECT user_id, telegram_chat_id, enabled, updated_at
+FROM user_notification_settings
+WHERE telegram_chat_id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetNotificationSettingsByTelegramChatID(ctx context.Context, telegramChatID *string) (UserNotificationSetting, error) {
+	row := q.db.QueryRow(ctx, getNotificationSettingsByTelegramChatID, telegramChatID)
+	var i UserNotificationSetting
+	err := row.Scan(
+		&i.UserID,
+		&i.TelegramChatID,
+		&i.Enabled,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const markNotificationDone = `-- name: MarkNotificationDone :exec
 UPDATE notification_outbox
 SET status = 'DONE',

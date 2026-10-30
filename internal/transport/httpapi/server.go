@@ -971,12 +971,27 @@ func (s *Server) handleAdminBindingLogin(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, map[string]string{tokens.JSONFieldError: tokens.ErrMsgInvalidResourceID})
 		return
 	}
-	b, err := s.bindings.WarmSession(r.Context(), id, s.pageFetch)
+	// API image has no Chrome: queue LOGGING_IN for worker ProfileWarmer.
+	// Sync WarmSession only when the injected fetcher can warm (tests / ProfileWarmer).
+	var out map[string]any
+	if _, ok := s.pageFetch.(service.ProfileWarmer); ok {
+		b, werr := s.bindings.WarmSession(r.Context(), id, s.pageFetch)
+		err = werr
+		if err == nil {
+			out = service.BindingJSON(b)
+		}
+	} else {
+		b, werr := s.bindings.BeginSessionWarm(r.Context(), id)
+		err = werr
+		if err == nil {
+			out = service.BindingJSON(b)
+		}
+	}
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{tokens.JSONFieldError: tokens.ErrMsgSessionWarmFailed})
 		return
 	}
-	writeJSON(w, http.StatusOK, service.BindingJSON(b))
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) handleGetMyNotifications(w http.ResponseWriter, r *http.Request) {

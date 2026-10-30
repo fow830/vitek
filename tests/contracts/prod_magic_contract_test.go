@@ -88,7 +88,16 @@ func TestContract_ProxyPoolBootGuard(t *testing.T) {
 	require.Empty(t, warns) // has non-bridge ACTIVE (even if other is DEAD)
 	require.True(t, tokens.IsDockerBridgeProxyEndpoint("socks5://172.19.0.1:11080"))
 	require.False(t, tokens.IsDockerBridgeProxyEndpoint("socks5://10.8.0.2:1080"))
+	require.False(t, tokens.IsDockerBridgeProxyEndpoint(tokens.ProxyEndpointDirect))
+	require.True(t, tokens.IsDirectProxyEndpoint(tokens.ProxyEndpointDirect))
+	require.True(t, tokens.IsDirectProxyEndpoint(""))
 	require.Equal(t, tokens.DockerBridgeCIDR, "172.16.0.0/12")
+
+	// CONTRACT-PROXY-015: "direct" endpoint builds a no-proxy HTTP client.
+	directClient, err := service.HTTPClientViaProxy(tokens.ProxyEndpointDirect, tokens.ProxyHealthTimeout)
+	require.NoError(t, err)
+	require.NotNil(t, directClient)
+	require.Nil(t, directClient.Transport)
 }
 
 // CONTRACT-PROXY-021/022 + SESSION-004: Rod uses READY binding proxy+profile; dead proxy pauses binding.
@@ -129,6 +138,73 @@ func TestContract_RodUsesReadyBinding(t *testing.T) {
 
 	_, err = proc.FindSimilar(ctx, tokens.FixtureFilterListingURL)
 	require.ErrorIs(t, err, domain.ErrListingSearchNoBinding)
+}
+
+type contractProfileWarmer struct {
+	html       string
+	err        error
+	warmCalls  int
+	fetchCalls int
+}
+
+func (f *contractProfileWarmer) FetchHTML(_ context.Context, _, _, _ string) (string, error) {
+	f.fetchCalls++
+	if f.err != nil {
+		return "", f.err
+	}
+	if f.html != "" {
+		return f.html, nil
+	}
+	return tokens.FixtureWarmSessionHTML, nil
+}
+
+func (f *contractProfileWarmer) WarmProfile(_ context.Context, _, _ string) (string, error) {
+	f.warmCalls++
+	if f.err != nil {
+		return "", f.err
+	}
+	if f.html != "" {
+		return f.html, nil
+	}
+	return tokens.FixtureWarmSessionHTML, nil
+}
+
+// CONTRACT-SESSION-005: WarmSession prefers ProfileWarmer multi-step over single FetchHTML.
+func TestContract_SessionProfileWarmMultiStep(t *testing.T) {
+	require.Equal(t, 8*time.Second, tokens.RodChromeWarmHomeDwell)
+	require.Equal(t, 5*time.Second, tokens.RodChromeWarmStepDwell)
+	require.Equal(t, 3, tokens.RodChromeWarmScrollSteps)
+	require.Equal(t, "/all", tokens.RodChromeWarmSecondaryPath)
+	require.Equal(t, tokens.AvitoHTTPSBase+"/all", tokens.RodChromeWarmSecondaryURL())
+	require.Equal(t, 2*time.Minute, tokens.RodChromeWarmTimeout)
+
+	ctx := context.Background()
+	pool, _ := queries(t)
+	acc, err := service.NewAvitoAccounts(pool).CreateWithSecret(ctx, "warm-multi", repository.AvitoAccountStatusACTIVE, "login@x", "sekrit")
+	require.NoError(t, err)
+	proxy, err := service.NewProxies(pool).Create(ctx, "socks5://127.0.0.1:9", repository.ProxyStatusACTIVE, "wp")
+	require.NoError(t, err)
+	bindings := service.NewBindings(pool)
+	b, err := bindings.Create(ctx, acc.ID, proxy.ID, tokens.FixtureBindingUserDataDir)
+	require.NoError(t, err)
+
+	warmer := &contractProfileWarmer{html: tokens.FixtureWarmSessionHTML}
+	ready, err := bindings.WarmSession(ctx, b.ID, warmer)
+	require.NoError(t, err)
+	require.Equal(t, repository.ListingSessionStatusREADY, ready.SessionStatus)
+	require.Equal(t, 1, warmer.warmCalls)
+	require.Equal(t, 0, warmer.fetchCalls)
+
+	challengedWarm := &contractProfileWarmer{html: tokens.FixtureAvitoChallengeHTML}
+	challenged, err := bindings.WarmSession(ctx, b.ID, challengedWarm)
+	require.NoError(t, err)
+	require.Equal(t, repository.ListingSessionStatusCHALLENGE, challenged.SessionStatus)
+	require.Equal(t, 1, challengedWarm.warmCalls)
+	require.Equal(t, 0, challengedWarm.fetchCalls)
+
+	queued, err := bindings.BeginSessionWarm(ctx, b.ID)
+	require.NoError(t, err)
+	require.Equal(t, repository.ListingSessionStatusLOGGINGIN, queued.SessionStatus)
 }
 
 // CONTRACT-SESSION-001/003: session enum + WarmSession via fetcher (no secrets in JSON).
@@ -236,7 +312,8 @@ func TestContract_RodProdRequiresUserDataDir(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, tokens.FixtureBindingUserDataDir, cfg.RodUserDataDir)
 	require.Equal(t, tokens.DefaultRodUserDataDir, "/var/lib/vitek/rod")
-	require.Equal(t, tokens.ImageWorkerRuntime, "chromedp/headless-shell:latest")
+	require.Equal(t, tokens.ImageWorkerRuntime, "debian:bookworm-slim")
+	require.Equal(t, tokens.DefaultRodChromeBin, "/usr/bin/google-chrome-stable")
 	require.Equal(t, tokens.DefaultRodFetchMode, tokens.RodFetchModeHTTP)
 }
 

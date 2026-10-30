@@ -45,7 +45,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("listing processor: %v", err)
 	}
-	notify := service.NewNotifications(pool, nil)
+
+	var notifySender service.NotificationSender
+	if cfg.TelegramBotToken != "" {
+		tgAPI := service.NewTelegramAPIClient(cfg.TelegramBotToken)
+		notifySender = tgAPI
+		bot := service.NewTelegramBot(pool, tgAPI)
+		go func() {
+			if err := bot.RunLongPoll(ctx, tgAPI); err != nil && ctx.Err() == nil {
+				log.Printf(tokens.LogWorkerTelegramBot, err)
+			}
+		}()
+	}
+	notify := service.NewNotifications(pool, notifySender)
 	listing := service.NewListingSearchWorkerWithNotify(pool, processor, notify)
 
 	log.Printf("%s %s (%s) started env=%s tick=%s", tokens.ProductName, tokens.ProductNameLocal, tokens.BinaryWorker, cfg.AppEnv, cfg.WorkerTick)
@@ -59,16 +71,23 @@ func main() {
 			log.Printf("%s %s shutting down", tokens.ProductName, tokens.BinaryWorker)
 			return
 		case <-ticker.C:
-			runTick(ctx, proxies, bindings, listing, notify)
+			runTick(ctx, proxies, bindings, listing, notify, processor)
 		}
 	}
 }
 
-func runTick(ctx context.Context, proxies *service.Proxies, bindings *service.Bindings, listing *service.ListingSearchWorker, notify *service.Notifications) {
+func runTick(ctx context.Context, proxies *service.Proxies, bindings *service.Bindings, listing *service.ListingSearchWorker, notify *service.Notifications, processor service.ListingProcessor) {
 	if ok, fail, err := service.ProbeActive(ctx, proxies, bindings, nil); err != nil {
 		log.Printf(tokens.LogWorkerProxiesErr, err)
 	} else {
 		log.Printf(tokens.LogWorkerProxyProbe, ok, fail)
+	}
+	if fetch := listingPageFetcher(processor); fetch != nil {
+		if n, err := bindings.WarmLoggingIn(ctx, fetch); err != nil {
+			log.Printf(tokens.LogWorkerSessionWarm+" err=%v", n, err)
+		} else if n > 0 {
+			log.Printf(tokens.LogWorkerSessionWarm, n)
+		}
 	}
 	if _, err := listing.ProcessOne(ctx); err != nil {
 		log.Printf(tokens.LogWorkerListingSearchErr, err)
@@ -83,4 +102,14 @@ func runTick(ctx context.Context, proxies *service.Proxies, bindings *service.Bi
 	} else if n > 0 {
 		log.Printf(tokens.LogWorkerNotifyDone, n)
 	}
+}
+
+func listingPageFetcher(processor service.ListingProcessor) service.AvitoPageFetcher {
+	type hasFetcher interface {
+		PageFetcher() service.AvitoPageFetcher
+	}
+	if p, ok := processor.(hasFetcher); ok {
+		return p.PageFetcher()
+	}
+	return nil
 }

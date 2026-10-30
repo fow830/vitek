@@ -14,10 +14,10 @@ import (
 )
 
 // HTTPClientViaProxy builds an HTTP client that reaches the internet via proxyEndpoint.
-// SOCKS5 uses remote DNS (curl socks5h behavior) so Avito hostnames resolve on the proxy side.
+// Empty / "direct" skips upstream proxy (host egress). SOCKS5 uses remote DNS (socks5h).
 func HTTPClientViaProxy(proxyEndpoint string, timeout time.Duration) (*http.Client, error) {
 	proxyEndpoint = strings.TrimSpace(proxyEndpoint)
-	if proxyEndpoint == "" {
+	if tokens.IsDirectProxyEndpoint(proxyEndpoint) {
 		return &http.Client{Timeout: timeout}, nil
 	}
 	u, err := url.Parse(proxyEndpoint)

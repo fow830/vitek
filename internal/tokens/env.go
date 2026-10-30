@@ -16,6 +16,8 @@ const (
 	EnvRodUserDataDir          = "ROD_USER_DATA_DIR"
 	EnvRodBrowser              = "ROD_BROWSER"
 	EnvRodFetchMode            = "ROD_FETCH_MODE"
+	EnvTelegramBotToken        = "TELEGRAM_BOT_TOKEN"
+	EnvProxyChangeIPURL        = "PROXY_CHANGE_IP_URL"
 )
 
 // AppEnv allowed values.

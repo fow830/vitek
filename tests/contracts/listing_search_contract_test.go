@@ -133,6 +133,7 @@ func TestContract_ListingSearch_TokensAligned(t *testing.T) {
 	require.True(t, tokens.ValidListingURL(tokens.FixtureListingURL2))
 	require.Equal(t, tokens.FixtureListingID1, tokens.ListingIDFromURL(tokens.FixtureListingURL))
 	require.Equal(t, tokens.FixtureListingID2, tokens.ListingIDFromURL(tokens.FixtureListingURL2))
+	require.Equal(t, tokens.AvitoHTTPSBase+"/"+tokens.FixtureAvitoItemID1, tokens.AvitoItemPageURL(tokens.FixtureAvitoItemID1))
 	require.Equal(
 		t,
 		tokens.StubSimilarAvitoID(tokens.FixtureListingID1, 1),

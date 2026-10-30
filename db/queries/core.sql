@@ -3,6 +3,11 @@ INSERT INTO users (email)
 VALUES ($1)
 RETURNING id, email, created_at, role;
 
+-- name: GetUserByID :one
+SELECT id, email, created_at, role
+FROM users
+WHERE id = $1;
+
 -- name: CreateSubscription :one
 INSERT INTO subscriptions (user_id, plan_type, active)
 VALUES ($1, $2, true)

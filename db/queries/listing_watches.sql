@@ -19,6 +19,13 @@ WHERE user_id = $1
   AND status IN ('ACTIVE', 'PAUSED')
 ORDER BY created_at DESC;
 
+-- name: ListAllFilterWatchesByUser :many
+SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
+FROM listing_filter_watches
+WHERE user_id = $1
+ORDER BY created_at DESC;
+
 -- name: GetFilterWatch :one
 SELECT id, user_id, filter_key, query, status, last_polled_at, created_at,
     last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json
@@ -66,7 +73,7 @@ FROM listing_filter_watches
 WHERE status = 'ACTIVE'
   AND (
     last_polled_at IS NULL
-    OR last_polled_at <= now() - interval '1 minute'
+    OR last_polled_at <= now() - interval '30 seconds'
   )
 ORDER BY last_polled_at NULLS FIRST, created_at ASC
 LIMIT 20;
@@ -84,6 +91,7 @@ WHERE id = $1;
 UPDATE listing_filter_watches
 SET last_error = sqlc.arg(last_error),
     last_error_at = now(),
+    last_polled_at = now(),
     consecutive_failures = consecutive_failures + 1,
     meta_status = CASE
         WHEN meta_status = 'PENDING' THEN 'FAILED'::listing_watch_meta_status
@@ -93,6 +101,17 @@ SET last_error = sqlc.arg(last_error),
         WHEN consecutive_failures + 1 >= sqlc.arg(max_failures)::int THEN 'PAUSED'::listing_watch_status
         ELSE status
     END
+WHERE id = sqlc.arg(id)
+RETURNING id, user_id, filter_key, query, status, last_polled_at, created_at,
+    last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json;
+
+-- name: RecordFilterWatchPollSoftFailure :one
+-- Soft = antibot/rate-limit: keep ACTIVE, do not flip meta, clear pause streak.
+UPDATE listing_filter_watches
+SET last_error = sqlc.arg(last_error),
+    last_error_at = now(),
+    last_polled_at = now(),
+    consecutive_failures = 0
 WHERE id = sqlc.arg(id)
 RETURNING id, user_id, filter_key, query, status, last_polled_at, created_at,
     last_error, last_error_at, consecutive_failures, last_success_at, meta_status, meta_json;

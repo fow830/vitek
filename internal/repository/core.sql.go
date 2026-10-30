@@ -197,6 +197,24 @@ func (q *Queries) GetItemByAvitoID(ctx context.Context, avitoID string) (Item, e
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, created_at, role
+FROM users
+WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.CreatedAt,
+		&i.Role,
+	)
+	return i, err
+}
+
 const insertItem = `-- name: InsertItem :one
 INSERT INTO items (avito_id, title)
 VALUES ($1, $2)

@@ -158,6 +158,7 @@ func (s *Tasks) ListResultsForUser(ctx context.Context, userID, taskID pgtype.UU
 	}
 	return repository.New(s.pool).ListTaskItems(ctx, taskID)
 }
+
 type Proxies struct {
 	q *repository.Queries
 }

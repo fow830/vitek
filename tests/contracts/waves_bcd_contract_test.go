@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -51,6 +52,7 @@ func TestContract_ProxyHealthAndFetchable(t *testing.T) {
 	require.Equal(t, alive.ID, list[0].ID)
 	require.Equal(t, tokens.ProxyDeadAfterFails, 3)
 	require.Equal(t, tokens.ProxyPoolMinActive, 1)
+	require.Equal(t, 15*time.Second, tokens.ProxyHealthTimeout)
 }
 
 // CONTRACT-PROXY-020/021: bindings schema + create/list/session ready.
@@ -95,9 +97,18 @@ func TestContract_FilterFidelityAndDepthTokens(t *testing.T) {
 	require.Contains(t, tokens.NormalizeListingSearchURL(tokens.FixtureFilterListingURL), tokens.AvitoQueryFilterF+"=")
 	require.Equal(t, tokens.ListingFilterAppleLabel, "apple")
 	require.Contains(t, tokens.ListingFilterAppleDenySubstrings, "vivo")
+	require.Contains(t, tokens.ListingFilterAppleDenySubstrings, "чехол")
+	require.Contains(t, tokens.ListingFilterAppleDenySubstrings, "airtag")
+	require.Contains(t, tokens.ListingFilterApplePhoneRequireSubstrings, "iphone")
 	require.True(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, tokens.FixtureAvitoItemTitle1))
 	require.False(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, tokens.FixtureNonAppleTitle))
 	require.False(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, "vivo phone"))
+	require.False(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, "Apple AirTag 4 шт"))
+	require.False(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, "Чехлы iPhone 17 Pro"))
+	require.False(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, "Whoop 5.0 peak"))
+	require.False(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, "Е-Sim Турция"))
+	require.False(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, "AirPods Pro"))
+	require.True(t, tokens.ListingTitleAllowedForFilter(tokens.FixtureFilterListingURL, "iPhone 14 Pro, 128 ГБ, SIM + eSIM"))
 }
 
 // CONTRACT-LISTING-060/062: watch meta PENDING → READY after successful poll.

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -9,39 +10,46 @@ import (
 	"vitek/internal/tokens"
 )
 
+func newAvitoJSONClient(base string) *AvitoClient {
+	return NewAvitoClient(
+		WithAvitoHTTPBase(base),
+		WithProxyChangeIPURL(os.Getenv(tokens.EnvProxyChangeIPURL)),
+	)
+}
+
+func normalizeAvitoHTTPBase(base string) string {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		return tokens.AvitoHTTPSBase
+	}
+	return base
+}
+
 // NewListingProcessor builds the configured listing_search processor.
 func NewListingProcessor(pool *pgxpool.Pool, kind, avitoBase, rodUserDataDir, rodFetchMode string) (ListingProcessor, error) {
+	base := normalizeAvitoHTTPBase(avitoBase)
 	switch kind {
 	case tokens.ListingSearchProcessorStub, "":
 		return NewStubListingProcessor(), nil
 	case tokens.ListingSearchProcessorAvito:
-		base := avitoBase
-		if base == "" {
-			base = tokens.AvitoHTTPSBase
-		}
-		return NewAvitoListingProcessor(pool, NewAvitoClient(WithAvitoHTTPBase(base))), nil
+		return NewAvitoListingProcessor(pool, newAvitoJSONClient(base)), nil
 	case tokens.ListingSearchProcessorRod:
-		fetch, err := newRodFetcher(avitoBase, rodUserDataDir, rodFetchMode)
-		if err != nil {
-			return nil, err
+		mode := strings.TrimSpace(rodFetchMode)
+		if mode == "" {
+			mode = tokens.DefaultRodFetchMode
 		}
-		return NewRodAvitoListingProcessor(pool, fetch), nil
+		chrome := NewRodPageFetcher(rodUserDataDir, base)
+		switch mode {
+		case tokens.RodFetchModeHTTP:
+			// Default: HTTP rotate-until-clean, then Chrome SERP/warm.
+			return NewRodAvitoListingProcessorWithClient(pool, chrome, newAvitoJSONClient(base)), nil
+		case tokens.RodFetchModeChrome:
+			// Chrome-only SERP/warm (no AvitoClient HTTP heal layer).
+			return NewRodAvitoListingProcessorWithClient(pool, chrome, nil), nil
+		default:
+			return nil, fmt.Errorf("%s: %q", tokens.EnvRodFetchMode, mode)
+		}
 	default:
 		return nil, fmt.Errorf("%s: %q", tokens.ErrMsgInvalidListingSearchProcessor, kind)
-	}
-}
-
-func newRodFetcher(avitoBase, rodUserDataDir, rodFetchMode string) (AvitoPageFetcher, error) {
-	mode := strings.TrimSpace(rodFetchMode)
-	if mode == "" {
-		mode = tokens.DefaultRodFetchMode
-	}
-	switch mode {
-	case tokens.RodFetchModeHTTP:
-		return NewHTTPPageFetcher(avitoBase), nil
-	case tokens.RodFetchModeChrome:
-		return NewRodPageFetcher(rodUserDataDir, avitoBase), nil
-	default:
-		return nil, fmt.Errorf("%s: %q", tokens.EnvRodFetchMode, mode)
 	}
 }

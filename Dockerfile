@@ -15,7 +15,24 @@ USER nonroot:nonroot
 EXPOSE 8080
 ENTRYPOINT ["/api"]
 
-FROM chromedp/headless-shell:latest AS worker
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+FROM debian:bookworm-slim AS worker
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    fonts-liberation \
+    fonts-noto-core \
+    gnupg \
+    xauth \
+    xvfb \
+  && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+    | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+  && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+    > /etc/apt/sources.list.d/google-chrome.list \
+  && apt-get update && apt-get install -y --no-install-recommends google-chrome-stable \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out/worker /worker
+ENV ROD_BROWSER=/usr/bin/google-chrome-stable
+ENV TZ=Europe/Moscow
+ENV LANG=ru_RU.UTF-8
 ENTRYPOINT ["/worker"]

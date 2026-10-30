@@ -217,3 +217,8 @@ func (s *FilterWatches) ListResultsForUser(ctx context.Context, userID, watchID 
 func (s *FilterWatches) ListForUser(ctx context.Context, userID pgtype.UUID) ([]repository.ListingFilterWatch, error) {
 	return repository.New(s.pool).ListFilterWatchesByUser(ctx, userID)
 }
+
+// ListAllForUser includes DISABLED watches (Telegram stop→start).
+func (s *FilterWatches) ListAllForUser(ctx context.Context, userID pgtype.UUID) ([]repository.ListingFilterWatch, error) {
+	return repository.New(s.pool).ListAllFilterWatchesByUser(ctx, userID)
+}

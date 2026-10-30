@@ -53,6 +53,13 @@ func TestContract_AppFaceScriptUsesTokens(t *testing.T) {
 	loggedIn := tokens.RenderAppFaceHTMLLoggedIn(tokens.ProductEmail("face"), "", false)
 	require.Contains(t, loggedIn, "'"+tokens.TaskStatusCompleted+"'")
 	require.Contains(t, loggedIn, "'"+tokens.TaskStatusFailed+"'")
+	require.Contains(t, loggedIn, tokens.AppCopyWatchDetailRegion)
+	require.Contains(t, loggedIn, tokens.AppCopyWatchDetailPollOK)
+	require.Contains(t, loggedIn, "humanizeWatchError")
+	require.Contains(t, loggedIn, tokens.AppCopyColFoundAt)
+	require.Contains(t, loggedIn, tokens.AppCopyColDescription)
+	require.Contains(t, loggedIn, tokens.AppCopyColLink)
+	require.Contains(t, loggedIn, "formatResultRow")
 	require.Contains(t, loggedIn, strconv.Itoa(tokens.ListingSearchPollMaxAttempts))
 }
 

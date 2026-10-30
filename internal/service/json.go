@@ -33,6 +33,7 @@ func TaskResultJSON(it ListTaskItemsRow) map[string]any {
 		tokens.JSONFieldAvitoID: it.AvitoID,
 		tokens.JSONFieldTitle:   it.Title,
 		tokens.JSONFieldRank:    it.Rank,
+		tokens.JSONFieldURL:     tokens.AvitoItemPageURL(it.AvitoID),
 	}
 }
 
@@ -70,10 +71,14 @@ func WatchJSON(watch repository.ListingFilterWatch) map[string]any {
 }
 
 func WatchHitJSON(it repository.ListWatchHitsRow) map[string]any {
-	return map[string]any{
+	out := map[string]any{
 		tokens.JSONFieldID:      UUIDString(it.ID),
 		tokens.JSONFieldAvitoID: it.AvitoID,
 		tokens.JSONFieldTitle:   it.Title,
-		tokens.JSONFieldFoundAt: it.FoundAt.Time,
+		tokens.JSONFieldURL:     tokens.AvitoItemPageURL(it.AvitoID),
 	}
+	if it.FoundAt.Valid {
+		out[tokens.JSONFieldFoundAt] = it.FoundAt.Time
+	}
+	return out
 }

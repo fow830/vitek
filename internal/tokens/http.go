@@ -7,7 +7,14 @@ const (
 	HTTPReadHeaderTimeout = 5 * time.Second
 	HTTPShutdownTimeout   = 10 * time.Second
 	SSETickInterval       = 500 * time.Millisecond
+	// HTTPStatus2xxMax is the inclusive upper bound for successful HTTP statuses.
+	HTTPStatus2xxMax = 299
 )
+
+// HTTPStatusOK reports a 2xx response.
+func HTTPStatusOK(code int) bool {
+	return code >= 200 && code <= HTTPStatus2xxMax
+}
 
 // HTTP paths (Go 1.22+ ServeMux patterns use METHOD + path via HTTPGet/HTTPPost).
 const (
@@ -79,6 +86,7 @@ const (
 	JSONFieldTasks       = "tasks"
 	JSONFieldKind        = "kind"
 	JSONFieldFoundAt     = "found_at"
+	JSONFieldURL         = "url"
 	JSONFieldWatches     = "watches"
 	JSONFieldRegion      = "region"
 	JSONFieldCategories  = "categories"
